@@ -1,0 +1,95 @@
+/**
+ * Offshore — Design Tokens
+ * ====================================================================
+ * Source of truth for the frontend. Every component-level stylesheet
+ * must reference these CSS variables; raw hex codes in component files
+ * are a code-review failure.
+ *
+ * Token hierarchy (per design-system skill):
+ *   primitive → semantic → component
+ *
+ * Visual identity (from brand skill, summarized):
+ *   - Name: OFFSHORE (all-caps, wide-tracked wordmark)
+ *   - Tone: "Cold, precise, calm under pressure." Decision-support,
+ *     not alarmist. Numbers first, adjectives last.
+ *   - Surface palette: deep navy + glacial teal accent.
+ *   - Voice: Technical, concise. The map is the hero.
+ */
+
+:root {
+  /* === Primitive scale === */
+  --color-abyss: #050a14;
+  --color-deep: #0a1424;
+  --color-hull: #0f1b2e;
+  --color-steel: #1b2a44;
+  --color-fog: #3a506b;
+  --color-mist: #a7b8cc;
+  --color-ice: #e8f1f8;
+
+  --color-glacial: #7fd1d3;
+  --color-lagoon: #3aa9b3;
+  --color-signal: #5eead4;
+
+  --color-hazard: #f87171;
+  --color-alert: #fbbf24;
+
+  /* Electric cyan — reserved for the planned-route line and its
+   * waypoint / endpoint markers. Distinct from the existing teal
+   * family (--color-glacial etc.) so the route stands out on the
+   * dark basemap without being mistaken for an iceberg or a
+   * current. Hover variant is slightly darker for the button's
+   * :hover state. */
+  --color-cyan: #22d3ee;
+  --color-cyan-hover: #06b6d4;
+
+  /* Iceberg glyph hue — kept as hsl() so opacity can drive alpha via
+     separate alpha-channel utilities. Per iceberg-layer spec. */
+  --iceberg-hue: 195;
+  --iceberg-saturation: 30%;
+  --iceberg-lightness: 75%;
+
+  /* === Semantic aliases === */
+  --bg-app: var(--color-abyss);
+  --bg-surface: var(--color-deep);
+  --bg-panel: var(--color-hull);
+
+  --border-subtle: var(--color-steel);
+  --border-muted: var(--color-fog);
+
+  --fg-primary: var(--color-ice);
+  --fg-secondary: var(--color-mist);
+  --fg-muted: var(--color-fog);
+
+  --accent: var(--color-glacial);
+  --accent-hover: var(--color-lagoon);
+
+  --accent-route: var(--color-cyan);
+  --accent-route-hover: var(--color-cyan-hover);
+
+  --status-safe: var(--color-signal);
+  --status-warn: var(--color-alert);
+  --status-danger: var(--color-hazard);
+
+  /* === Spacing scale (4px base) === */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* === Typography === */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+
+  --tracking-wide: 0.08em;
+  --tracking-wider: 0.16em;
+}
