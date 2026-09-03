@@ -1,0 +1,114 @@
+@import "./tokens.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+  background: var(--bg-app);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Wordmark: "OFFSHORE" — uppercase, wide-tracked, glacial teal.
+   Brand spec: never stylize beyond case + tracking + accent color. */
+.wordmark {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wider);
+  color: var(--fg-primary);
+}
+
+.wordmark__accent {
+  color: var(--accent);
+}
+
+/* Panel: shared chrome for sidebar / legend / inspector. */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: var(--shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.35));
+}
+
+/* ------------------------------------------------------------------
+ * MapLibre attribution control — restyled to match Offshore's dark UI.
+ *
+ * MapLibre's default attribution control ships with a white-ish
+ * background and dark text, which clashes with the dark CARTO
+ * basemap. We restyle it to a translucent dark-surface background
+ * with muted slate text and a sky-blue link, so it reads as part
+ * of the dark UI chrome rather than a default widget pasted on top.
+ *
+ * The `!important` is required because maplibre's own
+ * maplibre-gl.css sets these properties with the same specificity,
+ * and we want the dark variant to win.
+ *
+ * Coverage:
+ *   - The outer container (.maplibregl-ctrl-attrib): dark
+ *     background, muted text, rounded corners.
+ *   - The inner content (.maplibregl-ctrl-attrib-inner): same
+ *     background, no extra border, so the "i" button (collapsed
+ *     state) doesn't have a white square peeking out behind the
+ *     bottom-right panel.
+ *   - Links (.maplibregl-ctrl-attrib a): sky-blue accent.
+ *   - The collapsed-state button (.maplibregl-ctrl-attrib-button):
+ *     same dark surface as the expanded state, so there's no
+ *     "white square" flash when the user collapses the attribution.
+ *   - The maplibre control base class (.maplibregl-ctrl): the
+ *     default `box-shadow: 0 0 0 2px rgba(0,0,0,0.1)` is
+ *     replaced with a darker, deeper shadow that matches the
+ *     rest of the panel chrome.
+ * ------------------------------------------------------------------ */
+.maplibregl-ctrl-attrib {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+  color: #94a3b8 !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  padding: 2px 8px !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #38bdf8 !important;
+  text-decoration: none !important;
+}
+
+.maplibregl-ctrl-attrib a:hover {
+  color: #7dd3fc !important;
+  text-decoration: underline !important;
+}
+
+/* Inner content container — same dark surface, no nested border. */
+.maplibregl-ctrl-attrib-inner {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+/* Collapsed-state button (the small "i" icon at bottom-right when
+ * the attribution is folded). Default is a white square with a
+ * dark icon — replace with the same dark surface so there's no
+ * bright flash on the basemap behind the bottom-right panel. */
+.maplibregl-ctrl-attrib-button {
+  background-color: rgba(15, 23, 42, 0.8) !important;
+  color: #94a3b8 !important;
+  border-radius: 6px !important;
+}
+
+.maplibregl-ctrl-attrib-button:hover {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+/* Base control class — match the shadow to the rest of the dark UI
+ * panels. The default light shadow is too prominent on a dark
+ * basemap and reads as a "white halo" around the control. */
+.maplibregl-ctrl {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  background-color: transparent !important;
+}
