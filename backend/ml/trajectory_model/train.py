@@ -6,6 +6,7 @@ features (ocean current, wind).
 Run: python -m ml.trajectory_model.train
 """
 
+import sys
 import numpy as np
 import pandas as pd
 import joblib
@@ -28,9 +29,15 @@ def time_based_split_per_iceberg(df, test_frac=0.2):
     return pd.concat(train_frames), pd.concat(test_frames)
 
 
-def train_model():
-    print("Generating data...")
-    df = generate_synthetic_tracks()
+def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
+    if tracks_csv and reanalysis_nc:
+        print(f"Loading real data from {tracks_csv} + {reanalysis_nc}...")
+        from ml.trajectory_model.real_data_loader import load_track_csv, merge_tracks_with_environment
+        tracks = load_track_csv(tracks_csv)
+        df = merge_tracks_with_environment(tracks, reanalysis_nc)
+    else:
+        print("Generating synthetic data...")
+        df = generate_synthetic_tracks()
 
     train, test = time_based_split_per_iceberg(df)
     print(f"Train rows: {len(train)}, Test rows: {len(test)}")
@@ -67,4 +74,6 @@ def train_model():
 
 
 if __name__ == "__main__":
-    train_model()
+    tracks_csv = sys.argv[1] if len(sys.argv) > 1 else None
+    reanalysis_nc = sys.argv[2] if len(sys.argv) > 2 else None
+    train_model(tracks_csv, reanalysis_nc)
