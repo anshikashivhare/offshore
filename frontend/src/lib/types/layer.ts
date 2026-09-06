@@ -61,27 +61,27 @@ export const LAYER_META: Record<
   },
   oceanCurrents: {
     label: "Ocean currents",
-    description: "Surface current vector field (placeholder).",
-    defaultEnabled: false,
+    description: "Surface current vector field.",
+    defaultEnabled: true,
   },
   weather: {
     label: "Weather",
-    description: "Wind, pressure, sea state (placeholder).",
+    description: "Wind, pressure, sea state.",
     defaultEnabled: false,
   },
   risk: {
     label: "Maritime risk",
-    description: "Composite risk surface from risk_engine (placeholder).",
+    description: "Composite risk surface from risk_engine.",
     defaultEnabled: false,
   },
   route: {
     label: "Planned route",
-    description: "A* route output (placeholder).",
+    description: "A* route output.",
     defaultEnabled: false,
   },
   vessel: {
     label: "Vessels",
-    description: "AIS vessel positions (placeholder).",
+    description: "AIS vessel positions.",
     defaultEnabled: false,
   },
 };

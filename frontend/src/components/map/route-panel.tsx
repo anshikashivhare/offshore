@@ -1,41 +1,11 @@
 "use client";
 
-/**
- * RoutePanel
- * ----------
- * HUD panel pinned to the top-right of the map, below the
- * maplibre navigation zoom controls.
- *
- * Contents:
- *   - Header: "Planned route" + a layer toggle.
- *   - Mock-data notice: a small dot + "Mock data — placeholder"
- *     label. Same pattern as the ocean-current panel. The route
- *     is computed from the same placeholder sea-ice and iceberg
- *     sets; the label is honest about that.
- *   - Status row: idle / calculating… / ready.
- *   - Distance: large cyan number, formatted with thousands
- *     separators ("1,840 NM").
- *   - Time: smaller secondary line, e.g. "5.5 days @ 14 kn".
- *   - Risk badge: color-coded chip (Low / Moderate / Severe)
- *     driven by the route's maxRiskScore.
- *   - Re-calculate button: triggers useRouteStore.recalculate().
- *
- * Visual consistency with the rest of the dashboard:
- *   - Same `panel` class as MapLegend / ocean-current panel.
- *   - Same 10px / tracking-[0.16em] uppercase header typography.
- *   - Same `--accent-route` color token for the route number
- *     and the recalculate button.
- *
- * Dim-when-disabled:
- *   When the user toggles the layer off, the panel's opacity
- *   drops to 0.55 (same as the ocean-current panel). The
- *   metrics stay readable so the user can still see the
- *   previously-computed route at a glance.
- */
-
 import { useLayerStore } from "@/stores/use-layer-store";
 import { useRouteStore } from "@/stores/use-route-store";
 import { VESSEL_SPEED_KNOTS } from "@/lib/routing/a-star-router";
+import { RouteRiskChart } from "./route-risk-chart";
+import { useReverseGeocode } from "@/lib/hooks/use-reverse-geocode";
+import { PortDropdown } from "./port-dropdown";
 
 interface Props {
   enabled: boolean;
@@ -45,7 +15,14 @@ export function RoutePanel({ enabled }: Props) {
   const status = useRouteStore((s) => s.status);
   const result = useRouteStore((s) => s.result);
   const recalculate = useRouteStore((s) => s.recalculate);
+  const origin = useRouteStore((s) => s.origin);
+  const destination = useRouteStore((s) => s.destination);
+  const pendingSelection = useRouteStore((s) => s.pendingSelection);
+  const setPendingSelection = useRouteStore((s) => s.setPendingSelection);
   const toggle = useLayerStore((s) => s.toggle);
+  
+  const originName = useReverseGeocode(origin);
+  const destName = useReverseGeocode(destination);
 
   return (
     <div
@@ -66,10 +43,6 @@ export function RoutePanel({ enabled }: Props) {
         />
       </div>
 
-      {/* Mock-data notice — same pattern as the ocean-current
-          panel: a small dot + a muted uppercase label. The
-          color is --fg-muted (not --status-warn) so it reads as
-          a metadata note rather than an alert. */}
       <div
         className="mb-3 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-[color:var(--fg-muted)]"
         aria-label="Data source notice"
@@ -80,6 +53,34 @@ export function RoutePanel({ enabled }: Props) {
           style={{ background: "var(--fg-muted)" }}
         />
         Mock data — placeholder
+      </div>
+
+      {/* Origin/Destination Map Clicks */}
+      <div className="mb-3 space-y-2">
+        <PortDropdown
+          label="Origin"
+          type="origin"
+          currentName={originName}
+          lat={origin.lat}
+          lon={origin.lon}
+        />
+        <PortDropdown
+          label="Destination"
+          type="destination"
+          currentName={destName}
+          lat={destination.lat}
+          lon={destination.lon}
+        />
+        
+        <button
+          onClick={() => {
+            setOrigin(-45, -60);
+            setDestination(-45, -60); // Resetting to default dummy coords or whatever
+          }}
+          className="w-full text-[10px] uppercase tracking-wider py-1 border border-dashed border-[color:var(--border-subtle)] text-[color:var(--fg-muted)] hover:text-[color:var(--fg-primary)] hover:border-[color:var(--fg-primary)] transition-colors rounded"
+        >
+          Clear Selection
+        </button>
       </div>
 
       {/* Status */}
@@ -139,19 +140,23 @@ export function RoutePanel({ enabled }: Props) {
         style={{
           background: "var(--accent-route)",
           color: "var(--bg-app)",
+
         }}
         onMouseEnter={(e) => {
           if (status !== "calculating") {
-            e.currentTarget.style.background = "var(--accent-route-hover)";
+            e.currentTarget.style.filter = "brightness(1.1)";
           }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--accent-route)";
+          e.currentTarget.style.filter = "none";
         }}
         aria-label="Re-calculate route"
       >
-        {status === "calculating" ? "Calculating…" : "Re-calculate route"}
+        {status === "calculating" ? "Calculating…" : "Re-calculate"}
       </button>
+
+      {/* Risk Profile Graph */}
+      <RouteRiskChart />
     </div>
   );
 }

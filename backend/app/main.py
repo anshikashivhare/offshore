@@ -1,26 +1,85 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api.routes.routes import router as routes_router
-from app.api.routes.seaice import router as seaice_router
-from app.api.routes.iceberg import router as iceberg_router
-from app.api.routes.dashboard import router as dashboard_router
+from app.api.v1.health import router as health_router
+from app.core.config import settings
+from app.core.exceptions import setup_exception_handlers
+from app.core.logging import setup_logging
 
-app = FastAPI(title="Antarctic Navigation API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(routes_router)
-app.include_router(seaice_router)
-app.include_router(iceberg_router)
-app.include_router(dashboard_router)
+logger = logging.getLogger(__name__)
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    setup_logging()
+    try:
+        settings.validate_for_environment()
+    except ValueError as exc:
+        logger.critical("Startup validation failed: %s", exc)
+        raise
+
+    logger.info(
+        "Starting %s v%s (environment=%s)",
+        settings.PROJECT_NAME,
+        settings.VERSION,
+        settings.ENVIRONMENT,
+    )
+    logger.info(
+        "Configuration: cors_origins=%s db_server=%s redis_uri=%s",
+        [str(o) for o in settings.BACKEND_CORS_ORIGINS],
+        settings.POSTGRES_SERVER,
+        settings.REDIS_URI,
+    )
+    yield
+    logger.info("Shutting down %s", settings.PROJECT_NAME)
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version=settings.VERSION,
+        openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+        docs_url=f"{settings.API_V1_PREFIX}/docs",
+        redoc_url=f"{settings.API_V1_PREFIX}/redoc",
+        lifespan=lifespan,
+    )
+
+    # Restrict CORS via explicit allowlist (never "*").
+    if settings.BACKEND_CORS_ORIGINS:
+        origins = [str(o) for o in settings.BACKEND_CORS_ORIGINS]
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+            allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
+            max_age=600,
+        )
+    else:
+        logger.warning("CORS allowlist is empty; cross-origin requests will be blocked.")
+
+    if settings.is_production() and settings.TRUST_PROXY_HEADERS:
+        # Only enable if explicitly opted-in. Use the configured allowlist, not "*".
+        hosts = settings.TRUSTED_HOSTS or ["localhost"]
+        if "*" in hosts:
+            logger.warning(
+                "Refusing to enable TrustedHostMiddleware with wildcard host in production."
+            )
+        else:
+            app.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts)
+
+    setup_exception_handlers(app)
+
+    # Include routers
+    app.include_router(health_router, prefix=settings.API_V1_PREFIX, tags=["health"])
+    from app.api.v1.api import api_router
+    app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    return app
+
+
+app = create_app()

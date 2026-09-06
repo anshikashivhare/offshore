@@ -33,33 +33,56 @@ import { create } from "zustand";
 import {
   calculateRoute,
   type RouteResult,
+  ROUTE_START,
+  ROUTE_GOAL,
 } from "@/lib/routing/a-star-router";
 
 export type RouteStatus = "idle" | "calculating" | "ready";
+
+export interface Coordinates {
+  lat: number;
+  lon: number;
+}
 
 interface RouteStore {
   status: RouteStatus;
   result: RouteResult | null;
   version: number;
+  origin: Coordinates;
+  destination: Coordinates;
+  pendingSelection: "origin" | "destination" | null;
+  setPendingSelection: (sel: "origin" | "destination" | null) => void;
+  setEndpoints: (origin: Coordinates, destination: Coordinates) => void;
+  setOrigin: (origin: Coordinates) => void;
+  setDestination: (destination: Coordinates) => void;
   recalculate: () => void;
 }
 
-export const useRouteStore = create<RouteStore>((set) => ({
+export const useRouteStore = create<RouteStore>((set, get) => ({
   status: "idle",
   result: null,
   version: 0,
+  origin: ROUTE_START,
+  destination: ROUTE_GOAL,
+  pendingSelection: null,
+  setPendingSelection: (pendingSelection) => set({ pendingSelection }),
+  setEndpoints: (origin: Coordinates, destination: Coordinates) => {
+    set({ origin, destination });
+    get().recalculate();
+  },
+  setOrigin: (origin: Coordinates) => {
+    set({ origin, pendingSelection: null });
+    get().recalculate();
+  },
+  setDestination: (destination: Coordinates) => {
+    set({ destination, pendingSelection: null });
+    get().recalculate();
+  },
   recalculate: () => {
-    // Flip to "calculating" synchronously so the panel can show
-    // the in-flight label on the next React render.
     set({ status: "calculating" });
-    // Defer the A* to the next tick. calculateRoute() takes
-    // ~50-200ms on a 1,280-cell grid; running it inside a
-    // setTimeout(0) lets React flush the "Calculating…" state
-    // before the main thread blocks. Without the defer, the
-    // user would never see the label because the entire
-    // recalculate() call would resolve before React repaints.
+    const { origin, destination } = get();
     setTimeout(() => {
-      const result = calculateRoute();
+      const result = calculateRoute(origin, destination);
       set((s) => ({
         status: "ready",
         result,

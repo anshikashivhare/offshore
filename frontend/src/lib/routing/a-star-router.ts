@@ -100,7 +100,7 @@ interface CellCost {
   isLand: boolean;
 }
 
-const ROUTE_GRID: CellCost[] = buildRouteGrid();
+export const ROUTE_GRID: CellCost[] = buildRouteGrid();
 
 /** Public read-only access for diagnostics / future risk-surface
  *  visualization (a "risk-layer.tsx" could render this as a
@@ -141,10 +141,12 @@ export interface RouteResult {
    *  each animation tick). Drawn as a circle layer with
    *  pulse-driven radius. */
   endpointsFeature: FeatureCollection<Point>;
-  /** A* grid index of the start cell (debug / future). */
+  /** Start cell index for reference. */
   startIndex: number;
-  /** A* grid index of the goal cell. */
+  /** Goal cell index for reference. */
   goalIndex: number;
+  /** Distance and Risk metrics for graph plotting. */
+  pathMetrics: { distance: number; risk: number }[];
 }
 
 /* ------------------------------------------------------------------
@@ -155,9 +157,12 @@ export interface RouteResult {
  *  ~50-200ms on a 1,280-cell grid. The route store defers the call
  *  to setTimeout(0) so the React tree can repaint a "Calculating…"
  *  status before A* blocks the main thread. */
-export function calculateRoute(): RouteResult {
-  const startIndex = nearestCellIndex(ROUTE_START.lon, ROUTE_START.lat);
-  const goalIndex = nearestCellIndex(ROUTE_GOAL.lon, ROUTE_GOAL.lat);
+export function calculateRoute(
+  startCoord = ROUTE_START,
+  goalCoord = ROUTE_GOAL
+): RouteResult {
+  const startIndex = nearestCellIndex(startCoord.lon, startCoord.lat);
+  const goalIndex = nearestCellIndex(goalCoord.lon, goalCoord.lat);
 
   const path = aStar(startIndex, goalIndex);
 
@@ -167,23 +172,49 @@ export function calculateRoute(): RouteResult {
     return [round4(lon), round4(lat)];
   });
 
+  // Hybrid routing: if the original start/goal coords are outside the grid bounds,
+  // prepend/append them to the coordinates array so the line connects to the global port.
+  const isOutside = (c: {lon: number, lat: number}) => 
+    c.lon < GRID_MIN_LON || c.lon > GRID_MAX_LON || c.lat < GRID_MIN_LAT || c.lat > GRID_MAX_LAT;
+
+  if (isOutside(startCoord)) {
+    coordinates.unshift([round4(startCoord.lon), round4(startCoord.lat)]);
+  }
+  if (isOutside(goalCoord)) {
+    coordinates.push([round4(goalCoord.lon), round4(goalCoord.lat)]);
+  }
+
   // Compute per-edge metrics: haversine distance + risk score.
   let totalNm = 0;
   let maxRisk = 0;
   let sumRisk = 0;
-  for (let i = 0; i < path.length - 1; i++) {
-    const a = cellCenter(path[i]);
-    const b = cellCenter(path[i + 1]);
-    const dist = haversineNM(a.lon, a.lat, b.lon, b.lat);
-    const bCell = ROUTE_GRID[path[i + 1]];
-    const risk =
-      W_ICE * bCell.concentration + W_ICEBERG * bCell.icebergPenalty;
+  let riskEdgesCount = 0;
+  
+  // Track metrics for graphing (Distance vs Risk)
+  const pathMetrics: { distance: number; risk: number }[] = [];
+  
+  for (let i = 0; i < coordinates.length - 1; i++) {
+    const [lonA, latA] = coordinates[i];
+    const [lonB, latB] = coordinates[i + 1];
+    const dist = haversineNM(lonA, latA, lonB, latB);
+    
+    // Determine risk: if outside grid, risk is 0 (open ocean)
+    let risk = 0;
+    if (!isOutside({lon: lonB, lat: latB})) {
+      const idx = nearestCellIndex(lonB, latB);
+      const bCell = ROUTE_GRID[idx];
+      risk = W_ICE * bCell.concentration + W_ICEBERG * bCell.icebergPenalty;
+      
+      sumRisk += risk;
+      riskEdgesCount++;
+      if (risk > maxRisk) maxRisk = risk;
+    }
+    
     totalNm += dist;
-    sumRisk += risk;
-    if (risk > maxRisk) maxRisk = risk;
+    pathMetrics.push({ distance: totalNm, risk });
   }
-  const meanRisk =
-    path.length > 1 ? sumRisk / (path.length - 1) : 0;
+  
+  const meanRisk = riskEdgesCount > 0 ? sumRisk / riskEdgesCount : 0;
   const hours = totalNm / VESSEL_SPEED_KNOTS;
 
   // Build the GeoJSON pieces the layer will push into the map.
@@ -243,11 +274,11 @@ export function calculateRoute(): RouteResult {
     hours,
     maxRiskScore: maxRisk,
     meanRiskScore: meanRisk,
-    waypointCount: path.length,
-    waypointsFeature,
+    waypointCount: coordinates.length,
     endpointsFeature,
     startIndex,
     goalIndex,
+    pathMetrics,
   };
 }
 

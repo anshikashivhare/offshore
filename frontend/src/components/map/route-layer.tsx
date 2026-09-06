@@ -206,13 +206,38 @@ export function RouteLayer({ adapter }: Props) {
     // (MapAdapter guards against duplicates), but on unmount we
     // want a clean slate.
     return () => {
-      const map = adapter.getRawMap();
       for (const id of [LAYER_ENDPOINTS, LAYER_WAYPOINTS, LAYER_LINE, LAYER_LINE_GLOW]) {
-        if (map.getLayer(id)) map.removeLayer(id);
+        adapter.removeLayer(id);
       }
       for (const id of [SOURCE_ENDPOINTS, SOURCE_WAYPOINTS, SOURCE]) {
-        if (map.getSource(id)) map.removeSource(id);
+        adapter.removeSource(id);
       }
+    };
+  }, [adapter]);
+
+  // Click handler for dynamic routing
+  useEffect(() => {
+    // We can't put pendingSelection in the deps array without re-binding the event 
+    // on every click, which is fine, but cleaner to just fetch it on click via the store.
+    const handleClick = (e: any) => {
+      const state = useRouteStore.getState();
+      if (state.pendingSelection) {
+        const { lng, lat } = e.lngLat;
+        if (state.pendingSelection === "origin") {
+          state.setOrigin({ lon: lng, lat });
+        } else if (state.pendingSelection === "destination") {
+          state.setDestination({ lon: lng, lat });
+        }
+      }
+    };
+    
+    // Add event
+    adapter.on("click", handleClick);
+    
+    // NOTE: MapAdapter doesn't expose a global `off` that takes a handler in its types,
+    // but maplibregl.Map does. 
+    return () => {
+      adapter.getRawMap().off("click", handleClick);
     };
   }, [adapter]);
 

@@ -1,18 +1,23 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
 .venv/
 venv/
 .env
+*.egg-info/
 
 # Node
 node_modules/
 dist/
 .vite/
+.next/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
@@ -27,5 +32,18 @@ models/*.pt
 models/*.pth
 *.joblib
 
+# ML model weights (keep .json model configs)
+backend/ml/seaice_model/convlstm.pt
+backend/ml/trajectory_model/lstm_model.pt
+backend/ml/trajectory_model/trajectory_model.joblib
+
 # Logs
 *.log
+
+# Docker
+postgres_data/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
