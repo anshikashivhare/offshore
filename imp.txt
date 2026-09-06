@@ -1,0 +1,53 @@
+1. The data you actually need
+Data type	What you need	Main use	Priority
+Sea-ice concentration	concentration %, lat/lon, timestamp	Sea-ice forecasting + risk	🔴 Essential
+Satellite imagery	SAR/optical images + timestamp + geolocation	Iceberg detection	🔴 Essential
+Iceberg observations	ID, lat/lon, timestamp, size/geometry	Detection validation + tracking + trajectory	🔴 Essential
+Weather	wind speed/direction, temperature, pressure, waves	Sea-ice + iceberg trajectory + risk	🔴 Essential
+Ocean currents	current u/v, SST, waves	Iceberg trajectory + risk	🔴 Essential
+Vessel/AIS	position, timestamp, speed, heading/course	Vessel context + route validation	🟡 Important
+Bathymetry	depth/elevation	Routing constraints / geography	🟡 Supporting
+Sea-ice drift	ice velocity/u-v vectors	Trajectory + sea-ice dynamics	🟡 Very useful
+
+The SRS explicitly identifies satellite, sea-ice, meteorological, oceanographic, iceberg and AIS/vessel data as the relevant categories.
+
+2. Start with a defined Antarctic region
+
+This is very important.
+
+Don't download "all Antarctica" immediately.
+
+Your SRS recommends a narrow, demonstrable mission corridor for the prototype.
+
+For example, choose something like:
+
+Research corridor
+     ↓
+McMurdo / Ross Sea
+
+or
+
+Antarctic Peninsula
+        ↓
+South Shetland region
+
+Then collect all datasets for approximately the same geographic bounding box.
+
+This makes the ML problem dramatically easier.
+
+Your first data specification should look like:
+
+Region:
+    lat: -75 to -60
+    lon: 150E to 180E
+
+Training period:
+    2015–2024
+
+Validation:
+    2025
+
+Target forecast:
+    1–7 days
+
+Don't treat those coordinates/dates as mandatory; they're an example. The important point is to freeze one region + one historical period before collecting data.

@@ -1,0 +1,6 @@
+raw/
+processed/
+*.nc
+*.csv
+__pycache__/
+*.pyc

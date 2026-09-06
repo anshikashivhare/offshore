@@ -1,0 +1,17 @@
+{
+    "dataset": "NOAA/NSIDC CDR Passive Microwave Sea Ice Concentration Version 6",
+    "crs": "EPSG:3412",
+    "grid_type": "polar_stereographic",
+    "x_cells": 316,
+    "y_cells": 332,
+    "x_min_m": -3937500.0,
+    "x_max_m": 3937500.0,
+    "y_min_m": -3937500.0,
+    "y_max_m": 4337500.0,
+    "x_spacing_m": 25000.0,
+    "y_spacing_m": 25000.0,
+    "x_order": "increasing",
+    "y_order": "decreasing",
+    "spatial_crop": null,
+    "status": "native_source_grid"
+}
