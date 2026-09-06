@@ -21,8 +21,12 @@ import { MapAdapter } from "@/components/map/map-adapter";
 import { SeaIceLayer } from "@/components/map/sea-ice-layer";
 import { IcebergLayer } from "@/components/map/iceberg-layer";
 import { OceanCurrentLayer } from "@/components/map/ocean-current-layer";
+import { WeatherLayer } from "@/components/map/weather-layer";
+import { RiskLayer } from "@/components/map/risk-layer";
 import { RouteLayer } from "@/components/map/route-layer";
+import { VesselLayer } from "@/components/map/vessel-layer";
 import { MapLegend } from "@/components/map/map-legend";
+import { PortLayer } from "@/components/map/port-layer";
 
 export function MissionMap() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -51,7 +55,11 @@ export function MissionMap() {
           <SeaIceLayer adapter={adapter} />
           <IcebergLayer adapter={adapter} />
           <OceanCurrentLayer adapter={adapter} />
+          <WeatherLayer adapter={adapter} />
+          <RiskLayer adapter={adapter} />
+          <PortLayer adapter={adapter} />
           <RouteLayer adapter={adapter} />
+          <VesselLayer adapter={adapter} />
         </>
       ) : null}
       <MapLegend />

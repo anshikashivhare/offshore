@@ -227,10 +227,9 @@ export function OceanCurrentLayer({ adapter }: Props) {
 
     return () => {
       mounted = false;
-      // Remove the layer from the map on unmount. adapter.onLoad
+      // Clean up cleanly; our outer layout effect checks loaded, which
       // already ran, so the map is real; getLayer guards a re-mount.
-      const map = adapter.getRawMap();
-      if (map.getLayer(LAYER_FLOW)) map.removeLayer(LAYER_FLOW);
+      adapter.removeLayer(LAYER_FLOW);
       handleRef.current = null;
     };
   }, [adapter]);

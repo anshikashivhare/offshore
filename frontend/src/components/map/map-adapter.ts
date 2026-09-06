@@ -134,7 +134,7 @@ export class MapAdapter {
       scrollZoom: { around: "center" },
     });
 
-    this.map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
+    this.map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
 
     this.map.on("load", () => {
       this.loaded = true;
@@ -153,6 +153,7 @@ export class MapAdapter {
   }
 
   addSource(id: string, spec: GeoJSONSourceSpecification): void {
+    if (!this.map.style) return;
     // maplibre throws if the source already exists; guard so layer
     // components can be re-mounted in dev without crashing.
     if (this.map.getSource(id)) return;
@@ -160,11 +161,23 @@ export class MapAdapter {
   }
 
   addLayer(layer: LayerSpecification | CustomLayerInterface, beforeId?: string): void {
+    if (!this.map.style) return;
     if (this.map.getLayer(layer.id)) return;
     this.map.addLayer(layer as LayerSpecification, beforeId);
   }
 
+  removeLayer(layerId: string): void {
+    if (!this.map.style) return;
+    if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
+  }
+
+  removeSource(sourceId: string): void {
+    if (!this.map.style) return;
+    if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+  }
+
   setLayerVisibility(layerId: string, visible: boolean): void {
+    if (!this.map.style) return;
     if (!this.map.getLayer(layerId)) return;
     this.map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
   }
@@ -174,6 +187,7 @@ export class MapAdapter {
    *  MapLibre's paint expressions expect for "global" opacity on a layer
    *  type that doesn't have a single opacity property. */
   setLayerOpacity(layerId: string, opacity: number): void {
+    if (!this.map.style) return;
     const layer = this.map.getLayer(layerId);
     if (!layer) return;
 
@@ -200,6 +214,7 @@ export class MapAdapter {
   }
 
   setData(sourceId: string, data: GeoJSON.FeatureCollection | GeoJSON.Feature): void {
+    if (!this.map.style) return;
     const src = this.map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
     src.setData(data as GeoJSON.FeatureCollection);
@@ -209,6 +224,7 @@ export class MapAdapter {
     layerId: string,
     filter: maplibregl.FilterSpecification | null,
   ): void {
+    if (!this.map.style) return;
     if (!this.map.getLayer(layerId)) return;
     this.map.setFilter(layerId, filter);
   }

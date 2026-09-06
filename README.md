@@ -5,56 +5,75 @@
 OFFSHORE is an AI-powered decision support platform designed to help vessels navigate Antarctic waters more safely and efficiently. The system combines sea-ice data, iceberg information, weather and ocean conditions to predict maritime hazards, generate dynamic risk maps, and recommend optimized vessel routes.
 
 ### Core Features
-- Sea-ice forecasting
-- Iceberg detection and tracking
-- Iceberg trajectory prediction
+- Sea-ice concentration forecasting (XGBoost + ConvLSTM)
+- Iceberg detection, tracking and trajectory prediction
 - Dynamic maritime risk maps
-- A* route optimization
+- A* and Dijkstra route optimization
 - Safest, fastest and fuel-efficient route options
-- ETA, fuel and risk comparison
+- Real-time navigational alerts
 - Interactive Antarctic navigation dashboard
 
-### Planned Tech Stack
-- **Frontend:** React + TypeScript
+### Tech Stack
+- **Frontend:** Next.js + TypeScript + TailwindCSS
 - **Backend:** Python + FastAPI
-- **Machine Learning:** PyTorch + scikit-learn
-- **Computer Vision:** OpenCV + YOLO
-- **Geospatial Processing:** GeoPandas + Rasterio + xarray
-- **Database:** PostgreSQL + PostGIS
-- **Routing:** A* pathfinding
-- **Visualization:** CesiumJS / MapLibre or Leaflet
+- **Database:** PostgreSQL + PostGIS + Alembic
+- **ML:** PyTorch + XGBoost + scikit-learn
+- **Task Queue:** Celery + Redis
+- **Infrastructure:** Docker + Docker Compose
 
 ## Repository Structure
 
 ```text
 offshore/
-├── frontend/                 # React dashboard
-├── backend/                  # FastAPI services
-├── ml/                       # AI/ML models
-├── routing/                  # A* route planning
-├── risk_engine/              # Risk scoring and maps
-├── database/                 # Database schema
-├── data/                     # Data documentation and samples
-├── docs/                     # Architecture and project docs
-└── docker/                   # Container configuration
+│
+├── frontend/                       # 1. FRONTEND — Next.js Dashboard
+│   └── src/
+│       ├── app/                    # Pages & layouts
+│       ├── components/map/         # Map layers (iceberg, sea-ice, route, currents)
+│       ├── lib/                    # Routing algorithms, data, types
+│       └── stores/                 # Zustand state management
+│
+├── backend/
+│   ├── app/                        # 2. API — FastAPI Application
+│   │   ├── api/v1/                 # Versioned REST endpoints
+│   │   ├── core/                   # Config, logging, security
+│   │   ├── schemas/                # Pydantic request/response schemas
+│   │   ├── services/               # Business logic (routing, risk, alerts, forecasting, icebergs)
+│   │   ├── utils/                  # GeoJSON, geometry helpers
+│   │   └── worker/                 # Celery async tasks
+│   │
+│   │   ├── db/                     # 3. DATABASE — Connection & session
+│   │   ├── models/                 # SQLAlchemy ORM models (PostGIS)
+│   │   ├── repositories/           # Data access layer
+│   │   └── ingestion/              # Data pipeline adapters
+│   │
+│   ├── ml/                         # 4. ML BACKEND — Standalone Models
+│   │   ├── seaice_model/           # Sea-ice forecasting (XGBoost + ConvLSTM)
+│   │   ├── trajectory_model/       # Iceberg trajectory (XGBoost + LSTM)
+│   │   └── route_optimizer/        # A* grid route optimizer
+│   │
+│   ├── migrations/                 # Alembic DB migrations
+│   └── tests/                      # Test suite
+│
+├── DOCUMENTATION.md                # Single consolidated project doc
+├── docker-compose.yml              # Production Docker config
+├── Dockerfile
+└── alembic.ini
 ```
 
-## Project Flow
+## Quick Start
 
-```text
-Data Sources
-    ↓
-Data Processing
-    ↓
-Sea-Ice Forecasting + Iceberg Detection/Tracking
-    ↓
-Risk Engine
-    ↓
-Dynamic Risk Map
-    ↓
-Route Optimization
-    ↓
-Interactive Dashboard
+```bash
+# Frontend
+cd frontend && npm install && npm run dev
+
+# Backend (ML training)
+cd backend
+python -m ml.seaice_model.train
+python -m ml.trajectory_model.train
+
+# Full stack (Docker)
+docker-compose up --build
 ```
 
 > OFFSHORE is a decision-support system. It assists human navigation teams and does not autonomously control vessels.
