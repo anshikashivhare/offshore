@@ -8,107 +8,150 @@
 html,
 body {
   height: 100%;
-  background: var(--bg-app);
+  background: var(--bg-primary);
   color: var(--fg-primary);
   font-family: var(--font-sans);
-  font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
-/* Wordmark: "OFFSHORE" — uppercase, wide-tracked, glacial teal.
-   Brand spec: never stylize beyond case + tracking + accent color. */
+/* Custom dark maritime scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #061014;
+}
+::-webkit-scrollbar-thumb {
+  background: #102631;
+  border-radius: 3px;
+  border: 1px solid rgba(120, 180, 200, 0.15);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #1b3847;
+}
+
+/* Wordmark: OFFSHORE */
 .wordmark {
   font-family: var(--font-sans);
-  font-weight: 600;
-  letter-spacing: var(--tracking-wider);
-  color: var(--fg-primary);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #ffffff;
 }
 
-.wordmark__accent {
-  color: var(--accent);
+/* Maritime Panel Style */
+.maritime-panel {
+  background: #102631;
+  border: 1px solid rgba(120, 180, 200, 0.15);
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.5);
 }
 
-/* Panel: shared chrome for sidebar / legend / inspector. */
-.panel {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  box-shadow: var(--shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.35));
+.maritime-card {
+  background: #0B1820;
+  border: 1px solid rgba(120, 180, 200, 0.15);
 }
 
-/* ------------------------------------------------------------------
- * MapLibre attribution control — restyled to match Offshore's dark UI.
- *
- * MapLibre's default attribution control ships with a white-ish
- * background and dark text, which clashes with the dark CARTO
- * basemap. We restyle it to a translucent dark-surface background
- * with muted slate text and a sky-blue link, so it reads as part
- * of the dark UI chrome rather than a default widget pasted on top.
- *
- * The `!important` is required because maplibre's own
- * maplibre-gl.css sets these properties with the same specificity,
- * and we want the dark variant to win.
- *
- * Coverage:
- *   - The outer container (.maplibregl-ctrl-attrib): dark
- *     background, muted text, rounded corners.
- *   - The inner content (.maplibregl-ctrl-attrib-inner): same
- *     background, no extra border, so the "i" button (collapsed
- *     state) doesn't have a white square peeking out behind the
- *     bottom-right panel.
- *   - Links (.maplibregl-ctrl-attrib a): sky-blue accent.
- *   - The collapsed-state button (.maplibregl-ctrl-attrib-button):
- *     same dark surface as the expanded state, so there's no
- *     "white square" flash when the user collapses the attribution.
- *   - The maplibre control base class (.maplibregl-ctrl): the
- *     default `box-shadow: 0 0 0 2px rgba(0,0,0,0.1)` is
- *     replaced with a darker, deeper shadow that matches the
- *     rest of the panel chrome.
- * ------------------------------------------------------------------ */
+/* Maritime Background System */
+.geo-grid-pattern {
+  background-size: 60px 60px;
+  background-image: 
+    linear-gradient(to right, rgba(120, 180, 200, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 180, 200, 0.04) 1px, transparent 1px);
+}
+
+.ocean-vignette {
+  background: radial-gradient(circle at center, transparent 30%, #061014 95%);
+}
+
+.subtle-contour {
+  background-image: radial-gradient(circle at 50% 60%, rgba(34, 211, 238, 0.03) 0%, transparent 60%);
+}
+
+/* Subtle pulse and radar animations */
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-radar-ping {
+  animation: radar-ping 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+.animate-route-dash {
+  stroke-dasharray: 6 6;
+  animation: dash 35s linear infinite;
+}
+
+/* MapLibre dark attribution restyling */
 .maplibregl-ctrl-attrib {
-  background-color: rgba(15, 23, 42, 0.8) !important;
-  color: #94a3b8 !important;
-  border-radius: 6px !important;
-  font-size: 11px !important;
-  padding: 2px 8px !important;
-  border: 1px solid var(--border-subtle) !important;
+  background-color: rgba(11, 24, 32, 0.85) !important;
+  color: #8ea8b7 !important;
+  border-radius: 4px !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border: 1px solid rgba(120, 180, 200, 0.15) !important;
 }
 
 .maplibregl-ctrl-attrib a {
-  color: #38bdf8 !important;
+  color: #22d3ee !important;
   text-decoration: none !important;
 }
 
-.maplibregl-ctrl-attrib a:hover {
-  color: #7dd3fc !important;
-  text-decoration: underline !important;
-}
-
-/* Inner content container — same dark surface, no nested border. */
-.maplibregl-ctrl-attrib-inner {
-  background-color: transparent !important;
-  color: inherit !important;
-}
-
-/* Collapsed-state button (the small "i" icon at bottom-right when
- * the attribution is folded). Default is a white square with a
- * dark icon — replace with the same dark surface so there's no
- * bright flash on the basemap behind the bottom-right panel. */
 .maplibregl-ctrl-attrib-button {
-  background-color: rgba(15, 23, 42, 0.8) !important;
-  color: #94a3b8 !important;
-  border-radius: 6px !important;
+  background-color: rgba(11, 24, 32, 0.85) !important;
+  color: #8ea8b7 !important;
 }
 
-.maplibregl-ctrl-attrib-button:hover {
-  background-color: rgba(15, 23, 42, 0.95) !important;
-}
-
-/* Base control class — match the shadow to the rest of the dark UI
- * panels. The default light shadow is too prominent on a dark
- * basemap and reads as a "white halo" around the control. */
 .maplibregl-ctrl {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
-  background-color: transparent !important;
+}
+
+/* ============================================================
+   SATELLITE DOTTED ORBIT ANIMATIONS
+============================================================ */
+
+@keyframes satelliteOrbit {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes satelliteOrbitReverse {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+.animate-satellite-orbit {
+  animation: satelliteOrbit 8s linear infinite;
+}
+
+.animate-satellite-orbit-slow {
+  animation: satelliteOrbitReverse 12s linear infinite;
+}
+
+.animate-satellite-orbit-fast {
+  animation: satelliteOrbit 5s linear infinite;
 }

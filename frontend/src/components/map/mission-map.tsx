@@ -16,19 +16,25 @@
  * adapter rather than a wrapper around the map.
  */
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { MapAdapter } from "@/components/map/map-adapter";
 import { SeaIceLayer } from "@/components/map/sea-ice-layer";
 import { IcebergLayer } from "@/components/map/iceberg-layer";
 import { OceanCurrentLayer } from "@/components/map/ocean-current-layer";
-import { WeatherLayer } from "@/components/map/weather-layer";
-import { RiskLayer } from "@/components/map/risk-layer";
 import { RouteLayer } from "@/components/map/route-layer";
-import { VesselLayer } from "@/components/map/vessel-layer";
 import { MapLegend } from "@/components/map/map-legend";
-import { PortLayer } from "@/components/map/port-layer";
 
-export function MissionMap() {
+export interface MissionMapProps {
+  showLegend?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}
+
+export function MissionMap({
+  showLegend = true,
+  className = "",
+  children,
+}: MissionMapProps = {}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [adapter, setAdapter] = useState<MapAdapter | null>(null);
 
@@ -36,14 +42,24 @@ export function MissionMap() {
     if (!containerRef.current) return;
     const a = new MapAdapter(containerRef.current);
     setAdapter(a);
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => {
+        a.resize();
+      });
+      ro.observe(containerRef.current);
+    }
+
     return () => {
+      ro?.disconnect();
       a.destroy();
       setAdapter(null);
     };
   }, []);
 
   return (
-    <div className="relative h-full w-full">
+    <div className={`relative h-full w-full overflow-hidden ${className}`}>
       <div
         ref={containerRef}
         className="absolute inset-0"
@@ -55,14 +71,11 @@ export function MissionMap() {
           <SeaIceLayer adapter={adapter} />
           <IcebergLayer adapter={adapter} />
           <OceanCurrentLayer adapter={adapter} />
-          <WeatherLayer adapter={adapter} />
-          <RiskLayer adapter={adapter} />
-          <PortLayer adapter={adapter} />
           <RouteLayer adapter={adapter} />
-          <VesselLayer adapter={adapter} />
         </>
       ) : null}
-      <MapLegend />
+      {showLegend && <MapLegend />}
+      {children}
     </div>
   );
 }
