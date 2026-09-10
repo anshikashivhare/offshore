@@ -129,6 +129,11 @@ export function SeaIceLayer({ adapter }: Props) {
         },
       });
     });
+
+    return () => {
+      adapter.removeLayerSafe(LAYER_HEATMAP);
+      adapter.removeSourceSafe(SOURCE);
+    };
   }, [adapter]);
 
   // React to enabled / opacity changes without re-creating the layer.

@@ -48,6 +48,21 @@ export const LAYER_DETECTION_SELECTED = "iceberg-detection-selected";
 export const LAYER_CLUSTER_CIRCLE = "iceberg-cluster-circle";
 export const LAYER_CLUSTER_COUNT = "iceberg-cluster-count";
 
+/* ------------------------------------------------------------------
+ * Color constants
+ * ------------------------------------------------------------------
+ * MapLibre paint expressions expect literal CSS color values, not
+ * `var()` references. These mirror --iceberg-hue (195), --iceberg-saturation (30%),
+ * and --iceberg-lightness (75%) from tokens.css.
+ */
+const ICEBERG_COLOR_TIER_LOW = "hsla(195, 30%, 75%, 0.65)";
+const ICEBERG_COLOR_TIER_MID = "hsla(195, 30%, 70%, 0.95)";
+const ICEBERG_COLOR_TIER_HIGH = "hsl(195, 35%, 60%)";
+const ICEBERG_STROKE_CLUSTER = "hsl(195, 40%, 25%)";
+const ICEBERG_COLOR_DETECTION = "hsla(195, 30%, 75%, 0.85)";
+const ICEBERG_STROKE_DETECTION = "hsl(195, 40%, 30%)";
+const ICEBERG_COLOR_SELECTED = "hsl(195, 80%, 70%)";
+
 interface Props {
   adapter: MapAdapter;
 }
@@ -96,11 +111,11 @@ export function IcebergLayer({ adapter }: Props) {
           "circle-color": [
             "step",
             ["get", "point_count"],
-            "hsl(var(--iceberg-hue) var(--iceberg-saturation) var(--iceberg-lightness) / 0.65)", // 2..4
-            5, "hsl(var(--iceberg-hue) var(--iceberg-saturation) 70% / 0.95)", // 5..14
-            15, "hsl(var(--iceberg-hue) 35% 60% / 1)", // 15+
+            ICEBERG_COLOR_TIER_LOW, // 2..4
+            5, ICEBERG_COLOR_TIER_MID, // 5..14
+            15, ICEBERG_COLOR_TIER_HIGH, // 15+
           ],
-          "circle-stroke-color": "hsl(var(--iceberg-hue) 40% 25% / 1)",
+          "circle-stroke-color": ICEBERG_STROKE_CLUSTER,
           "circle-stroke-width": [
             "case",
             ["<=", ["get", "point_count"], 14],
@@ -147,7 +162,7 @@ export function IcebergLayer({ adapter }: Props) {
         source: SOURCE,
         filter: ["!", ["has", "point_count"]],
         paint: {
-          "circle-color": "hsl(var(--iceberg-hue) var(--iceberg-saturation) var(--iceberg-lightness) / 0.85)",
+          "circle-color": ICEBERG_COLOR_DETECTION,
           "circle-radius": [
             "interpolate",
             ["linear"],
@@ -157,7 +172,7 @@ export function IcebergLayer({ adapter }: Props) {
             250, 9,
             500, 13,
           ],
-          "circle-stroke-color": "hsl(var(--iceberg-hue) 40% 30% / 1)",
+          "circle-stroke-color": ICEBERG_STROKE_DETECTION,
           "circle-stroke-width": 1,
           "circle-opacity": 0.85,
         },
@@ -175,7 +190,7 @@ export function IcebergLayer({ adapter }: Props) {
           ["==", ["get", "id"], ""],
         ] as unknown as FilterSpecification,
         paint: {
-          "circle-color": "hsl(var(--iceberg-hue) 80% 70% / 1)",
+          "circle-color": ICEBERG_COLOR_SELECTED,
           "circle-radius": 12,
           "circle-stroke-color": "#e8f1f8",
           "circle-stroke-width": 2,
@@ -222,6 +237,19 @@ export function IcebergLayer({ adapter }: Props) {
         document.body.style.cursor = "";
       });
     });
+
+    return () => {
+      document.body.style.cursor = "";
+      for (const id of [
+        LAYER_DETECTION_SELECTED,
+        LAYER_CLUSTER_COUNT,
+        LAYER_CLUSTER_CIRCLE,
+        LAYER_DETECTION,
+      ]) {
+        adapter.removeLayerSafe(id);
+      }
+      adapter.removeSourceSafe(SOURCE);
+    };
   }, [adapter, select]);
 
   // Visibility / opacity sync — now covers the two new cluster layers
