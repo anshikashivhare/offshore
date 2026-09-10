@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.api import deps as api_deps
-from app.core.config import settings
+from app.config.config import settings
 from app.db.session import get_db as db_session_get_db
 from app.main import app
 from app.models.base import Base

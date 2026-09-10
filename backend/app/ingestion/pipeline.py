@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
-from app.core.config import settings
+from app.config.config import settings
 from app.ingestion.interfaces import (
     DataFetcher,
     DataNormalizer,

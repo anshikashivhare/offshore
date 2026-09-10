@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.health import router as health_router
-from app.core.config import settings
-from app.core.exceptions import setup_exception_handlers
-from app.core.logging import setup_logging
+from app.config.config import settings
+from app.config.exceptions import setup_exception_handlers
+from app.config.logging import setup_logging
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.config.config import settings
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)

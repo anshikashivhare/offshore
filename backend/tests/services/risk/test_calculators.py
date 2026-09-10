@@ -8,35 +8,39 @@ from app.services.risk.calculators import (
     CurrentRiskCalculator
 )
 
+class MockDB:
+    async def execute(self, stmt):
+        class Result:
+            def scalars(self):
+                class Scalars:
+                    def all(self): return []
+                return Scalars()
+        return Result()
+
 @pytest.mark.asyncio
 async def test_ice_risk_calculator():
-    calc = IceRiskCalculator()
+    calc = IceRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.5
-    assert result.confidence == 0.8
-    assert not result.is_missing
-    assert "source" in result.metadata
+    assert result.risk_value == 0.0
+    assert result.is_missing
 
 @pytest.mark.asyncio
 async def test_iceberg_risk_calculator():
-    calc = IcebergRiskCalculator()
+    calc = IcebergRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.2
-    assert result.confidence == 0.9
-    assert not result.is_missing
+    assert result.risk_value == 0.0
+    assert result.is_missing
 
 @pytest.mark.asyncio
 async def test_weather_risk_calculator():
-    calc = WeatherRiskCalculator()
+    calc = WeatherRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.3
-    assert result.confidence == 0.85
-    assert not result.is_missing
+    assert result.risk_value == 0.0
+    assert result.is_missing
 
 @pytest.mark.asyncio
 async def test_current_risk_calculator():
-    calc = CurrentRiskCalculator()
+    calc = CurrentRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.1
-    assert result.confidence == 0.9
-    assert not result.is_missing
+    assert result.risk_value == 0.0
+    assert result.is_missing
