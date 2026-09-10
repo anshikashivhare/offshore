@@ -77,15 +77,14 @@ export function NavigationMap({
     }
   }, [storeIcebergId, onSelectIceberg]);
 
-  // Sync layer states into useLayerStore
+  // Sync layer states into useLayerStore with exact value dependencies
   useEffect(() => {
-    if (layers) {
-      setLayerEnabled("seaIce", layers.seaIce);
-      setLayerEnabled("icebergs", layers.icebergs);
-      setLayerEnabled("route", layers.vesselTrack);
-      setLayerEnabled("oceanCurrents", layers.contours);
-    }
-  }, [layers, setLayerEnabled]);
+    if (!layers) return;
+    setLayerEnabled("seaIce", layers.seaIce);
+    setLayerEnabled("icebergs", layers.icebergs);
+    setLayerEnabled("route", layers.vesselTrack);
+    setLayerEnabled("oceanCurrents", layers.contours);
+  }, [layers?.seaIce, layers?.icebergs, layers?.vesselTrack, layers?.contours, setLayerEnabled]);
 
   useEffect(() => {
     if (iceOpacity !== undefined) {
@@ -109,7 +108,7 @@ export function NavigationMap({
           <button
             type="button"
             onClick={() => onSelectVessel?.(ACTIVE_VESSEL)}
-            className="group flex items-center gap-2.5 px-3 py-1.5 rounded-md bg-[#0B1820]/90 backdrop-blur-md border border-[rgba(120,180,200,0.2)] hover:border-cyan-400 text-xs font-mono text-[#8ea8b7] shadow-xl transition-all"
+            className="group flex items-center gap-2.5 px-3 py-1.5 rounded-md bg-[#0B1820]/90 backdrop-blur-md border border-[rgba(120,180,200,0.2)] hover:border-cyan-400 active:scale-[0.97] active:bg-[#102631] text-xs font-mono text-[#8ea8b7] shadow-xl transition-all duration-150 cursor-pointer"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
