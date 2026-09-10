@@ -227,9 +227,7 @@ export function OceanCurrentLayer({ adapter }: Props) {
 
     return () => {
       mounted = false;
-      // Clean up cleanly; our outer layout effect checks loaded, which
-      // already ran, so the map is real; getLayer guards a re-mount.
-      adapter.removeLayer(LAYER_FLOW);
+      adapter.removeLayerSafe(LAYER_FLOW);
       handleRef.current = null;
     };
   }, [adapter]);

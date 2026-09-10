@@ -110,6 +110,14 @@ export function RouteLayer({ adapter }: Props) {
   const opacity = useLayerStore((s) => s.layers.route.opacity);
   const status = useRouteStore((s) => s.status);
   const result = useRouteStore((s) => s.result);
+  const recalculate = useRouteStore((s) => s.recalculate);
+
+  // Compute route on initial mount if still idle.
+  useEffect(() => {
+    if (status === "idle") {
+      recalculate();
+    }
+  }, [status, recalculate]);
 
   // Latest data + a ref to it for the pulse ticker. The ref
   // exists so the setInterval callback always sees the current
@@ -207,37 +215,11 @@ export function RouteLayer({ adapter }: Props) {
     // want a clean slate.
     return () => {
       for (const id of [LAYER_ENDPOINTS, LAYER_WAYPOINTS, LAYER_LINE, LAYER_LINE_GLOW]) {
-        adapter.removeLayer(id);
+        adapter.removeLayerSafe(id);
       }
       for (const id of [SOURCE_ENDPOINTS, SOURCE_WAYPOINTS, SOURCE]) {
-        adapter.removeSource(id);
+        adapter.removeSourceSafe(id);
       }
-    };
-  }, [adapter]);
-
-  // Click handler for dynamic routing
-  useEffect(() => {
-    // We can't put pendingSelection in the deps array without re-binding the event 
-    // on every click, which is fine, but cleaner to just fetch it on click via the store.
-    const handleClick = (e: any) => {
-      const state = useRouteStore.getState();
-      if (state.pendingSelection) {
-        const { lng, lat } = e.lngLat;
-        if (state.pendingSelection === "origin") {
-          state.setOrigin({ lon: lng, lat });
-        } else if (state.pendingSelection === "destination") {
-          state.setDestination({ lon: lng, lat });
-        }
-      }
-    };
-    
-    // Add event
-    adapter.on("click", handleClick);
-    
-    // NOTE: MapAdapter doesn't expose a global `off` that takes a handler in its types,
-    // but maplibregl.Map does. 
-    return () => {
-      adapter.getRawMap().off("click", handleClick);
     };
   }, [adapter]);
 

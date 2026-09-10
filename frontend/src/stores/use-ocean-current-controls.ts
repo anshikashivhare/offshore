@@ -43,7 +43,7 @@ export const useOceanCurrentControls = create<OceanCurrentControlsState>(
     particleCount: 4000,
     speedMultiplier: 1.0,
     setParticleCount: (n) =>
-      set({ particleCount: clamp(n, PARTICLE_MIN, PARTICLE_MAX) }),
+      set({ particleCount: Math.round(clamp(n, PARTICLE_MIN, PARTICLE_MAX)) }),
     setSpeedMultiplier: (m) =>
       set({ speedMultiplier: clamp(m, SPEED_MIN, SPEED_MAX) }),
   }),
@@ -60,5 +60,5 @@ function clamp(n: number, lo: number, hi: number): number {
   if (Number.isNaN(n)) return lo;
   if (n < lo) return lo;
   if (n > hi) return hi;
-  return Math.round(n);
+  return n;
 }
