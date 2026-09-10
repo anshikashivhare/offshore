@@ -134,7 +134,7 @@ export class MapAdapter {
       scrollZoom: { around: "center" },
     });
 
-    this.map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
+    this.map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
 
     this.map.on("load", () => {
       this.loaded = true;
@@ -152,34 +152,64 @@ export class MapAdapter {
     }
   }
 
+  isAlive(): boolean {
+    try {
+      return !!this.map && !!(this.map as any).style;
+    } catch {
+      return false;
+    }
+  }
+
   addSource(id: string, spec: GeoJSONSourceSpecification): void {
-    if (!this.map.style) return;
-    // maplibre throws if the source already exists; guard so layer
-    // components can be re-mounted in dev without crashing.
-    if (this.map.getSource(id)) return;
-    this.map.addSource(id, spec);
+    if (!this.isAlive()) return;
+    try {
+      if (this.map.getSource(id)) return;
+      this.map.addSource(id, spec);
+    } catch {
+      // ignore
+    }
   }
 
   addLayer(layer: LayerSpecification | CustomLayerInterface, beforeId?: string): void {
-    if (!this.map.style) return;
-    if (this.map.getLayer(layer.id)) return;
-    this.map.addLayer(layer as LayerSpecification, beforeId);
+    if (!this.isAlive()) return;
+    try {
+      if (this.map.getLayer(layer.id)) return;
+      this.map.addLayer(layer as LayerSpecification, beforeId);
+    } catch {
+      // ignore
+    }
   }
 
-  removeLayer(layerId: string): void {
-    if (!this.map.style) return;
-    if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
+  removeLayerSafe(id: string): void {
+    if (!this.isAlive()) return;
+    try {
+      if (this.map.getLayer(id)) {
+        this.map.removeLayer(id);
+      }
+    } catch {
+      // ignore
+    }
   }
 
-  removeSource(sourceId: string): void {
-    if (!this.map.style) return;
-    if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+  removeSourceSafe(id: string): void {
+    if (!this.isAlive()) return;
+    try {
+      if (this.map.getSource(id)) {
+        this.map.removeSource(id);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   setLayerVisibility(layerId: string, visible: boolean): void {
-    if (!this.map.style) return;
-    if (!this.map.getLayer(layerId)) return;
-    this.map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    if (!this.isAlive()) return;
+    try {
+      if (!this.map.getLayer(layerId)) return;
+      this.map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    } catch {
+      // ignore
+    }
   }
 
   /** Apply opacity to every paint property that already carries a number,
@@ -187,34 +217,33 @@ export class MapAdapter {
    *  MapLibre's paint expressions expect for "global" opacity on a layer
    *  type that doesn't have a single opacity property. */
   setLayerOpacity(layerId: string, opacity: number): void {
-    if (!this.map.style) return;
-    const layer = this.map.getLayer(layerId);
-    if (!layer) return;
+    if (!this.isAlive()) return;
+    try {
+      const layer = this.map.getLayer(layerId);
+      if (!layer) return;
 
-    // Cast through unknown — paint properties are typed loosely upstream.
-    const paint = (this.map as unknown as {
-      getPaintProperty: (id: string, prop: string) => unknown;
-      setPaintProperty: (id: string, prop: string, value: unknown) => void;
-    });
+      const paint = (this.map as unknown as {
+        getPaintProperty: (id: string, prop: string) => unknown;
+        setPaintProperty: (id: string, prop: string, value: unknown) => void;
+      });
 
-    // Layer-type-aware default opacity properties. If a layer type adds
-    // a new one later, extend this map rather than reaching for the raw
-    // maplibre instance elsewhere.
-    const opacityProps: Record<string, string> = {
-      fill: "fill-opacity",
-      line: "line-opacity",
-      circle: "circle-opacity",
-      heatmap: "heatmap-opacity",
-      "fill-extrusion": "fill-extrusion-opacity",
-      raster: "raster-opacity",
-      symbol: "text-opacity",
-    };
-    const prop = opacityProps[layer.type];
-    if (prop) paint.setPaintProperty(layerId, prop, opacity);
+      const opacityProps: Record<string, string> = {
+        fill: "fill-opacity",
+        line: "line-opacity",
+        circle: "circle-opacity",
+        heatmap: "heatmap-opacity",
+        "fill-extrusion": "fill-extrusion-opacity",
+        raster: "raster-opacity",
+        symbol: "text-opacity",
+      };
+      const prop = opacityProps[layer.type];
+      if (prop) paint.setPaintProperty(layerId, prop, opacity);
+    } catch {
+      // ignore
+    }
   }
 
   setData(sourceId: string, data: GeoJSON.FeatureCollection | GeoJSON.Feature): void {
-    if (!this.map.style) return;
     const src = this.map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
     src.setData(data as GeoJSON.FeatureCollection);
@@ -224,7 +253,6 @@ export class MapAdapter {
     layerId: string,
     filter: maplibregl.FilterSpecification | null,
   ): void {
-    if (!this.map.style) return;
     if (!this.map.getLayer(layerId)) return;
     this.map.setFilter(layerId, filter);
   }
@@ -287,6 +315,7 @@ export class MapAdapter {
   }
 
   destroy(): void {
+    this.loadHandlers.length = 0;
     this.map.remove();
   }
 
@@ -312,6 +341,11 @@ export class MapAdapter {
       zoom: opts.zoom,
       duration: opts.duration ?? 1200,
     });
+  }
+
+  /** Trigger MapLibre canvas resize. Call when parent container dimensions change. */
+  resize(): void {
+    this.map.resize();
   }
 
   /** Escape hatch. See the API-surface comment at the top of this
