@@ -22,7 +22,7 @@ from typing import List
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.config import settings
+from app.config.config import settings
 from app.db.session import engine
 
 logger = logging.getLogger(__name__)

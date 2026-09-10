@@ -3,7 +3,6 @@ uvicorn[standard]==0.29.0
 pydantic==2.7.1
 pydantic-settings==2.2.1
 sqlalchemy==2.0.30
-alembic==1.13.1
 asyncpg==0.29.0
 geoalchemy2==0.15.1
 redis[hiredis]==5.0.4
@@ -29,3 +28,4 @@ xgboost
 joblib
 torch
 scipy
+matplotlib
