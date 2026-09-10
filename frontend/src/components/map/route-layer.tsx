@@ -257,17 +257,14 @@ export function RouteLayer({ adapter }: Props) {
   // a result is loaded. The tick walks the pulse value along a
   // sine curve and rewrites the two endpoint features. Cost:
   // ~0.05ms per tick (two feature objects, single setData
-  // call) — comfortably under the per-frame budget.
+  // Pulse ticker. Runs at ~5 Hz (every 200ms) to avoid hogging CPU with setData() every frame.
   useEffect(() => {
     if (!enabled) return;
     if (status !== "ready" || !result) return;
     const PULSE_PERIOD_MS = 1500;
-    let raf = 0;
     const startedAt = performance.now();
-    const tick = () => {
+    const interval = setInterval(() => {
       const t = (performance.now() - startedAt) / PULSE_PERIOD_MS;
-      // sin → 0..1 envelope with a soft phase shift so the
-      // pulse is at "max" around t=0.5 and "min" around t=0/1.
       const phase = (Math.sin(t * 2 * Math.PI) + 1) / 2;
       const cur = resultRef.current;
       if (cur) {
@@ -286,10 +283,9 @@ export function RouteLayer({ adapter }: Props) {
           fc as unknown as GeoJSON.FeatureCollection,
         );
       }
-      raf = window.requestAnimationFrame(tick);
-    };
-    raf = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(raf);
+    }, 200);
+
+    return () => clearInterval(interval);
   }, [adapter, enabled, status, result]);
 
   return <RoutePanel enabled={enabled} />;

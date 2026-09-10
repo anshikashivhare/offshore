@@ -73,7 +73,7 @@ export function Topbar({ title, subtitle }: TopbarProps) {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 rounded-lg bg-[#102631] border border-[rgba(120,180,200,0.25)] shadow-2xl z-50 p-3 text-left">
+            <div className="absolute right-0 mt-2 w-80 rounded-lg bg-[#102631] border border-[rgba(120,180,200,0.25)] shadow-2xl z-50 p-3 text-left animate-content-enter">
               <div className="flex items-center justify-between pb-2 border-b border-[rgba(120,180,200,0.12)]">
                 <span className="text-xs font-semibold text-white uppercase tracking-wider">
                   Operational Alerts

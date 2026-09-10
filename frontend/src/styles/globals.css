@@ -155,3 +155,95 @@ body {
 .animate-satellite-orbit-fast {
   animation: satelliteOrbit 5s linear infinite;
 }
+
+/* ============================================================
+   GLOBAL ULTRA-RESPONSIVE BUTTON TACTILE FEEDBACK
+============================================================ */
+button, [role="button"], a[href] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  /* Bidirectional transition — both press-down AND release animate smoothly */
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.15s ease,
+              background-color 0.15s ease,
+              border-color 0.15s ease,
+              color 0.15s ease;
+  will-change: transform;
+  transform: translateZ(0); /* GPU compositing layer */
+}
+
+button:active:not(:disabled), [role="button"]:active:not(:disabled) {
+  transform: scale(0.97) translateZ(0);
+  transition: transform 0.06s ease-out;
+}
+
+/* ============================================================
+   PAGE CONTENT ENTRANCE ANIMATION
+============================================================ */
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+.animate-content-enter {
+  animation: contentFadeIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ============================================================
+   LANDING PAGE EXIT TRANSITION
+============================================================ */
+@keyframes pageExitZoom {
+  from {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.06) translateZ(0);
+    filter: blur(4px);
+  }
+}
+
+.animate-page-exit {
+  animation: pageExitZoom 0.5s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  will-change: transform, opacity, filter;
+}
+
+/* ============================================================
+   SMOOTH SIDEBAR NAVIGATION LINK TRANSITIONS
+============================================================ */
+nav a {
+  transition: background-color 0.12s ease,
+              color 0.12s ease,
+              border-color 0.15s ease,
+              transform 0.1s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.15s ease !important;
+}
+
+/* ============================================================
+   GPU-ACCELERATE ALL ANIMATED ELEMENTS
+============================================================ */
+.animate-spin,
+.animate-pulse,
+.animate-ping,
+.animate-radar-ping,
+.animate-route-dash,
+.animate-satellite-orbit,
+.animate-satellite-orbit-slow,
+.animate-satellite-orbit-fast {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* Smooth scroll for the entire app */
+* {
+  scroll-behavior: smooth;
+}

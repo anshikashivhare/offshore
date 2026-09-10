@@ -36,7 +36,7 @@ export function MapLayers({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#0B1820]/90 backdrop-blur-md border border-[rgba(120,180,200,0.2)] text-xs font-mono text-[#8ea8b7] hover:text-white shadow-xl transition-colors"
+        className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#0B1820]/90 backdrop-blur-md border border-[rgba(120,180,200,0.2)] text-xs font-mono text-[#8ea8b7] hover:text-white shadow-xl transition-all duration-150 active:scale-[0.96] active:bg-[#102631] cursor-pointer"
       >
         <Layers size={14} className="text-cyan-400" />
         <span>LAYERS</span>
@@ -44,7 +44,7 @@ export function MapLayers({
       </button>
 
       {open && (
-        <div className="absolute top-full mt-2 left-0 w-64 rounded-md bg-[#102631] border border-[rgba(120,180,200,0.25)] shadow-2xl p-3 text-xs font-mono select-none">
+        <div className="absolute top-full mt-2 left-0 w-64 rounded-md bg-[#102631] border border-[rgba(120,180,200,0.25)] shadow-2xl p-3 text-xs font-mono select-none animate-in fade-in-50 zoom-in-95 duration-150">
           <div className="text-[10px] uppercase tracking-wider text-[#628294] font-semibold mb-2">
             Map Overlays & Telemetry
           </div>
@@ -63,14 +63,14 @@ export function MapLayers({
                   key={layer.id}
                   type="button"
                   onClick={() => toggleLayer(layer.id as keyof LayerVisibilityState)}
-                  className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#0B1820] text-left transition-colors"
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#0B1820] text-left transition-all duration-100 active:scale-[0.98] active:bg-cyan-950/30 cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <span
-                      className="h-2 w-2 rounded-full"
+                      className="h-2 w-2 rounded-full transition-colors"
                       style={{ backgroundColor: active ? layer.color : "#475569" }}
                     />
-                    <span className={active ? "text-[#e6f4f8]" : "text-[#628294]"}>
+                    <span className={active ? "text-[#e6f4f8] font-medium" : "text-[#628294]"}>
                       {layer.label}
                     </span>
                   </div>

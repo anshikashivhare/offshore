@@ -9,24 +9,26 @@ export default function LandingPage() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-useEffect(() => {
-  if (videoRef.current) {
-    videoRef.current.playbackRate = 1.25;
-  }
-}, []);
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 1.25;
+    }
+    // Prefetch the navigation bundle immediately in the background
+    router.prefetch("/navigation");
+  }, [router]);
 
   const handleEnterCommandCenter = () => {
     setIsTransitioning(true);
 
     setTimeout(() => {
       router.push("/navigation");
-    }, 650);
+    }, 400);
   };
 
   return (
     <div
-      className={`relative h-screen w-screen overflow-hidden bg-[#061014] text-[#e6f4f8] select-none flex flex-col justify-between transition-all duration-700 ${
-        isTransitioning ? "scale-110 opacity-0" : "scale-100 opacity-100"
+      className={`relative h-screen w-screen overflow-hidden bg-[#061014] text-[#e6f4f8] select-none flex flex-col justify-between ${
+        isTransitioning ? "animate-page-exit" : ""
       }`}
     >
       {/* ================================================================
@@ -498,6 +500,7 @@ useEffect(() => {
         <button
           type="button"
           onClick={handleEnterCommandCenter}
+          onMouseEnter={() => router.prefetch("/navigation")}
           className="group inline-flex items-center gap-3 px-7 py-3.5 rounded-lg bg-[#0B1820]/90 hover:bg-[#102631] text-cyan-300 hover:text-white border border-cyan-500/40 hover:border-cyan-400 text-xs sm:text-sm font-semibold tracking-wider transition-all duration-300 shadow-[0_0_24px_rgba(34,211,238,0.15)] hover:shadow-[0_0_32px_rgba(34,211,238,0.3)] cursor-pointer"
         >
           <span>ENTER COMMAND CENTER</span>

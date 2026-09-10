@@ -19,6 +19,7 @@ export function RoutePanel({ enabled }: Props) {
   const destination = useRouteStore((s) => s.destination);
   const pendingSelection = useRouteStore((s) => s.pendingSelection);
   const setPendingSelection = useRouteStore((s) => s.setPendingSelection);
+  const setEndpoints = useRouteStore((s) => s.setEndpoints);
   const toggle = useLayerStore((s) => s.toggle);
   
   const originName = useReverseGeocode(origin);
@@ -74,8 +75,7 @@ export function RoutePanel({ enabled }: Props) {
         
         <button
           onClick={() => {
-            setOrigin(-45, -60);
-            setDestination(-45, -60); // Resetting to default dummy coords or whatever
+            setEndpoints({ lat: -45, lon: -60 }, { lat: -45, lon: -60 });
           }}
           className="w-full text-[10px] uppercase tracking-wider py-1 border border-dashed border-[color:var(--border-subtle)] text-[color:var(--fg-muted)] hover:text-[color:var(--fg-primary)] hover:border-[color:var(--fg-primary)] transition-colors rounded"
         >

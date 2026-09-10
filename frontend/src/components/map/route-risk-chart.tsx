@@ -1,27 +1,31 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import React, { useMemo } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { useRouteStore } from "@/stores/use-route-store";
-import { useMemo } from "react";
-
-// Dynamically import plotly to avoid SSR issues
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
 export function RouteRiskChart() {
   const result = useRouteStore((s) => s.result);
 
-  const plotData = useMemo(() => {
-    if (!result || !result.pathMetrics) return null;
-    
-    return {
-      x: result.pathMetrics.map(m => m.distance),
-      y: result.pathMetrics.map(m => m.risk),
-    };
+  const chartData = useMemo(() => {
+    if (!result || !result.pathMetrics || result.pathMetrics.length === 0) return null;
+    return result.pathMetrics.map((m) => ({
+      distance: Math.round(m.distance),
+      risk: Math.round(m.risk),
+    }));
   }, [result]);
 
-  if (!plotData) {
+  if (!chartData) {
     return (
-      <div className="w-full h-32 flex items-center justify-center text-[10px] uppercase text-[color:var(--fg-muted)] border border-dashed border-[color:var(--border-subtle)] rounded">
+      <div className="w-full h-32 flex items-center justify-center text-[10px] uppercase text-[color:var(--fg-muted)] border border-dashed border-[color:var(--border-subtle)] rounded font-mono">
         No route planned
       </div>
     );
@@ -29,44 +33,69 @@ export function RouteRiskChart() {
 
   return (
     <div className="w-full mt-4">
-      <div className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--fg-muted)] mb-2">
-        Risk Profile
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] uppercase tracking-[0.16em] text-[color:var(--fg-muted)] font-mono">
+          Risk Profile
+        </span>
+        <span className="text-[9px] text-[#526f80] font-mono">
+          Distance (NM) vs Risk
+        </span>
       </div>
-      <div className="w-full h-40 overflow-hidden rounded">
-        <Plot
-          data={[
-            {
-              x: plotData.x,
-              y: plotData.y,
-              type: "scatter",
-              mode: "lines",
-              fill: "tozeroy",
-              line: { color: "var(--accent-route)", width: 2 },
-              fillcolor: "rgba(34, 211, 238, 0.2)",
-            },
-          ]}
-          layout={{
-            margin: { t: 5, r: 5, l: 25, b: 20 },
-            paper_bgcolor: "transparent",
-            plot_bgcolor: "transparent",
-            xaxis: {
-              title: { text: "Distance (NM)", font: { size: 9, color: "#94a3b8" } },
-              tickfont: { size: 9, color: "#94a3b8" },
-              gridcolor: "rgba(255,255,255,0.05)",
-              zerolinecolor: "rgba(255,255,255,0.1)",
-            },
-            yaxis: {
-              tickfont: { size: 9, color: "#94a3b8" },
-              gridcolor: "rgba(255,255,255,0.05)",
-              zerolinecolor: "rgba(255,255,255,0.1)",
-              range: [0, Math.max(...plotData.y, 100)],
-            },
-            hovermode: "x unified",
-            dragmode: false,
-          }}
-          config={{ displayModeBar: false, responsive: true }}
-          style={{ width: "100%", height: "100%" }}
-        />
+      <div className="w-full h-36 overflow-hidden rounded bg-[rgba(11,24,32,0.6)] border border-[rgba(120,180,200,0.15)] p-1.5">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 8, right: 10, left: -22, bottom: 0 }}>
+            <defs>
+              <linearGradient id="routeRiskGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="2 3"
+              stroke="rgba(120, 180, 200, 0.1)"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="distance"
+              tick={{ fontSize: 9, fill: "#7894a2", fontFamily: "monospace" }}
+              tickLine={{ stroke: "rgba(120, 180, 200, 0.2)" }}
+              axisLine={{ stroke: "rgba(120, 180, 200, 0.2)" }}
+              unit=" NM"
+            />
+            <YAxis
+              domain={[0, 100]}
+              tick={{ fontSize: 9, fill: "#7894a2", fontFamily: "monospace" }}
+              tickLine={{ stroke: "rgba(120, 180, 200, 0.2)" }}
+              axisLine={{ stroke: "rgba(120, 180, 200, 0.2)" }}
+            />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="rounded bg-[#0B1820]/95 border border-cyan-500/40 px-2.5 py-1.5 text-[10px] font-mono shadow-xl backdrop-blur-md">
+                      <div className="text-[#8ea8b7]">
+                        Distance: <span className="text-white font-bold">{data.distance} NM</span>
+                      </div>
+                      <div className="text-[#8ea8b7]">
+                        Risk Index: <span className="text-cyan-400 font-bold">{data.risk} / 100</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="risk"
+              stroke="#22d3ee"
+              strokeWidth={2}
+              fill="url(#routeRiskGradient)"
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
