@@ -275,6 +275,7 @@ export function calculateRoute(
     maxRiskScore: maxRisk,
     meanRiskScore: meanRisk,
     waypointCount: coordinates.length,
+    waypointsFeature,
     endpointsFeature,
     startIndex,
     goalIndex,

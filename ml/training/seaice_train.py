@@ -12,6 +12,7 @@ from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
 
 from ml.preprocessing.seaice.data import generate_synthetic_timeseries
+from ml.path_utils import get_model_path
 
 
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -27,11 +28,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def time_based_split(df: pd.DataFrame, test_frac=0.2):
-    cutoff_date = df["date"].quantile(1 - test_frac, interpolation="nearest")
-    train = df[df["date"] < cutoff_date]
-    test = df[df["date"] >= cutoff_date]
-    return train, test
+def time_based_split(df: pd.DataFrame, val_frac=0.15, test_frac=0.15):
+    val_cutoff = df["date"].quantile(1 - (val_frac + test_frac), interpolation="nearest")
+    test_cutoff = df["date"].quantile(1 - test_frac, interpolation="nearest")
+    train = df[df["date"] < val_cutoff]
+    val = df[(df["date"] >= val_cutoff) & (df["date"] < test_cutoff)]
+    test = df[df["date"] >= test_cutoff]
+    return train, val, test
 
 
 FEATURE_COLS = ["lag_1", "lag_2", "lag_3", "day_of_year", "lat", "lon"]
@@ -50,22 +53,24 @@ def train_model(nc_path: str = None):
     print("Building features...")
     df = build_features(df)
 
-    train, test = time_based_split(df)
-    print(f"Train rows: {len(train)}, Test rows: {len(test)}")
+    train, val, test = time_based_split(df)
+    print(f"Train rows: {len(train)}, Val rows: {len(val)}, Test rows: {len(test)}")
 
     X_train, y_train = train[FEATURE_COLS], train[TARGET_COL]
+    X_val, y_val = val[FEATURE_COLS], val[TARGET_COL]
     X_test, y_test = test[FEATURE_COLS], test[TARGET_COL]
 
     model = XGBRegressor(
-        n_estimators=200,
+        n_estimators=300,
         max_depth=5,
         learning_rate=0.05,
         subsample=0.8,
         colsample_bytree=0.8,
         random_state=42,
+        early_stopping_rounds=30,
     )
     print("Training...")
-    model.fit(X_train, y_train)
+    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
 
     preds = model.predict(X_test)
     rmse = np.sqrt(mean_squared_error(y_test, preds))
@@ -74,18 +79,24 @@ def train_model(nc_path: str = None):
     naive_rmse = np.sqrt(mean_squared_error(y_test, X_test["lag_1"]))
     print(f"Naive (persistence) RMSE: {naive_rmse:.4f}")
 
-    model.save_model("ml/models/weights/seaice_xgb.json")
-    print("Model saved to ml/models/weights/seaice_xgb.json")
+    import uuid
+    run_id = str(uuid.uuid4())
+    artifact_uri = get_model_path(f"seaice_xgb_{run_id}.json")
+
+    model.save_model(artifact_uri)
+    print(f"Model saved to {artifact_uri}")
 
     from mlops.experiment_log import log_experiment
     log_experiment(
+        run_id=run_id,
         model_name="seaice_xgboost",
         data_source=nc_path or "synthetic",
+        artifact_uri=artifact_uri,
         metrics={"test_rmse": float(rmse), "naive_rmse": float(naive_rmse)},
         hyperparams={"n_estimators": 200, "max_depth": 5, "learning_rate": 0.05},
     )
 
-    return model, rmse
+    return model, rmse, artifact_uri
 
 
 if __name__ == "__main__":

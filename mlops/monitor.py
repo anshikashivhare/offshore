@@ -8,6 +8,9 @@ Run: python -m mlops.monitor
 """
 
 from mlops.experiment_log import get_experiment_history
+from ml.path_utils import get_mlops_path
+
+DEFAULT_TRENDS_PATH = get_mlops_path("metric_trends.png")
 
 PRIMARY_METRIC = {
     "seaice_xgboost": "test_rmse",
@@ -68,7 +71,7 @@ def print_report():
         print(f"  At best:         {'yes' if summary['is_at_best'] else 'no'}")
 
 
-def plot_trends(output_path: str = "mlops/metric_trends.png"):
+def plot_trends(output_path: str = DEFAULT_TRENDS_PATH):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

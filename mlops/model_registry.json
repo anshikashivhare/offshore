@@ -1,0 +1,26 @@
+{
+  "seaice_xgboost": {
+    "metric_name": "test_rmse",
+    "metric_value": 0.03938556642749222,
+    "model_path": "ml/models/weights/production_seaice_xgb.json",
+    "promoted_at": "2026-09-10T16:00:47.969463+00:00"
+  },
+  "trajectory_xgboost": {
+    "metric_name": "rmse_lat",
+    "metric_value": 0.003095285781680253,
+    "model_path": "ml/models/weights/production_trajectory_model.joblib",
+    "promoted_at": "2026-09-10T16:00:49.690189+00:00"
+  },
+  "seaice_convlstm": {
+    "metric_name": "test_rmse",
+    "metric_value": 0.06738775223493576,
+    "model_path": "ml/models/weights/production_convlstm.pt",
+    "promoted_at": "2026-09-10T16:01:14.229844+00:00"
+  },
+  "trajectory_lstm": {
+    "metric_name": "rmse_lat",
+    "metric_value": 0.004855030216276646,
+    "model_path": "ml/models/weights/production_lstm_model.pt",
+    "promoted_at": "2026-09-10T16:01:18.284259+00:00"
+  }
+}

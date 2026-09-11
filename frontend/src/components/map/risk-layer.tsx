@@ -88,8 +88,8 @@ export function RiskLayer({ adapter }: Props) {
     });
 
     return () => {
-      adapter.removeLayer(LAYER_RISK);
-      adapter.removeSource(SOURCE_RISK);
+      adapter.removeLayerSafe(LAYER_RISK);
+      adapter.removeSourceSafe(SOURCE_RISK);
     };
   }, [adapter]);
 

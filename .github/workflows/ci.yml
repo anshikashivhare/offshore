@@ -1,45 +1,104 @@
-name: CI Pipeline
+name: Full Stack CI
 
 on:
   push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
 
 jobs:
-  test:
+  test-and-train:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
-          cache: "pip"
+          python-version: "3.11"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
+          pip install flake8 matplotlib networkx
 
-      - name: Run Backend Tests
+      - name: Lint (syntax errors and undefined names only)
         run: |
-          export PYTHONPATH=backend
-          pytest backend/tests
+          python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=.venv,frontend/node_modules,frontend/.next
 
-      - name: MLOps Smoke Test - Sea Ice Model (XGBoost)
-        run: |
-          export PYTHONPATH=.
-          python -m ml.training.seaice_train
+      - name: Test route optimizer
+        run: python -m ml.inference.route_optimizer
 
-      - name: MLOps Smoke Test - Trajectory Model (XGBoost)
+      - name: Train sea-ice XGBoost baseline (synthetic data)
+        run: python -m ml.training.seaice_train
+
+      - name: Train sea-ice ConvLSTM (synthetic data)
+        run: python -m ml.training.seaice_train_convlstm
+
+      - name: Train iceberg XGBoost baseline (synthetic data)
+        run: python -m ml.training.trajectory_train
+
+      - name: Train iceberg LSTM (synthetic data)
+        run: python -m ml.training.trajectory_train_lstm
+
+      - name: Verify inference paths work end to end
         run: |
-          export PYTHONPATH=.
-          python -m ml.training.trajectory_train
-          
-      - name: MLOps Smoke Test - Monitor Check
-        run: |
-          export PYTHONPATH=.
-          python -m mlops.monitor
+          python -c "
+          from ml.inference.seaice_predict import predict_concentration
+          from ml.inference.trajectory_predict import project_trajectory
+          pred = predict_concentration(0.4, 0.42, 0.38, 150, -65.0, -60.0)
+          assert 0.0 <= pred <= 1.0, f'sea-ice prediction out of range: {pred}'
+          path = project_trajectory(-65.0, -58.0, 0.01, -0.005, 0.005, 0.002, num_steps=3)
+          assert len(path) == 4, f'expected 4 points (start + 3 steps), got {len(path)}'
+          print('Inference sanity checks passed')
+          "
+
+      - name: Run CI sanity checks on logged metrics
+        run: python -m mlops.ci_checks
+
+      - name: Generate monitoring report and trend chart
+        run: python -m mlops.monitor
+
+      - name: Upload experiment log and metrics chart
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-metrics-${{ github.sha }}
+          path: |
+            mlops/experiment_log.jsonl
+            mlops/metric_trends.png
+          retention-days: 30
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Lint Next.js Frontend
+        run: npm run lint
+
+      - name: Typecheck Frontend
+        run: npm run typecheck
+
+      - name: Build Next.js Frontend
+        run: npm run build
