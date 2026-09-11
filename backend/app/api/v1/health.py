@@ -46,7 +46,7 @@ async def _check_redis() -> str:
         return "failed"
     finally:
         try:
-            await client.close()
+            await client.aclose()
         except Exception:  # pragma: no cover
             pass
 

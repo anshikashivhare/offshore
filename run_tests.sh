@@ -1,4 +1,5 @@
 set -x
+set -e
 python3 -c "
 from ml.inference.seaice_predict import predict_concentration
 from ml.inference.trajectory_predict import project_trajectory
