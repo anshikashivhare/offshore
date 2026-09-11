@@ -109,7 +109,7 @@ export function PortLayer({ adapter }: Props) {
       });
       
       // Click logic to select port
-      map.on("click", "ports-layer", (e: MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
+      map.on("click", "ports-layer", (e: MapMouseEvent & { features?: maplibregl.MapboxGeoJSONFeature[] }) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
         
@@ -122,10 +122,10 @@ export function PortLayer({ adapter }: Props) {
         // If user is actively placing A or B, satisfy that
         const currentPending = useRouteStore.getState().pendingSelection;
         if (currentPending === "origin") {
-          setOrigin({ lat: coords[1], lon: coords[0] });
+          setOrigin(coords[1], coords[0]);
           setPendingSelection(null);
         } else if (currentPending === "destination") {
-          setDestination({ lat: coords[1], lon: coords[0] });
+          setDestination(coords[1], coords[0]);
           setPendingSelection(null);
         } else {
           // If no pending selection, click defaults to setting Origin, 
@@ -139,7 +139,7 @@ export function PortLayer({ adapter }: Props) {
             // Unset origin? Or just ignore. Let's ignore.
           } else {
             // Set as destination
-            setDestination({ lat: coords[1], lon: coords[0] });
+            setDestination(coords[1], coords[0]);
           }
         }
       });
@@ -147,9 +147,9 @@ export function PortLayer({ adapter }: Props) {
     
     // NOTE: cleanup function for port layer
     return () => {
-      adapter.removeLayerSafe("ports-selected-layer");
-      adapter.removeLayerSafe("ports-layer");
-      adapter.removeSourceSafe("ports-source");
+      adapter.removeLayer("ports-selected-layer");
+      adapter.removeLayer("ports-layer");
+      adapter.removeSource("ports-source");
     };
   }, [adapter, setOrigin, setDestination, setPendingSelection]);
 

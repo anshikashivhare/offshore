@@ -1,8 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { AppShell } from "@/components/layout/AppShell";
-import { NavigationMap } from "@/components/map/NavigationMap";
+
+const NavigationMap = dynamic(
+  () => import("@/components/map/NavigationMap").then((mod) => mod.NavigationMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#061014] text-cyan-400 font-mono">
+        <div className="relative flex items-center justify-center mb-4">
+          <div className="h-16 w-16 rounded-full border border-cyan-500/20 border-t-cyan-400 animate-spin" />
+          <div className="absolute h-8 w-8 rounded-full border border-dashed border-cyan-400/40 animate-pulse" />
+        </div>
+        <span className="text-xs uppercase tracking-[0.25em] text-cyan-300">
+          Initializing Polar Tactical Canvas…
+        </span>
+        <span className="text-[10px] text-[#526f80] mt-1">
+          DRAKE → ROSS HYDRODYNAMIC SECTOR
+        </span>
+      </div>
+    ),
+  }
+);
 import { MapControls } from "@/components/map/MapControls";
 import { MapLayers, LayerVisibilityState } from "@/components/map/MapLayers";
 import { SeaIceLegend } from "@/components/map/SeaIceLegend";

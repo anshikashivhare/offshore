@@ -60,23 +60,24 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium transition-all ${
+                prefetch={true}
+                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium transition-all duration-150 active:scale-[0.97] cursor-pointer ${
                   isActive
-                    ? "bg-[#0B1820] text-cyan-300 shadow-sm"
-                    : "text-[#8ea8b7] hover:text-[#e6f4f8] hover:bg-[#0B1820]/60"
+                    ? "bg-[#0B1820] text-cyan-300 shadow-sm border border-cyan-500/30"
+                    : "text-[#8ea8b7] hover:text-[#e6f4f8] hover:bg-[#0B1820]/80 active:bg-cyan-950/40"
                 }`}
               >
                 {/* Thin cyan active accent */}
                 {isActive && (
                   <span
-                    className="absolute left-0 top-1.5 bottom-1.5 w-[2px] bg-cyan-400 rounded-r shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+                    className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] bg-cyan-400 rounded-r shadow-[0_0_8px_rgba(34,211,238,0.8)]"
                     aria-hidden="true"
                   />
                 )}
 
                 <Icon
                   size={16}
-                  className={isActive ? "text-cyan-400" : "text-[#526f80] group-hover:text-[#8ea8b7]"}
+                  className={`transition-colors ${isActive ? "text-cyan-400" : "text-[#526f80] group-hover:text-[#8ea8b7]"}`}
                 />
                 <span className="tracking-wide">{item.label}</span>
               </Link>
@@ -89,21 +90,22 @@ export function Sidebar() {
       <div className="p-3 border-t border-[rgba(120,180,200,0.12)]">
         <Link
           href="/settings"
-          className={`relative flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium transition-all ${
+          prefetch={true}
+          className={`relative flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium transition-all duration-150 active:scale-[0.97] cursor-pointer ${
             pathname === "/settings"
-              ? "bg-[#0B1820] text-cyan-300"
-              : "text-[#8ea8b7] hover:text-[#e6f4f8] hover:bg-[#0B1820]/60"
+              ? "bg-[#0B1820] text-cyan-300 border border-cyan-500/30"
+              : "text-[#8ea8b7] hover:text-[#e6f4f8] hover:bg-[#0B1820]/80 active:bg-cyan-950/40"
           }`}
         >
           {pathname === "/settings" && (
             <span
-              className="absolute left-0 top-1.5 bottom-1.5 w-[2px] bg-cyan-400 rounded-r shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+              className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] bg-cyan-400 rounded-r shadow-[0_0_8px_rgba(34,211,238,0.8)]"
               aria-hidden="true"
             />
           )}
           <Settings
             size={16}
-            className={pathname === "/settings" ? "text-cyan-400" : "text-[#526f80]"}
+            className={`transition-colors ${pathname === "/settings" ? "text-cyan-400" : "text-[#526f80]"}`}
           />
           <span className="tracking-wide">Settings</span>
         </Link>
