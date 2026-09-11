@@ -81,11 +81,11 @@ export function SeaIceChart() {
               domain={[50, 90]}
               tickLine={false}
               axisLine={{ stroke: "rgba(120, 180, 200, 0.15)" }}
-              tickFormatter={(val: any) => `${val}%`}
+              tickFormatter={(val) => `${val}%`}
             />
 
             <Tooltip
-              content={({ active, payload, label }: any) => {
+              content={({ active, payload, label }) => {
                 if (!active || !payload || !payload.length) return null;
                 const data = payload[0].payload;
                 return (

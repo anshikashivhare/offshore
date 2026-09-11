@@ -53,10 +53,12 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
         [id]: { ...s.layers[id], enabled: !s.layers[id].enabled },
       },
     })),
-  setEnabled: (id, enabled) =>
+  setEnabled: (id, enabled) => {
+    if (get().layers[id]?.enabled === enabled) return;
     set((s) => ({
       layers: { ...s.layers, [id]: { ...s.layers[id], enabled } },
-    })),
+    }));
+  },
   setOpacity: (id, opacity) =>
     set((s) => ({
       layers: {

@@ -1,8 +1,21 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { AppShell } from "@/components/layout/AppShell";
-import { NavigationMap } from "@/components/map/NavigationMap";
+
+const NavigationMap = dynamic(
+  () => import("@/components/map/NavigationMap").then((mod) => mod.NavigationMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#061014] text-cyan-400 font-mono">
+        <div className="h-12 w-12 rounded-full border border-cyan-500/20 border-t-cyan-400 animate-spin mb-3" />
+        <span className="text-xs uppercase tracking-widest text-cyan-300">Loading Hazard Matrix…</span>
+      </div>
+    ),
+  }
+);
 import { MapLayers, LayerVisibilityState } from "@/components/map/MapLayers";
 import { RiskPanel } from "@/components/panels/RiskPanel";
 import { RiskChart } from "@/components/charts/RiskChart";

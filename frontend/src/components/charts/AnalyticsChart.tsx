@@ -33,9 +33,9 @@ export function AnalyticsChart({ type }: AnalyticsChartProps) {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(120, 180, 200, 0.08)" vertical={false} />
             <XAxis dataKey="month" stroke="#526f80" fontSize={10} tickLine={false} />
-            <YAxis stroke="#526f80" fontSize={10} tickLine={false} tickFormatter={(v: any) => `${v}%`} />
+            <YAxis stroke="#526f80" fontSize={10} tickLine={false} tickFormatter={(v) => `${v}%`} />
             <Tooltip
-              content={({ active, payload, label }: any) => {
+              content={({ active, payload, label }) => {
                 if (!active || !payload || !payload.length) return null;
                 return (
                   <div className="rounded-md bg-[#061014] border border-[rgba(120,180,200,0.25)] p-2.5 shadow-xl text-[11px] font-mono">
@@ -63,7 +63,7 @@ export function AnalyticsChart({ type }: AnalyticsChartProps) {
             <XAxis dataKey="week" stroke="#526f80" fontSize={10} tickLine={false} />
             <YAxis stroke="#526f80" fontSize={10} tickLine={false} />
             <Tooltip
-              content={({ active, payload, label }: any) => {
+              content={({ active, payload, label }) => {
                 if (!active || !payload || !payload.length) return null;
                 const d = payload[0].payload;
                 return (
@@ -89,9 +89,9 @@ export function AnalyticsChart({ type }: AnalyticsChartProps) {
         <BarChart data={ANALYTICS_TRENDS.performance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(120, 180, 200, 0.08)" vertical={false} />
           <XAxis dataKey="voyage" stroke="#526f80" fontSize={10} tickLine={false} />
-          <YAxis stroke="#526f80" fontSize={10} domain={[60, 100]} tickLine={false} tickFormatter={(v: any) => `${v}%`} />
+          <YAxis stroke="#526f80" fontSize={10} domain={[60, 100]} tickLine={false} tickFormatter={(v) => `${v}%`} />
           <Tooltip
-            content={({ active, payload, label }: any) => {
+            content={({ active, payload, label }) => {
               if (!active || !payload || !payload.length) return null;
               const d = payload[0].payload;
               return (

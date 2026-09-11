@@ -32,7 +32,7 @@ export function AppShell({
 
       {/* Sidebar Desktop / Mobile Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)] lg:relative lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -58,7 +58,7 @@ export function AppShell({
 
         {/* View Content */}
         <main
-          className={`flex-1 min-w-0 relative overflow-hidden ${
+          className={`flex-1 min-w-0 relative overflow-hidden animate-content-enter ${
             hideChromePadding ? "p-0" : "p-4 sm:p-6 overflow-y-auto custom-scrollbar"
           }`}
         >

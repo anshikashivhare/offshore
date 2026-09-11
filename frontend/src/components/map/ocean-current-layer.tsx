@@ -491,10 +491,11 @@ function createCustomLayer(opts: { adapter: MapAdapter }): CustomLayerInterface 
   let ages: Float32Array;
   let lifespans: Float32Array;
   let speeds: Float32Array;
-  let particleCount = 4000;
+  let particleCount = 600;
   let enabled = true;
-  let opacity = 0.9;
+  let opacity = 0.85;
   let speedMultiplier = 1.0;
+  let lastRepaintTime = 0;
 
   // GPU resources. We don't preallocate gl/program/buffer refs —
   // they come from maplibre's onAdd. Until then, render() no-ops.
@@ -662,10 +663,17 @@ function createCustomLayer(opts: { adapter: MapAdapter }): CustomLayerInterface 
 
       glCtx.drawArrays(glCtx.POINTS, 0, particleCount);
 
-      // Keep the animation alive. Without this, maplibre only
-      // repaints on user interaction (pan/zoom). We call it every
-      // frame, so the loop is continuous while the layer is visible.
-      mapRef.triggerRepaint();
+      // Clean throttled repaint loop (~30 FPS) without flooding the microtask queue
+      if (now - lastRepaintTime >= 33) {
+        lastRepaintTime = now;
+        mapRef.triggerRepaint();
+      } else {
+        setTimeout(() => {
+          if (mapRef && enabled) {
+            mapRef.triggerRepaint();
+          }
+        }, 33);
+      }
     },
     _oceanCurrent: {
       setEnabled: (b) => { enabled = b; },
