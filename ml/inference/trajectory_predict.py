@@ -2,11 +2,13 @@ import joblib
 import pandas as pd
 
 from ml.training.trajectory_train import FEATURE_COLS
+from ml.path_utils import get_model_path
 
 _model = None
+DEFAULT_MODEL_PATH = get_model_path("trajectory_model.joblib")
 
 
-def load_model(path="ml/trajectory_model/trajectory_model.joblib"):
+def load_model(path=DEFAULT_MODEL_PATH):
     global _model
     if _model is None:
         _model = joblib.load(path)

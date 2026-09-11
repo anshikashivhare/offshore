@@ -10,23 +10,25 @@ import sys
 import numpy as np
 import pandas as pd
 import joblib
-from sklearn.multioutput import MultiOutputRegressor
 from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
 
 from ml.preprocessing.trajectory.data import generate_synthetic_tracks
+from ml.path_utils import get_model_path
 
 FEATURE_COLS = ["lat", "lon", "current_u", "current_v", "wind_u", "wind_v"]
 TARGET_COLS = ["next_delta_lat", "next_delta_lon"]
 
 
-def time_based_split_per_iceberg(df, test_frac=0.2):
-    train_frames, test_frames = [], []
+def time_based_split_per_iceberg(df, val_frac=0.15, test_frac=0.15):
+    train_frames, val_frames, test_frames = [], [], []
     for _, group in df.groupby("iceberg_id"):
-        cutoff = int(len(group) * (1 - test_frac))
-        train_frames.append(group.iloc[:cutoff])
-        test_frames.append(group.iloc[cutoff:])
-    return pd.concat(train_frames), pd.concat(test_frames)
+        val_cutoff = int(len(group) * (1 - (val_frac + test_frac)))
+        test_cutoff = int(len(group) * (1 - test_frac))
+        train_frames.append(group.iloc[:val_cutoff])
+        val_frames.append(group.iloc[val_cutoff:test_cutoff])
+        test_frames.append(group.iloc[test_cutoff:])
+    return pd.concat(train_frames), pd.concat(val_frames), pd.concat(test_frames)
 
 
 def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
@@ -39,24 +41,25 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
         print("Generating synthetic data...")
         df = generate_synthetic_tracks()
 
-    train, test = time_based_split_per_iceberg(df)
-    print(f"Train rows: {len(train)}, Test rows: {len(test)}")
+    train, val, test = time_based_split_per_iceberg(df)
+    print(f"Train rows: {len(train)}, Val rows: {len(val)}, Test rows: {len(test)}")
 
     X_train, y_train = train[FEATURE_COLS], train[TARGET_COLS]
+    X_val, y_val = val[FEATURE_COLS], val[TARGET_COLS]
     X_test, y_test = test[FEATURE_COLS], test[TARGET_COLS]
 
-    base_model = XGBRegressor(
-        n_estimators=200,
+    model = XGBRegressor(
+        n_estimators=300,
         max_depth=4,
         learning_rate=0.05,
         subsample=0.8,
         colsample_bytree=0.8,
         random_state=42,
+        early_stopping_rounds=30,
     )
-    model = MultiOutputRegressor(base_model)
 
     print("Training...")
-    model.fit(X_train, y_train)
+    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
 
     preds = model.predict(X_test)
     rmse_lat = np.sqrt(mean_squared_error(y_test["next_delta_lat"], preds[:, 0]))
@@ -67,13 +70,19 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
     naive_rmse_lon = np.sqrt(mean_squared_error(y_test["next_delta_lon"], np.zeros(len(y_test))))
     print(f"Naive (zero-movement) RMSE — delta_lat: {naive_rmse_lat:.5f}, delta_lon: {naive_rmse_lon:.5f}")
 
-    joblib.dump(model, "ml/trajectory_model/trajectory_model.joblib")
-    print("Model saved to ml/trajectory_model/trajectory_model.joblib")
+    import uuid
+    run_id = str(uuid.uuid4())
+    artifact_uri = get_model_path(f"trajectory_model_{run_id}.joblib")
+
+    joblib.dump(model, artifact_uri)
+    print(f"Model saved to {artifact_uri}")
 
     from mlops.experiment_log import log_experiment
     log_experiment(
+        run_id=run_id,
         model_name="trajectory_xgboost",
         data_source=f"{tracks_csv}+{reanalysis_nc}" if tracks_csv else "synthetic",
+        artifact_uri=artifact_uri,
         metrics={
             "rmse_lat": float(rmse_lat), "rmse_lon": float(rmse_lon),
             "naive_rmse_lat": float(naive_rmse_lat), "naive_rmse_lon": float(naive_rmse_lon),
@@ -81,7 +90,7 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
         hyperparams={"n_estimators": 200, "max_depth": 4, "learning_rate": 0.05},
     )
 
-    return model
+    return model, artifact_uri
 
 
 if __name__ == "__main__":

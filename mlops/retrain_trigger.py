@@ -1,51 +1,44 @@
 """
-Retraining Trigger
-
-This script checks the model performance trends using the monitor layer.
-If a model's performance trend is flagged as "degrading", it automatically
-triggers the corresponding training script to attempt to improve the model
-using the latest data/hyperparameters.
-
-Run: python -m mlops.retrain_trigger
+Decides whether a model should be retrained: data drift OR performance
+degradation vs production. Either alone triggers a retrain recommendation.
 """
 
-import subprocess
-from mlops.monitor import PRIMARY_METRIC, summarize
+import logging
+from mlops.model_registry import get_production_info
+from mlops.experiment_log import get_latest_metric
 
-TRAINING_SCRIPTS = {
-    "seaice_xgboost": ["python", "-m", "ml.training.seaice_train"],
-    "seaice_convlstm": ["python", "-m", "ml.training.seaice_train_convlstm"],
-    "trajectory_xgboost": ["python", "-m", "ml.training.trajectory_train"],
-    "trajectory_lstm": ["python", "-m", "ml.training.trajectory_train_lstm"],
-}
+logger = logging.getLogger("mlops.retrain_trigger")
 
 
-def trigger_retraining():
-    print("=" * 70)
-    print("AUTOMATED RETRAINING TRIGGER")
-    print("=" * 70)
-    
-    for model_name in PRIMARY_METRIC:
-        summary = summarize(model_name)
-        trend = summary.get("trend", "")
-        
-        print(f"\nChecking [{model_name}]...")
-        if trend.startswith("degrading"):
-            print(f"  [!] Trend is '{trend}'. Triggering retraining...")
-            script_cmd = TRAINING_SCRIPTS.get(model_name)
-            if not script_cmd:
-                print(f"  [-] No training script mapped for {model_name}.")
-                continue
-                
-            print(f"  [>] Running: {' '.join(script_cmd)}")
-            try:
-                result = subprocess.run(script_cmd, capture_output=True, text=True, check=True)
-                print(f"  [+] Retraining completed successfully.")
-            except subprocess.CalledProcessError as e:
-                print(f"  [x] Retraining failed with exit code {e.returncode}.")
-                print(f"  [x] Error output: {e.stderr.strip()}")
-        else:
-            print(f"  [-] Trend is '{trend}'. No retraining required.")
+def should_retrain(
+    model_name: str,
+    metric_name: str,
+    drift_warnings: list = None,
+    degradation_threshold_pct: float = 15.0,
+) -> dict:
+    reasons = []
 
-if __name__ == "__main__":
-    trigger_retraining()
+    if drift_warnings:
+        reasons.append(f"data drift detected ({len(drift_warnings)} check(s) triggered)")
+
+    production = get_production_info(model_name)
+    latest_metric = get_latest_metric(model_name, metric_name)
+
+    if production is None:
+        reasons.append("no production model exists yet — initial training needed")
+    elif latest_metric is not None:
+        prod_value = production["metric_value"]
+        if prod_value > 0:
+            pct_worse = ((latest_metric - prod_value) / prod_value) * 100
+            if pct_worse > degradation_threshold_pct:
+                reasons.append(
+                    f"latest {metric_name} ({latest_metric:.5f}) is {pct_worse:.1f}% worse than "
+                    f"production ({prod_value:.5f}), exceeding {degradation_threshold_pct}% threshold"
+                )
+
+    decision = {"retrain": len(reasons) > 0, "reasons": reasons}
+    if decision["retrain"]:
+        logger.info(f"Retrain recommended for {model_name}: {'; '.join(reasons)}")
+    else:
+        logger.info(f"No retrain needed for {model_name} — production model still performing within tolerance")
+    return decision

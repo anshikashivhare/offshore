@@ -39,8 +39,8 @@ export function PortDropdown({ label, type, currentName, lat, lon }: Props) {
   const results = searchPorts(query);
 
   const handleSelect = (p: Port) => {
-    if (type === "origin") setOrigin(p.lat, p.lon);
-    else setDestination(p.lat, p.lon);
+    if (type === "origin") setOrigin({ lat: p.lat, lon: p.lon });
+    else setDestination({ lat: p.lat, lon: p.lon });
     
     setIsOpen(false);
     setQuery("");

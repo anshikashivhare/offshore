@@ -1,0 +1,33 @@
+# Antarctic Navigation Project — ML requirements
+# Covers: route optimizer, sea-ice forecasting (XGBoost + ConvLSTM),
+# iceberg trajectory prediction (XGBoost + LSTM), and the mlops/ layer
+# (preprocessing, drift detection, experiment logging, monitoring,
+# continuous retraining).
+
+# Core data handling
+numpy
+pandas
+
+# Sea-ice / iceberg XGBoost baselines
+xgboost
+scikit-learn
+joblib
+
+# Deep learning upgrades (ConvLSTM, LSTM)
+torch
+
+# Route optimizer (A* pathfinding)
+networkx
+
+# Real-data loaders: NetCDF (NSIDC/Copernicus/ERA5) parsing
+xarray
+netCDF4
+
+# ConvLSTM's spatial-correlation synthetic data generator
+scipy
+
+# mlops/monitor.py trend charts
+matplotlib
+
+# CI lint step (.github/workflows/ci.yml)
+flake8

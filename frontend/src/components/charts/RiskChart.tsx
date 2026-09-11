@@ -73,7 +73,7 @@ export function RiskChart() {
             />
 
             <Tooltip
-              content={({ active, payload, label }) => {
+              content={({ active, payload, label }: any) => {
                 if (!active || !payload || !payload.length) return null;
                 const d = payload[0].payload;
                 return (

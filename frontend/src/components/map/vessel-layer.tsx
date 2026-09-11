@@ -51,8 +51,8 @@ export function VesselLayer({ adapter }: Props) {
     });
 
     return () => {
-      adapter.removeLayer(LAYER_VESSEL);
-      adapter.removeSource(SOURCE_VESSEL);
+      adapter.removeLayerSafe(LAYER_VESSEL);
+      adapter.removeSourceSafe(SOURCE_VESSEL);
     };
   }, [adapter]);
 

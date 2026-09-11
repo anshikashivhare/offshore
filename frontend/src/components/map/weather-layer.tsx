@@ -89,8 +89,8 @@ export function WeatherLayer({ adapter }: Props) {
     });
 
     return () => {
-      adapter.removeLayer(LAYER_WEATHER);
-      adapter.removeSource(SOURCE_WEATHER);
+      adapter.removeLayerSafe(LAYER_WEATHER);
+      adapter.removeSourceSafe(SOURCE_WEATHER);
     };
   }, [adapter]);
 
