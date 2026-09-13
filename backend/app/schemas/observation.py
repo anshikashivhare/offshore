@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+
 from app.schemas.common import GeoJSONFeature
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class SeaIceObservationProperties(BaseModel):
     id: uuid.UUID
@@ -23,14 +25,15 @@ class SeaIceObservationProperties(BaseModel):
                 "thickness": 1.2,
                 "ice_type": "First-year ice",
                 "source": "Sentinel-1 SAR",
-                "data_quality": 0.95
+                "data_quality": 0.95,
             }
-        }
+        },
     )
+
 
 class SeaIceObservationCreate(BaseModel):
     timestamp: datetime
-    geometry: str # WKT or GeoJSON for creation
+    geometry: str  # WKT or GeoJSON for creation
     concentration: float
     thickness: Optional[float] = None
     ice_type: Optional[str] = None
@@ -45,10 +48,12 @@ class SeaIceObservationCreate(BaseModel):
                 "thickness": 1.2,
                 "ice_type": "First-year ice",
                 "source": "Sentinel-1 SAR",
-                "data_quality": 0.95
+                "data_quality": 0.95,
             }
         }
     )
+
+
 class WeatherObservationProperties(BaseModel):
     id: uuid.UUID
     timestamp: datetime
@@ -70,10 +75,11 @@ class WeatherObservationProperties(BaseModel):
                 "temperature": -5.2,
                 "wave_height": 2.5,
                 "pressure": 1013.25,
-                "source": "GFS"
+                "source": "GFS",
             }
-        }
+        },
     )
+
 
 class WeatherObservationCreate(BaseModel):
     timestamp: datetime
@@ -94,10 +100,12 @@ class WeatherObservationCreate(BaseModel):
                 "temperature": -5.2,
                 "wave_height": 2.5,
                 "pressure": 1013.25,
-                "source": "GFS"
+                "source": "GFS",
             }
         }
     )
+
+
 class OceanObservationProperties(BaseModel):
     id: uuid.UUID
     timestamp: datetime
@@ -117,10 +125,11 @@ class OceanObservationProperties(BaseModel):
                 "current_direction": 90.0,
                 "sea_surface_temperature": -1.5,
                 "wave_information": "Swell 2m",
-                "source": "Copernicus Marine Service"
+                "source": "Copernicus Marine Service",
             }
-        }
+        },
     )
+
 
 class OceanObservationCreate(BaseModel):
     timestamp: datetime
@@ -139,10 +148,12 @@ class OceanObservationCreate(BaseModel):
                 "current_direction": 90.0,
                 "sea_surface_temperature": -1.5,
                 "wave_information": "Swell 2m",
-                "source": "Copernicus Marine Service"
+                "source": "Copernicus Marine Service",
             }
         }
     )
+
+
 # API response types
 SeaIceObservationResponse = GeoJSONFeature[SeaIceObservationProperties]
 WeatherObservationResponse = GeoJSONFeature[WeatherObservationProperties]

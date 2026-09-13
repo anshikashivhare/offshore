@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import ObjectiveType
 from app.schemas.common import GeoJSONFeature
+from pydantic import BaseModel, ConfigDict
+
 
 class RouteProperties(BaseModel):
     route_id: uuid.UUID
@@ -30,15 +32,17 @@ class RouteProperties(BaseModel):
                 "estimated_fuel": 12.5,
                 "risk_score": 0.15,
                 "objective_type": "safest",
-                "algorithm_version": "v2.0"
+                "algorithm_version": "v2.0",
             }
-        }
+        },
     )
+
 
 class OptimizationWeights(BaseModel):
     alpha: float = 0.33  # Fuel
-    beta: float = 0.33   # Time
+    beta: float = 0.33  # Time
     gamma: float = 0.34  # Risk
+
 
 class RouteRequest(BaseModel):
     origin: str  # e.g. "lon,lat"
@@ -47,7 +51,7 @@ class RouteRequest(BaseModel):
     departure_time: datetime
     objective_type: ObjectiveType = ObjectiveType.SAFEST
     weights: Optional[OptimizationWeights] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -56,14 +60,11 @@ class RouteRequest(BaseModel):
                 "vessel_id": "123e4567-e89b-12d3-a456-426614174001",
                 "departure_time": "2026-09-03T12:00:00Z",
                 "objective_type": "safest",
-                "weights": {
-                    "alpha": 0.33,
-                    "beta": 0.33,
-                    "gamma": 0.34
-                }
+                "weights": {"alpha": 0.33, "beta": 0.33, "gamma": 0.34},
             }
         }
     )
+
 
 class RouteCreate(BaseModel):
     origin: str
@@ -78,12 +79,15 @@ class RouteCreate(BaseModel):
     objective_type: ObjectiveType
     algorithm_version: Optional[str] = None
 
+
 class RouteBase(RouteCreate):
     pass
+
 
 RouteResponse = GeoJSONFeature[RouteProperties]
 
 from typing import List
+
 
 class RouteComparisonMetrics(BaseModel):
     distance_diff: float
@@ -91,9 +95,11 @@ class RouteComparisonMetrics(BaseModel):
     fuel_diff: float
     risk_diff: float
 
+
 class RouteAlternative(BaseModel):
     route: RouteResponse
     comparison_metrics: RouteComparisonMetrics
+
 
 class RouteComparisonResponse(BaseModel):
     recommended_route: RouteResponse
@@ -103,7 +109,7 @@ class RouteComparisonResponse(BaseModel):
     explanation: str
     uncertainty: str
     warnings: List[str]
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -111,7 +117,7 @@ class RouteComparisonResponse(BaseModel):
                     "type": "Feature",
                     "geometry": {
                         "type": "LineString",
-                        "coordinates": [[-60.1, -65.2], [-55.5, -60.1]]
+                        "coordinates": [[-60.1, -65.2], [-55.5, -60.1]],
                     },
                     "properties": {
                         "route_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -124,22 +130,15 @@ class RouteComparisonResponse(BaseModel):
                         "estimated_fuel": 12.5,
                         "risk_score": 0.15,
                         "objective_type": "safest",
-                        "algorithm_version": "v2.0"
-                    }
+                        "algorithm_version": "v2.0",
+                    },
                 },
                 "alternatives": [],
-                "optimization_weights": {
-                    "alpha": 0.33,
-                    "beta": 0.33,
-                    "gamma": 0.34
-                },
-                "contributing_risk_factors": {
-                    "iceberg_risk": 0.8,
-                    "weather_risk": 0.2
-                },
+                "optimization_weights": {"alpha": 0.33, "beta": 0.33, "gamma": 0.34},
+                "contributing_risk_factors": {"iceberg_risk": 0.8, "weather_risk": 0.2},
                 "explanation": "Route B was recommended because predicted iceberg exposure is lower...",
                 "uncertainty": "Moderate uncertainty in iceberg prediction",
-                "warnings": ["High wind speed predicted near destination"]
+                "warnings": ["High wind speed predicted near destination"],
             }
         }
     )

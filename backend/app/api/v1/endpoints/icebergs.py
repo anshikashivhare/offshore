@@ -2,21 +2,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.repositories.iceberg import iceberg as iceberg_repo
 from app.repositories.iceberg import iceberg_detection as detection_repo
 from app.schemas.common import GeoJSONFeatureCollection
-from app.schemas.iceberg import (
-    IcebergDetectionProperties,
-    IcebergResponse,
-    IcebergTrajectoryPredictionProperties,
-)
+from app.schemas.iceberg import (IcebergDetectionProperties, IcebergResponse,
+                                 IcebergTrajectoryPredictionProperties)
 from app.services.icebergs.detection import DeterministicSeededDetector
 from app.services.icebergs.tracking import IcebergTracker
 from app.services.icebergs.trajectory import PhysicsBasedTrajectoryPredictor
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -60,9 +56,8 @@ async def get_iceberg_detections(
         now,
         bb,
     )
-    return GeoJSONFeatureCollection[IcebergDetectionProperties](
-        features=features[: pagination.limit],
-        total=len(features),
+    return GeoJSONFeatureCollection[IcebergDetectionProperties].from_list(
+        items=features,
         skip=pagination.skip,
         limit=pagination.limit,
     )
@@ -105,9 +100,8 @@ async def get_iceberg_track(
             status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
         )
     features = await _tracker(db).build_track(iceberg_id)
-    return GeoJSONFeatureCollection[IcebergDetectionProperties](
-        features=features[pagination.skip : pagination.skip + pagination.limit],
-        total=len(features),
+    return GeoJSONFeatureCollection[IcebergDetectionProperties].from_list(
+        items=features,
         skip=pagination.skip,
         limit=pagination.limit,
     )
@@ -140,9 +134,8 @@ async def get_iceberg_trajectory(
         horizon_hours=horizon_hours,
         start_time=datetime.now(timezone.utc),
     )
-    return GeoJSONFeatureCollection[IcebergTrajectoryPredictionProperties](
-        features=predictions,
-        total=len(predictions),
+    return GeoJSONFeatureCollection[IcebergTrajectoryPredictionProperties].from_list(
+        items=predictions,
         skip=0,
         limit=len(predictions),
     )

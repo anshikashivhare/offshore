@@ -2,18 +2,19 @@
 Trains the LSTM iceberg model and compares against naive + XGBoost.
 Run: python -m ml.training.trajectory_train_lstm
 """
+
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ml.preprocessing.trajectory.data import generate_synthetic_tracks
-from ml.preprocessing.trajectory.sequence_data import make_sequences
 from ml.models.architectures.lstm_model import IcebergLSTM
 from ml.path_utils import get_model_path
+from ml.preprocessing.trajectory.data import generate_synthetic_tracks
+from ml.preprocessing.trajectory.sequence_data import make_sequences
 from ml.training_guard import safe_train
 
 
-def train_lstm(seq_len=5, epochs=150, lr=3e-3):
+def train_lstm(seq_len=5, epochs=200, lr=3e-3):
     print("Generating data...")
     df = generate_synthetic_tracks(time_varying_env=True)
     X, y = make_sequences(df, seq_len=seq_len)
@@ -66,8 +67,12 @@ def train_lstm(seq_len=5, epochs=150, lr=3e-3):
     )
 
     if result["status"] == "failed":
-        print(f"\nTraining stopped early at epoch {result['last_epoch']+1}/{epochs}: {result['error']}")
-        print(f"Progress through epoch {result['last_epoch']} was checkpointed to {checkpoint_path}")
+        print(
+            f"\nTraining stopped early at epoch {result['last_epoch']+1}/{epochs}: {result['error']}"
+        )
+        print(
+            f"Progress through epoch {result['last_epoch']} was checkpointed to {checkpoint_path}"
+        )
         return None, None, None
 
     model.eval()
@@ -80,24 +85,30 @@ def train_lstm(seq_len=5, epochs=150, lr=3e-3):
     naive_rmse_lon = np.sqrt(np.mean(y_test[:, 1] ** 2))
 
     print(f"\nLSTM test RMSE — delta_lat: {rmse_lat:.5f}, delta_lon: {rmse_lon:.5f}")
-    print(f"Naive RMSE — delta_lat: {naive_rmse_lat:.5f}, delta_lon: {naive_rmse_lon:.5f}")
+    print(
+        f"Naive RMSE — delta_lat: {naive_rmse_lat:.5f}, delta_lon: {naive_rmse_lon:.5f}"
+    )
 
     import uuid
+
     run_id = str(uuid.uuid4())
     artifact_uri = get_model_path(f"lstm_model_{run_id}.pt")
 
     torch.save(model.state_dict(), artifact_uri)
     print(f"Model saved to {artifact_uri}")
-    
+
     from mlops.experiment_log import log_experiment
+
     log_experiment(
         run_id=run_id,
         model_name="trajectory_lstm",
         data_source="synthetic_time_varying",
         artifact_uri=artifact_uri,
         metrics={
-            "rmse_lat": float(rmse_lat), "rmse_lon": float(rmse_lon),
-            "naive_rmse_lat": float(naive_rmse_lat), "naive_rmse_lon": float(naive_rmse_lon),
+            "rmse_lat": float(rmse_lat),
+            "rmse_lon": float(rmse_lon),
+            "naive_rmse_lat": float(naive_rmse_lat),
+            "naive_rmse_lon": float(naive_rmse_lon),
         },
         hyperparams={"hidden_size": 32, "epochs": epochs, "lr": lr, "seq_len": seq_len},
     )

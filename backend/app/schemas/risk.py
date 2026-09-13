@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
-from app.schemas.common import GeoJSONFeature
+
 from app.models.enums import RiskCategory
+from app.schemas.common import GeoJSONFeature
+from pydantic import BaseModel, ConfigDict
+
 
 class RiskCellProperties(BaseModel):
     id: uuid.UUID
@@ -31,10 +33,11 @@ class RiskCellProperties(BaseModel):
                 "risk_category": "moderate",
                 "confidence_score": 0.9,
                 "missing_data_flags": {"currents": True},
-                "metadata_info": {"model_version": "v1.1"}
+                "metadata_info": {"model_version": "v1.1"},
             }
-        }
+        },
     )
+
 
 class RiskCellCreate(BaseModel):
     geometry: str
@@ -48,7 +51,7 @@ class RiskCellCreate(BaseModel):
     confidence_score: float = 1.0
     missing_data_flags: dict = {}
     metadata_info: dict = {}
-    
+
     model_config = ConfigDict(
         protected_namespaces=(),
         json_schema_extra={
@@ -63,12 +66,14 @@ class RiskCellCreate(BaseModel):
                 "risk_category": "moderate",
                 "confidence_score": 0.9,
                 "missing_data_flags": {"currents": True},
-                "metadata_info": {"model_version": "v1.1"}
+                "metadata_info": {"model_version": "v1.1"},
             }
-        }
+        },
     )
+
 
 class RiskCellBase(RiskCellCreate):
     pass
+
 
 RiskCellResponse = GeoJSONFeature[RiskCellProperties]

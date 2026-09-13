@@ -1,10 +1,10 @@
 from typing import Any, List, Optional, Sequence
-from sqlalchemy import select, func, update, delete
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
 from app.repositories.base import CRUDBase
 from app.schemas.alert import AlertBase, AlertCreate
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertBase]):

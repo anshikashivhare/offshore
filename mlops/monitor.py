@@ -7,8 +7,8 @@ read path the retraining trigger uses to decide whether to fire.
 Run: python -m mlops.monitor
 """
 
-from mlops.experiment_log import get_experiment_history
 from ml.path_utils import get_mlops_path
+from mlops.experiment_log import get_experiment_history
 
 DEFAULT_TRENDS_PATH = get_mlops_path("metric_trends.png")
 
@@ -27,11 +27,16 @@ def summarize(model_name: str) -> dict:
     if not history:
         return {"model_name": model_name, "status": "no runs logged yet"}
 
-    values = [h["metrics"].get(metric_name) for h in history if metric_name in h["metrics"]]
+    values = [
+        h["metrics"].get(metric_name) for h in history if metric_name in h["metrics"]
+    ]
     values = [v for v in values if v is not None]
 
     if not values:
-        return {"model_name": model_name, "status": f"no '{metric_name}' metric found in logged runs"}
+        return {
+            "model_name": model_name,
+            "status": f"no '{metric_name}' metric found in logged runs",
+        }
 
     latest = values[-1]
     best = min(values)
@@ -46,9 +51,13 @@ def summarize(model_name: str) -> dict:
             trend = "unchanged"
 
     return {
-        "model_name": model_name, "metric_name": metric_name,
-        "run_count": len(history), "latest": latest, "best_ever": best,
-        "trend": trend, "is_at_best": latest == best,
+        "model_name": model_name,
+        "metric_name": metric_name,
+        "run_count": len(history),
+        "latest": latest,
+        "best_ever": best,
+        "trend": trend,
+        "is_at_best": latest == best,
     }
 
 
@@ -73,13 +82,18 @@ def print_report():
 
 def plot_trends(output_path: str = DEFAULT_TRENDS_PATH):
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     models_with_data = []
     for model_name, metric_name in PRIMARY_METRIC.items():
         history = get_experiment_history(model_name)
-        values = [h["metrics"].get(metric_name) for h in history if metric_name in h["metrics"]]
+        values = [
+            h["metrics"].get(metric_name)
+            for h in history
+            if metric_name in h["metrics"]
+        ]
         if values:
             models_with_data.append((model_name, metric_name, values))
 
@@ -87,7 +101,9 @@ def plot_trends(output_path: str = DEFAULT_TRENDS_PATH):
         print("No data to plot yet — run some training scripts first.")
         return
 
-    fig, axes = plt.subplots(1, len(models_with_data), figsize=(5 * len(models_with_data), 4))
+    fig, axes = plt.subplots(
+        1, len(models_with_data), figsize=(5 * len(models_with_data), 4)
+    )
     if len(models_with_data) == 1:
         axes = [axes]
 

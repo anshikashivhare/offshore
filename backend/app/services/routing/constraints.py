@@ -1,6 +1,8 @@
 from typing import Any
+
 from app.models.vessel import Vessel
 from app.services.routing.grid import Node
+
 
 class VesselConstraintChecker:
     def is_navigable(self, node: Node, vessel: Vessel, risk_grid: Any) -> bool:
@@ -15,15 +17,15 @@ class VesselConstraintChecker:
                 risk_val = max(risk_entry.values()) if risk_entry else 0.0
             else:
                 risk_val = float(risk_entry)
-            
+
             # Simple thresholding logic:
             # If composite risk is > 0.75, it's considered AVOID for all unless highly capable.
             # Here we just treat risk >= 0.9 as an absolute block.
             if risk_val >= 0.9:
                 return False
-                
+
             # If vessel has no ice capability, it shouldn't enter risk >= 0.5
             if not vessel.ice_capability and risk_val >= 0.5:
                 return False
-                
+
         return True

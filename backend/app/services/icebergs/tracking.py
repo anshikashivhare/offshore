@@ -4,13 +4,12 @@ import logging
 import uuid
 from typing import List, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.iceberg import IcebergDetection
 from app.repositories.iceberg import iceberg_detection as detection_repo
 from app.schemas.common import GeoJSONFeature
 from app.schemas.iceberg import IcebergDetectionProperties
 from app.utils.geojson import to_geojson_geometry
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,9 @@ class IcebergTracker:
     detections are written by the detector.
     """
 
-    def __init__(self, db: AsyncSession, association_strategy: str = "nearest_neighbor"):
+    def __init__(
+        self, db: AsyncSession, association_strategy: str = "nearest_neighbor"
+    ):
         self.db = db
         self.association_strategy = association_strategy
 
@@ -61,11 +62,11 @@ class IcebergTracker:
             )
         return features
 
-    async def gap_report(
-        self, iceberg_id: uuid.UUID
-    ) -> List[dict]:
+    async def gap_report(self, iceberg_id: uuid.UUID) -> List[dict]:
         """Return observation gaps for a given iceberg (sorted by start time)."""
-        rows = await detection_repo.get_multi(self.db, iceberg_id=iceberg_id, limit=1000)
+        rows = await detection_repo.get_multi(
+            self.db, iceberg_id=iceberg_id, limit=1000
+        )
         rows.sort(key=lambda r: r.timestamp)
         gaps: List[dict] = []
         for prev, curr in zip(rows, rows[1:]):

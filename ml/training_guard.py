@@ -12,6 +12,7 @@ What this actually protects against:
 """
 
 import logging
+
 import torch
 
 logger = logging.getLogger("ml.training_guard")
@@ -54,13 +55,23 @@ def safe_train(
                     epochs_without_improvement = 0
                     if checkpoint_fn is not None:
                         checkpoint_fn()
-                        logger.info(f"[{model_name}] best checkpoint saved at epoch {epoch + 1} (val_loss: {val_loss:.5f})")
+                        logger.info(
+                            f"[{model_name}] best checkpoint saved at epoch {epoch + 1} (val_loss: {val_loss:.5f})"
+                        )
                 else:
                     epochs_without_improvement += 1
 
                 if epochs_without_improvement >= patience:
-                    logger.info(f"[{model_name}] early stopping triggered at epoch {epoch + 1}")
-                    return {"status": "completed", "last_epoch": epoch, "last_loss": last_loss, "best_val_loss": best_val_loss, "error": None}
+                    logger.info(
+                        f"[{model_name}] early stopping triggered at epoch {epoch + 1}"
+                    )
+                    return {
+                        "status": "completed",
+                        "last_epoch": epoch,
+                        "last_loss": last_loss,
+                        "best_val_loss": best_val_loss,
+                        "error": None,
+                    }
             else:
                 if checkpoint_fn is not None and (epoch + 1) % checkpoint_every == 0:
                     checkpoint_fn()
@@ -76,9 +87,13 @@ def safe_train(
             if checkpoint_fn is not None:
                 try:
                     checkpoint_fn()
-                    logger.info(f"[{model_name}] emergency checkpoint saved at epoch {epoch}")
+                    logger.info(
+                        f"[{model_name}] emergency checkpoint saved at epoch {epoch}"
+                    )
                 except Exception as checkpoint_exc:
-                    logger.error(f"[{model_name}] emergency checkpoint ALSO failed: {checkpoint_exc}")
+                    logger.error(
+                        f"[{model_name}] emergency checkpoint ALSO failed: {checkpoint_exc}"
+                    )
 
             if is_gpu_error:
                 _cleanup_gpu_memory()
@@ -89,6 +104,16 @@ def safe_train(
                         f"the GPU hardware is at fault."
                     )
 
-            return {"status": "failed", "last_epoch": epoch, "last_loss": last_loss, "error": str(exc)}
+            return {
+                "status": "failed",
+                "last_epoch": epoch,
+                "last_loss": last_loss,
+                "error": str(exc),
+            }
 
-    return {"status": "completed", "last_epoch": num_epochs - 1, "last_loss": last_loss, "error": None}
+    return {
+        "status": "completed",
+        "last_epoch": num_epochs - 1,
+        "last_loss": last_loss,
+        "error": None,
+    }

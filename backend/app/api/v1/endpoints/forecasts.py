@@ -2,14 +2,13 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.repositories.forecast import forecast as forecast_repo
 from app.schemas.forecast import ForecastRequest, ForecastResult
 from app.services.forecasting.base import SeaIceForecaster
 from app.services.forecasting.baseline import BaselinePersistenceForecaster
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

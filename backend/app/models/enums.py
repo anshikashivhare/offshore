@@ -1,10 +1,12 @@
 import enum
 
+
 class AlertSeverity(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 class JobStatus(str, enum.Enum):
     PENDING = "pending"
@@ -12,6 +14,7 @@ class JobStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
 
 class JobType(str, enum.Enum):
     DATASET_INGESTION = "dataset_ingestion"
@@ -22,11 +25,13 @@ class JobType(str, enum.Enum):
     RISK_GENERATION = "risk_generation"
     ROUTE_GENERATION = "route_generation"
 
+
 class ObjectiveType(str, enum.Enum):
     FASTEST = "fastest"
     SAFEST = "safest"
     FUEL_EFFICIENT = "fuel_efficient"
     SHORTEST = "shortest"
+
 
 class RiskCategory(str, enum.Enum):
     LOW = "low"

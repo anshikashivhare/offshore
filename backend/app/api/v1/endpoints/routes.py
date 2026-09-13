@@ -1,9 +1,6 @@
 import uuid
-from typing import Any, Dict, Optional as Opt
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict
+from typing import Optional as Opt
 
 from app.api import deps
 from app.models.risk import RiskCell
@@ -12,16 +9,15 @@ from app.models.vessel import Vessel
 from app.repositories.route import route as route_repo
 from app.repositories.vessel import vessel as vessel_repo
 from app.schemas.common import GeoJSONFeature
-from app.schemas.route import (
-    RouteComparisonResponse,
-    RouteProperties,
-    RouteRequest,
-    RouteResponse,
-)
+from app.schemas.route import (RouteComparisonResponse, RouteProperties,
+                               RouteRequest, RouteResponse)
 from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.comparison import RouteComparisonService
 from app.services.routing.dijkstra import DijkstraShortestPlanner
 from app.utils.geojson import parse_wkt_linestring
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

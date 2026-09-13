@@ -5,13 +5,13 @@ commit produced it. Appends to a JSON Lines file so it's diffable,
 greppable, and needs no database at this project's scale.
 """
 
-import json
-import subprocess
 import datetime
 import fcntl
+import json
+import subprocess
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import Dict, Any
+from typing import Any, Dict
 
 from ml.path_utils import get_mlops_path
 
@@ -43,15 +43,19 @@ def _get_git_commit() -> str:
         # Get hash
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=2,
+            capture_output=True,
+            text=True,
+            timeout=2,
         )
         if result.returncode == 0:
             commit = result.stdout.strip()
-            
+
             # Check for uncommitted changes
             status_result = subprocess.run(
                 ["git", "status", "--porcelain"],
-                capture_output=True, text=True, timeout=2,
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if status_result.returncode == 0 and status_result.stdout.strip():
                 commit += "-dirty"
@@ -79,12 +83,12 @@ def log_experiment(
         hyperparams=hyperparams or {},
         git_commit=_get_git_commit(),
     )
-    
+
     record_dict = asdict(record_obj)
 
     path = Path(log_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Atomic file append using fcntl
     with open(path, "a") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
@@ -96,7 +100,9 @@ def log_experiment(
     return record_dict
 
 
-def get_experiment_history(model_name: str = None, log_path: str = DEFAULT_LOG_PATH) -> list:
+def get_experiment_history(
+    model_name: str = None, log_path: str = DEFAULT_LOG_PATH
+) -> list:
     path = Path(log_path)
     if not path.exists():
         return []
@@ -114,7 +120,9 @@ def get_experiment_history(model_name: str = None, log_path: str = DEFAULT_LOG_P
     return records
 
 
-def get_latest_metric(model_name: str, metric_name: str, log_path: str = DEFAULT_LOG_PATH):
+def get_latest_metric(
+    model_name: str, metric_name: str, log_path: str = DEFAULT_LOG_PATH
+):
     """Used by the retraining trigger to compare current performance
     against the last known-good run."""
     history = get_experiment_history(model_name, log_path)
@@ -124,14 +132,23 @@ def get_latest_metric(model_name: str, metric_name: str, log_path: str = DEFAULT
     return history[-1].get("metrics", {}).get(metric_name)
 
 
-def get_best_metric(model_name: str, metric_name: str, optimize: str = "min", log_path: str = DEFAULT_LOG_PATH):
+def get_best_metric(
+    model_name: str,
+    metric_name: str,
+    optimize: str = "min",
+    log_path: str = DEFAULT_LOG_PATH,
+):
     """Fetch the optimal historical performance for a given metric across all runs."""
     history = get_experiment_history(model_name, log_path)
-    values = [r.get("metrics", {}).get(metric_name) for r in history if r.get("metrics", {}).get(metric_name) is not None]
-    
+    values = [
+        r.get("metrics", {}).get(metric_name)
+        for r in history
+        if r.get("metrics", {}).get(metric_name) is not None
+    ]
+
     if not values:
         return None
-        
+
     if optimize == "min":
         return min(values)
     elif optimize == "max":

@@ -1,24 +1,19 @@
 from typing import Any, List
 
+from app.api import deps
+from app.repositories.observation import (ocean_observation,
+                                          sea_ice_observation,
+                                          weather_observation)
+from app.schemas.common import GeoJSONFeature, GeoJSONFeatureCollection
+from app.schemas.observation import (OceanObservationProperties,
+                                     OceanObservationResponse,
+                                     SeaIceObservationProperties,
+                                     SeaIceObservationResponse,
+                                     WeatherObservationProperties,
+                                     WeatherObservationResponse)
+from app.utils.geojson import to_geojson_geometry
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.api import deps
-from app.repositories.observation import (
-    ocean_observation,
-    sea_ice_observation,
-    weather_observation,
-)
-from app.schemas.common import GeoJSONFeature, GeoJSONFeatureCollection
-from app.schemas.observation import (
-    OceanObservationProperties,
-    OceanObservationResponse,
-    SeaIceObservationProperties,
-    SeaIceObservationResponse,
-    WeatherObservationProperties,
-    WeatherObservationResponse,
-)
-from app.utils.geojson import to_geojson_geometry
 
 router = APIRouter()
 

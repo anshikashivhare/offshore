@@ -6,13 +6,14 @@ Run: python -m ml.training.seaice_train
 """
 
 import sys
+
 import numpy as np
 import pandas as pd
-from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
+from xgboost import XGBRegressor
 
-from ml.preprocessing.seaice.data import generate_synthetic_timeseries
 from ml.path_utils import get_model_path
+from ml.preprocessing.seaice.data import generate_synthetic_timeseries
 
 
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -29,7 +30,9 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def time_based_split(df: pd.DataFrame, val_frac=0.15, test_frac=0.15):
-    val_cutoff = df["date"].quantile(1 - (val_frac + test_frac), interpolation="nearest")
+    val_cutoff = df["date"].quantile(
+        1 - (val_frac + test_frac), interpolation="nearest"
+    )
     test_cutoff = df["date"].quantile(1 - test_frac, interpolation="nearest")
     train = df[df["date"] < val_cutoff]
     val = df[(df["date"] >= val_cutoff) & (df["date"] < test_cutoff)]
@@ -44,7 +47,9 @@ TARGET_COL = "concentration"
 def train_model(nc_path: str = None):
     if nc_path:
         print(f"Loading real data from {nc_path}...")
-        from ml.preprocessing.seaice.real_data_loader import load_netcdf_to_dataframe
+        from ml.preprocessing.seaice.real_data_loader import \
+            load_netcdf_to_dataframe
+
         df = load_netcdf_to_dataframe(nc_path)
     else:
         print("Generating synthetic data...")
@@ -80,6 +85,7 @@ def train_model(nc_path: str = None):
     print(f"Naive (persistence) RMSE: {naive_rmse:.4f}")
 
     import uuid
+
     run_id = str(uuid.uuid4())
     artifact_uri = get_model_path(f"seaice_xgb_{run_id}.json")
 
@@ -87,6 +93,7 @@ def train_model(nc_path: str = None):
     print(f"Model saved to {artifact_uri}")
 
     from mlops.experiment_log import log_experiment
+
     log_experiment(
         run_id=run_id,
         model_name="seaice_xgboost",

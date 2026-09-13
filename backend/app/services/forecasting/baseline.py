@@ -5,12 +5,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.forecast import Forecast
 from app.models.observation import SeaIceObservation
 from app.services.forecasting.base import SeaIceForecaster
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,9 @@ class BaselinePersistenceForecaster(SeaIceForecaster):
         self, inputs: Any, horizon: int, region: Dict[str, float]
     ) -> Dict[str, Any]:
         if not isinstance(region, dict):
-            raise ValueError("region must be a dict with min_lon/min_lat/max_lon/max_lat.")
+            raise ValueError(
+                "region must be a dict with min_lon/min_lat/max_lon/max_lat."
+            )
 
         concentrations: list[float] = []
         if self.db is not None:

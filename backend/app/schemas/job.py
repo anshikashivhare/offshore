@@ -1,27 +1,26 @@
 import uuid
-from typing import Optional, Any, Dict
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from typing import Any, Dict, Optional
+
 from app.models.enums import JobStatus, JobType
+from pydantic import BaseModel, ConfigDict
+
 
 class JobCreate(BaseModel):
     job_type: JobType
     payload: Dict[str, Any]
     metadata_info: Optional[Dict[str, Any]] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "job_type": "dataset_ingestion",
-                "payload": {
-                    "source_url": "s3://antarctic-data/modis_2026.tif"
-                },
-                "metadata_info": {
-                    "priority": "high"
-                }
+                "payload": {"source_url": "s3://antarctic-data/modis_2026.tif"},
+                "metadata_info": {"priority": "high"},
             }
         }
     )
+
 
 class JobResponse(BaseModel):
     job_id: uuid.UUID
@@ -46,7 +45,7 @@ class JobResponse(BaseModel):
                 "progress": 45.5,
                 "metadata_info": {
                     "celery_task_id": "987e6543-e21b-12d3-a456-426614174001"
-                }
+                },
             }
-        }
+        },
     )

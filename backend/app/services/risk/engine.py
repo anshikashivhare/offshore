@@ -1,20 +1,16 @@
 import logging
 import uuid
-from datetime import datetime, timezone
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Sequence
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import RiskCategory
 from app.schemas.risk import RiskCellCreate
-from app.services.risk.calculators import (
-    CurrentRiskCalculator,
-    IceRiskCalculator,
-    IcebergRiskCalculator,
-    RiskCalculator,
-    WeatherRiskCalculator,
-)
+from app.services.risk.calculators import (CurrentRiskCalculator,
+                                           IcebergRiskCalculator,
+                                           IceRiskCalculator, RiskCalculator,
+                                           WeatherRiskCalculator)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -69,19 +65,24 @@ class RiskEngine:
         if db is not None and current_calc is None:
             current_calc = CurrentRiskCalculator(db)
         self.calculators = {
-            "ice": ice_calc or IceRiskCalculator(db) if db else (ice_calc or _StubIce()),
-            "iceberg": iceberg_calc
-            or IcebergRiskCalculator(db)
-            if db
-            else (iceberg_calc or _StubIceberg()),
-            "weather": weather_calc
-            or WeatherRiskCalculator(db)
-            if db
-            else (weather_calc or _StubWeather()),
-            "current": current_calc
-            or CurrentRiskCalculator(db)
-            if db
-            else (current_calc or _StubCurrent()),
+            "ice": (
+                ice_calc or IceRiskCalculator(db) if db else (ice_calc or _StubIce())
+            ),
+            "iceberg": (
+                iceberg_calc or IcebergRiskCalculator(db)
+                if db
+                else (iceberg_calc or _StubIceberg())
+            ),
+            "weather": (
+                weather_calc or WeatherRiskCalculator(db)
+                if db
+                else (weather_calc or _StubWeather())
+            ),
+            "current": (
+                current_calc or CurrentRiskCalculator(db)
+                if db
+                else (current_calc or _StubCurrent())
+            ),
         }
         self.aggregation_strategy = aggregation_strategy or WeightedSumStrategy()
 
@@ -209,7 +210,9 @@ class _StubBase:
         from app.services.risk.calculators import RiskComponentResult
 
         return RiskComponentResult(
-            risk_value=0.5, confidence=0.5, is_missing=True,
+            risk_value=0.5,
+            confidence=0.5,
+            is_missing=True,
             metadata={"source": "stub_no_db"},
         )
 

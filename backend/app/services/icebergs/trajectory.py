@@ -8,15 +8,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.iceberg import IcebergDetection, IcebergTrajectoryPrediction
 from app.models.observation import OceanObservation, WeatherObservation
 from app.repositories.iceberg import iceberg_prediction as prediction_repo
 from app.schemas.common import GeoJSONFeature
 from app.schemas.iceberg import IcebergTrajectoryPredictionProperties
 from app.utils.geometry_decode import geometry_centroid_lonlat
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -98,43 +97,59 @@ class PhysicsBasedTrajectoryPredictor(IcebergTrajectoryPredictor):
         oc_geom = getattr(OceanObservation, "geometry", None)
         if oc_geom is not None and getattr(oc_geom, "ST_Intersects", None) is not None:
             oc = (
-                await self.db.execute(
-                    select(OceanObservation)
-                    .where(OceanObservation.geometry.ST_Intersects(envelope))
-                    .where(OceanObservation.timestamp <= ref_time)
-                    .order_by(OceanObservation.timestamp.desc())
-                    .limit(1)
+                (
+                    await self.db.execute(
+                        select(OceanObservation)
+                        .where(OceanObservation.geometry.ST_Intersects(envelope))
+                        .where(OceanObservation.timestamp <= ref_time)
+                        .order_by(OceanObservation.timestamp.desc())
+                        .limit(1)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
         else:
             oc = (
-                await self.db.execute(
-                    select(OceanObservation)
-                    .where(OceanObservation.timestamp <= ref_time)
-                    .order_by(OceanObservation.timestamp.desc())
-                    .limit(1)
+                (
+                    await self.db.execute(
+                        select(OceanObservation)
+                        .where(OceanObservation.timestamp <= ref_time)
+                        .order_by(OceanObservation.timestamp.desc())
+                        .limit(1)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
         wx_geom = getattr(WeatherObservation, "geometry", None)
         if wx_geom is not None and getattr(wx_geom, "ST_Intersects", None) is not None:
             wx = (
-                await self.db.execute(
-                    select(WeatherObservation)
-                    .where(WeatherObservation.geometry.ST_Intersects(envelope))
-                    .where(WeatherObservation.timestamp <= ref_time)
-                    .order_by(WeatherObservation.timestamp.desc())
-                    .limit(1)
+                (
+                    await self.db.execute(
+                        select(WeatherObservation)
+                        .where(WeatherObservation.geometry.ST_Intersects(envelope))
+                        .where(WeatherObservation.timestamp <= ref_time)
+                        .order_by(WeatherObservation.timestamp.desc())
+                        .limit(1)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
         else:
             wx = (
-                await self.db.execute(
-                    select(WeatherObservation)
-                    .where(WeatherObservation.timestamp <= ref_time)
-                    .order_by(WeatherObservation.timestamp.desc())
-                    .limit(1)
+                (
+                    await self.db.execute(
+                        select(WeatherObservation)
+                        .where(WeatherObservation.timestamp <= ref_time)
+                        .order_by(WeatherObservation.timestamp.desc())
+                        .limit(1)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
         env: Dict[str, float] = {
             "current_speed_mps": 0.0,
             "current_direction_deg": 0.0,
@@ -195,7 +210,9 @@ class PhysicsBasedTrajectoryPredictor(IcebergTrajectoryPredictor):
         predictions: List[GeoJSONFeature[IcebergTrajectoryPredictionProperties]] = []
         last_pred = prediction_repo is None  # type: ignore[comparison-overlap]
         for hour, (lon_h, lat_h) in enumerate(path[1:], start=1):
-            radius_km = self.uncertainty_base_km + self.uncertainty_growth_km_per_h * hour
+            radius_km = (
+                self.uncertainty_base_km + self.uncertainty_growth_km_per_h * hour
+            )
             dlat_deg = radius_km / _km_per_deg_lat()
             dlon_deg = radius_km / max(1e-6, _km_per_deg_lon(lat_h))
             poly_coords = [
@@ -257,7 +274,9 @@ class PhysicsBasedTrajectoryPredictor(IcebergTrajectoryPredictor):
                     },
                 )
             except Exception as exc:
-                logger.warning("Failed to persist prediction %s: %s", prediction_id, exc)
+                logger.warning(
+                    "Failed to persist prediction %s: %s", prediction_id, exc
+                )
 
         await self.db.commit()
         return predictions

@@ -2,28 +2,36 @@
 Trains the ConvLSTM and compares against the persistence baseline.
 Run: python -m ml.training.seaice_train_convlstm
 """
+
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ml.preprocessing.seaice.data import generate_synthetic_timeseries
-from ml.preprocessing.seaice.grid_sequence import dataframe_to_grid_sequence, make_sequences
+from ml.benchmarks.splits import time_based_split_strict
 from ml.models.architectures.convlstm import SeaIceConvLSTM
 from ml.path_utils import get_model_path
+from ml.preprocessing.seaice.data import generate_synthetic_timeseries
+from ml.preprocessing.seaice.grid_sequence import (dataframe_to_grid_sequence,
+                                                   make_sequences)
 from ml.training_guard import safe_train
 
 
 def train_convlstm(input_len=5, epochs=150, lr=3e-3):
     print("Generating data...")
     df = generate_synthetic_timeseries(spatial_correlation=True)
-    grid_seq = dataframe_to_grid_sequence(df)
 
-    X, y = make_sequences(grid_seq, input_len=input_len)
-    train_split = int(len(X) * 0.7)
-    val_split = int(len(X) * 0.85)
-    X_train, y_train = X[:train_split], y[:train_split]
-    X_val, y_val = X[train_split:val_split], y[train_split:val_split]
-    X_test, y_test = X[val_split:], y[val_split:]
+    # Strictly split before sequence generation to prevent leakage
+    train_df, val_df, test_df = time_based_split_strict(df, sort_col="date")
+
+    X_train, y_train = make_sequences(
+        dataframe_to_grid_sequence(train_df), input_len=input_len
+    )
+    X_val, y_val = make_sequences(
+        dataframe_to_grid_sequence(val_df), input_len=input_len
+    )
+    X_test, y_test = make_sequences(
+        dataframe_to_grid_sequence(test_df), input_len=input_len
+    )
     print(f"Train: {len(X_train)}, Val: {len(X_val)}, Test: {len(X_test)}")
 
     X_train_t = torch.tensor(X_train).unsqueeze(2)
@@ -70,8 +78,12 @@ def train_convlstm(input_len=5, epochs=150, lr=3e-3):
     )
 
     if result["status"] == "failed":
-        print(f"\nTraining stopped early at epoch {result['last_epoch']+1}/{epochs}: {result['error']}")
-        print(f"Progress through epoch {result['last_epoch']} was checkpointed to {checkpoint_path}")
+        print(
+            f"\nTraining stopped early at epoch {result['last_epoch']+1}/{epochs}: {result['error']}"
+        )
+        print(
+            f"Progress through epoch {result['last_epoch']} was checkpointed to {checkpoint_path}"
+        )
         return None, None, None, None
 
     model.eval()
@@ -86,20 +98,30 @@ def train_convlstm(input_len=5, epochs=150, lr=3e-3):
     print(f"Persistence baseline RMSE: {persistence_rmse:.5f}")
 
     import uuid
+
     run_id = str(uuid.uuid4())
     artifact_uri = get_model_path(f"convlstm_{run_id}.pt")
 
     torch.save(model.state_dict(), artifact_uri)
     print(f"Model saved to {artifact_uri}")
-    
+
     from mlops.experiment_log import log_experiment
+
     log_experiment(
         run_id=run_id,
         model_name="seaice_convlstm",
         data_source="synthetic",
         artifact_uri=artifact_uri,
-        metrics={"test_rmse": float(test_rmse), "persistence_rmse": float(persistence_rmse)},
-        hyperparams={"hidden_channels": 8, "epochs": epochs, "lr": lr, "input_len": input_len},
+        metrics={
+            "test_rmse": float(test_rmse),
+            "persistence_rmse": float(persistence_rmse),
+        },
+        hyperparams={
+            "hidden_channels": 8,
+            "epochs": epochs,
+            "lr": lr,
+            "input_len": input_len,
+        },
     )
 
     return model, test_rmse, persistence_rmse, artifact_uri

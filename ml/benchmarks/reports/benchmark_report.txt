@@ -1,0 +1,43 @@
+MODEL BENCHMARK REPORT
+======================
+
+Timestamp: 2026-09-12T09:19:04.356000
+
+--------------------------------
+TRAJECTORY PREDICTION
+--------------------------------
+
+Model: persistence
+  Overall Metrics:
+    mae: 0.00535
+    rmse: 0.00662
+    mean_position_error_km: 0.59086
+    median_position_error_km: 0.54714
+    p95_position_error_km: 1.15954
+  Hard Cases:
+    strong_wind:
+      mae: 0.00501
+      rmse: 0.00606
+      mean_position_error_km: 0.59331
+      median_position_error_km: 0.54390
+      p95_position_error_km: 1.28141
+    strong_current:
+      mae: 0.00709
+      rmse: 0.00825
+      mean_position_error_km: 0.81620
+      median_position_error_km: 0.80111
+      p95_position_error_km: 1.26762
+
+--------------------------------
+SEA_ICE PREDICTION
+--------------------------------
+
+Model: persistence
+  Overall Metrics:
+    mae: 0.01115
+    rmse: 0.01398
+  Hard Cases:
+    low_concentration:
+      mae: 0.01153
+      rmse: 0.01436
+

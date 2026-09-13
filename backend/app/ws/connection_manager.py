@@ -43,7 +43,9 @@ class ConnectionManager:
             logger.error("Failed to send message to client: %s", e)
 
     async def broadcast(self, message: dict, channel: str = None):
-        connections = self.channels.get(channel, set()) if channel else self.active_connections
+        connections = (
+            self.channels.get(channel, set()) if channel else self.active_connections
+        )
         dead_connections = set()
         for connection in connections:
             try:
@@ -51,7 +53,7 @@ class ConnectionManager:
             except Exception as e:
                 logger.error("Failed to broadcast message: %s", e)
                 dead_connections.add(connection)
-        
+
         # Cleanup dead connections
         for dead in dead_connections:
             self.disconnect(dead, channel)

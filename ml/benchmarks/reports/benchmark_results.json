@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-09-12T09:19:04.356000",
+  "results": {
+    "trajectory": {
+      "persistence": {
+        "overall": {
+          "mae": 0.005351912177266928,
+          "rmse": 0.006616009812677003,
+          "mean_position_error_km": 0.5908596003107991,
+          "median_position_error_km": 0.5471428134174496,
+          "p95_position_error_km": 1.1595353307912353
+        },
+        "strong_wind": {
+          "mae": 0.005006086145138821,
+          "rmse": 0.006062294674081338,
+          "mean_position_error_km": 0.5933137512211076,
+          "median_position_error_km": 0.5438986963133435,
+          "p95_position_error_km": 1.2814059994227596
+        },
+        "strong_current": {
+          "mae": 0.007091475736243111,
+          "rmse": 0.008246255063181291,
+          "mean_position_error_km": 0.8162012921276589,
+          "median_position_error_km": 0.8011072696019055,
+          "p95_position_error_km": 1.2676151441742802
+        }
+      }
+    },
+    "sea_ice": {
+      "persistence": {
+        "overall": {
+          "mae": 0.011147155905524543,
+          "rmse": 0.013976068003493214
+        },
+        "low_concentration": {
+          "mae": 0.011529428217576519,
+          "rmse": 0.014359299355592506
+        }
+      }
+    }
+  }
+}

@@ -8,7 +8,9 @@ import numpy as np
 import pandas as pd
 
 
-def generate_synthetic_tracks(num_icebergs=30, num_steps=60, seed=42, time_varying_env=False):
+def generate_synthetic_tracks(
+    num_icebergs=30, num_steps=60, seed=42, time_varying_env=False
+):
     """
     time_varying_env=True makes current/wind drift slowly over time
     per iceberg (a smoothed random walk) instead of staying constant
@@ -38,12 +40,20 @@ def generate_synthetic_tracks(num_icebergs=30, num_steps=60, seed=42, time_varyi
             delta_lat = 0.6 * current_v + 0.3 * wind_v + noise_lat
             delta_lon = 0.6 * current_u + 0.3 * wind_u + noise_lon
 
-            records.append({
-                "iceberg_id": iceberg_id, "timestep": t, "lat": lat, "lon": lon,
-                "current_u": current_u, "current_v": current_v,
-                "wind_u": wind_u, "wind_v": wind_v,
-                "next_delta_lat": delta_lat, "next_delta_lon": delta_lon,
-            })
+            records.append(
+                {
+                    "iceberg_id": iceberg_id,
+                    "timestep": t,
+                    "lat": lat,
+                    "lon": lon,
+                    "current_u": current_u,
+                    "current_v": current_v,
+                    "wind_u": wind_u,
+                    "wind_v": wind_v,
+                    "next_delta_lat": delta_lat,
+                    "next_delta_lon": delta_lon,
+                }
+            )
             lat += delta_lat
             lon += delta_lon
 

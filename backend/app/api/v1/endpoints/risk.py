@@ -1,10 +1,6 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.models.risk import RiskCell
 from app.repositories.risk import risk_cell as risk_cell_repo
@@ -12,6 +8,9 @@ from app.schemas.common import GeoJSONFeature, GeoJSONFeatureCollection
 from app.schemas.risk import RiskCellProperties, RiskCellResponse
 from app.services.risk.engine import DEFAULT_WEIGHTS, RiskEngine
 from app.utils.geojson import to_geojson_geometry
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -33,11 +32,13 @@ def _parse_bbox(bbox: str) -> List[float]:
         parts = [float(x) for x in bbox.split(",")]
     except ValueError as exc:
         raise HTTPException(
-            status_code=422, detail=f"bbox must be 'minx,miny,maxx,maxy' (got {bbox!r})."
+            status_code=422,
+            detail=f"bbox must be 'minx,miny,maxx,maxy' (got {bbox!r}).",
         ) from exc
     if len(parts) != 4:
         raise HTTPException(
-            status_code=422, detail="bbox must contain exactly 4 comma-separated floats."
+            status_code=422,
+            detail="bbox must contain exactly 4 comma-separated floats.",
         )
     minx, miny, maxx, maxy = parts
     if not (-180.0 <= minx <= 180.0 and -180.0 <= maxx <= 180.0):
@@ -74,9 +75,7 @@ async def generate_risk_map(
             weights=weights,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     if not cells:
         raise HTTPException(
@@ -135,9 +134,7 @@ async def get_risk_map(
     )
 
 
-@router.get(
-    "/cells", response_model=GeoJSONFeatureCollection[RiskCellProperties]
-)
+@router.get("/cells", response_model=GeoJSONFeatureCollection[RiskCellProperties])
 async def get_risk_cells(
     db: AsyncSession = Depends(deps.get_db),
     pagination: deps.PaginationParams = Depends(),

@@ -35,10 +35,16 @@ def geometry_centroid_lonlat(value) -> Optional[Tuple[float, float]]:
     # Try GeoJSON via .data (WKB hex) — fallback to WKT text
     if hasattr(value, "data"):
         try:
-            text = value.data if isinstance(value.data, str) else value.data.decode("utf-8", errors="ignore")
+            text = (
+                value.data
+                if isinstance(value.data, str)
+                else value.data.decode("utf-8", errors="ignore")
+            )
         except Exception:
             text = None
-        if text and text.lstrip().upper().startswith(("POINT", "LINESTRING", "POLYGON")):
+        if text and text.lstrip().upper().startswith(
+            ("POINT", "LINESTRING", "POLYGON")
+        ):
             return _wkt_centroid(text)
     text = str(value) if not isinstance(value, str) else value
     return _wkt_centroid(text)

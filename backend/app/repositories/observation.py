@@ -1,17 +1,16 @@
 from typing import List, Optional, Sequence
-from sqlalchemy import select, and_, or_, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.observation import SeaIceObservation, WeatherObservation, OceanObservation
+from app.models.observation import (OceanObservation, SeaIceObservation,
+                                    WeatherObservation)
 from app.repositories.base import CRUDBase
-from app.schemas.observation import (
-    SeaIceObservationBase,
-    SeaIceObservationCreate,
-    WeatherObservationBase,
-    WeatherObservationCreate,
-    OceanObservationBase,
-    OceanObservationCreate,
-)
+from app.schemas.observation import (OceanObservationBase,
+                                     OceanObservationCreate,
+                                     SeaIceObservationBase,
+                                     SeaIceObservationCreate,
+                                     WeatherObservationBase,
+                                     WeatherObservationCreate)
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def _bbox_filter(model, min_lat: float, min_lon: float, max_lat: float, max_lon: float):
@@ -27,9 +26,7 @@ def _bbox_filter(model, min_lat: float, min_lon: float, max_lat: float, max_lon:
     st_intersects = getattr(geom, "ST_Intersects", None)
     if st_intersects is None:
         return None
-    return st_intersects(
-        func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
-    )
+    return st_intersects(func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326))
 
 
 class CRUDSeaIceObservation(
@@ -54,7 +51,9 @@ class CRUDSeaIceObservation(
             stmt = stmt.where(SeaIceObservation.timestamp >= start_time)
         if end_time is not None:
             stmt = stmt.where(SeaIceObservation.timestamp <= end_time)
-        stmt = stmt.order_by(SeaIceObservation.timestamp.desc()).offset(skip).limit(limit)
+        stmt = (
+            stmt.order_by(SeaIceObservation.timestamp.desc()).offset(skip).limit(limit)
+        )
         result = await db.execute(stmt)
         return result.scalars().all()
 
@@ -100,7 +99,9 @@ class CRUDWeatherObservation(
             stmt = stmt.where(WeatherObservation.timestamp >= start_time)
         if end_time is not None:
             stmt = stmt.where(WeatherObservation.timestamp <= end_time)
-        stmt = stmt.order_by(WeatherObservation.timestamp.desc()).offset(skip).limit(limit)
+        stmt = (
+            stmt.order_by(WeatherObservation.timestamp.desc()).offset(skip).limit(limit)
+        )
         result = await db.execute(stmt)
         return result.scalars().all()
 
@@ -146,7 +147,9 @@ class CRUDOceanObservation(
             stmt = stmt.where(OceanObservation.timestamp >= start_time)
         if end_time is not None:
             stmt = stmt.where(OceanObservation.timestamp <= end_time)
-        stmt = stmt.order_by(OceanObservation.timestamp.desc()).offset(skip).limit(limit)
+        stmt = (
+            stmt.order_by(OceanObservation.timestamp.desc()).offset(skip).limit(limit)
+        )
         result = await db.execute(stmt)
         return result.scalars().all()
 

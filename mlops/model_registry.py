@@ -5,9 +5,9 @@ promoted. A newly trained model only replaces production if it
 actually beats it (champion-challenger pattern).
 """
 
+import datetime
 import json
 import shutil
-import datetime
 from pathlib import Path
 
 from ml.path_utils import get_mlops_path
@@ -52,7 +52,11 @@ def promote_if_better(
         reason = "no production model exists yet — promoting first candidate"
     else:
         prod_value = current["metric_value"]
-        better = candidate_metric_value < prod_value if lower_is_better else candidate_metric_value > prod_value
+        better = (
+            candidate_metric_value < prod_value
+            if lower_is_better
+            else candidate_metric_value > prod_value
+        )
         if better:
             should_promote = True
             reason = f"candidate {metric_name} {candidate_metric_value:.5f} beats production {prod_value:.5f}"

@@ -7,11 +7,14 @@ unchanged regardless of which source you point it at.
 """
 
 import sys
-import xarray as xr
+
 import pandas as pd
+import xarray as xr
 
 
-def load_netcdf_to_dataframe(nc_path: str, concentration_var: str = "sea_ice_concentration"):
+def load_netcdf_to_dataframe(
+    nc_path: str, concentration_var: str = "sea_ice_concentration"
+):
     ds = xr.open_dataset(nc_path)
 
     if concentration_var not in ds.data_vars:
@@ -40,7 +43,9 @@ def load_netcdf_to_dataframe(nc_path: str, concentration_var: str = "sea_ice_con
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python -m ml.preprocessing.seaice.real_data_loader path/to/file.nc")
+        print(
+            "Usage: python -m ml.preprocessing.seaice.real_data_loader path/to/file.nc"
+        )
         sys.exit(1)
 
     df = load_netcdf_to_dataframe(sys.argv[1])

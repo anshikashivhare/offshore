@@ -1,0 +1,73 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# === Virtual environments ===
+.venv/
+venv/
+
+# === Environment & secrets ===
+.env
+.env.*
+!.env.example
+
+# === Tests ===
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+test_output.log
+
+# === Version control ===
+.git/
+.github/
+.gitignore
+
+# === IDE & OS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# === Node / Frontend build artifacts ===
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+frontend/.vite/
+package-lock.json
+
+# === ML artifacts & large data ===
+notebooks/
+ml/
+mlops/
+data/
+models/*.pt
+models/*.pth
+*.joblib
+ai_context.txt
+
+# === Logs & run artifacts ===
+*.log
+run_all.log
+run_all.sh
+run_tests.sh
+run_benchmark.py
+update_task.py
+
+# === Docs ===
+docs/
+README.md
+
+# === Docker ===
+docker-compose*.yml
+postgres_data/
+
+# === Scripts (included selectively via Dockerfile COPY) ===
+# scripts/ is explicitly COPYed by the Dockerfile — do NOT ignore it

@@ -2,7 +2,8 @@ import logging
 import secrets
 from typing import List, Union
 
-from pydantic import AnyHttpUrl, Field, PostgresDsn, computed_field, field_validator
+from pydantic import (AnyHttpUrl, Field, PostgresDsn, computed_field,
+                      field_validator)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -160,7 +161,9 @@ def get_or_create_secret_key() -> str:
     if settings_local.SECRET_KEY:
         return settings_local.SECRET_KEY
     if settings_local.is_production():
-        raise RuntimeError("SECRET_KEY missing in production. Refusing to auto-generate.")
+        raise RuntimeError(
+            "SECRET_KEY missing in production. Refusing to auto-generate."
+        )
     logging.getLogger(__name__).warning(
         "SECRET_KEY not set; generating an ephemeral key for development use only."
     )

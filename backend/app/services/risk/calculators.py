@@ -6,17 +6,13 @@ import math
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from app.models.iceberg import IcebergDetection
+from app.models.observation import (OceanObservation, SeaIceObservation,
+                                    WeatherObservation)
+from app.utils.geometry_decode import geometry_centroid_lonlat
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.iceberg import IcebergDetection
-from app.models.observation import (
-    OceanObservation,
-    SeaIceObservation,
-    WeatherObservation,
-)
-from app.utils.geometry_decode import geometry_centroid_lonlat
 
 
 class RiskComponentResult(BaseModel):
@@ -40,7 +36,9 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2.0 * r * math.asin(min(1.0, math.sqrt(a)))
 
 
-def _nearby_query(model, lat: float, lon: float, *, envelope_deg: float = 3.0, limit: int = 20):
+def _nearby_query(
+    model, lat: float, lon: float, *, envelope_deg: float = 3.0, limit: int = 20
+):
     """Return a SQLAlchemy select for nearby rows of ``model``.
 
     Falls back to returning all rows (limited) when the geometry column has
@@ -99,7 +97,9 @@ class IceRiskCalculator(RiskCalculator):
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0, confidence=0.0, is_missing=True,
+                risk_value=0.0,
+                confidence=0.0,
+                is_missing=True,
                 metadata={"source": "sea_ice_obs", "nearest_km": None},
             )
         best = None
@@ -158,7 +158,9 @@ class IcebergRiskCalculator(RiskCalculator):
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0, confidence=0.0, is_missing=True,
+                risk_value=0.0,
+                confidence=0.0,
+                is_missing=True,
                 metadata={"source": "iceberg_detection", "nearest_km": None},
             )
         contributions = []
@@ -215,7 +217,9 @@ class WeatherRiskCalculator(RiskCalculator):
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0, confidence=0.0, is_missing=True,
+                risk_value=0.0,
+                confidence=0.0,
+                is_missing=True,
                 metadata={"source": "weather_obs"},
             )
         best = None
@@ -275,7 +279,9 @@ class CurrentRiskCalculator(RiskCalculator):
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0, confidence=0.0, is_missing=True,
+                risk_value=0.0,
+                confidence=0.0,
+                is_missing=True,
                 metadata={"source": "ocean_obs"},
             )
         best = None
@@ -291,7 +297,9 @@ class CurrentRiskCalculator(RiskCalculator):
                 best_d = d
         if best is None or best_d > self.search_radius_km:
             return RiskComponentResult(
-                risk_value=0.0, confidence=0.0, is_missing=True,
+                risk_value=0.0,
+                confidence=0.0,
+                is_missing=True,
                 metadata={"source": "ocean_obs"},
             )
         current_norm = max(0.0, min(1.0, float(best.current_speed) / 2.0))

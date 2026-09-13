@@ -1,11 +1,12 @@
 import uuid
-from typing import List, Optional, Dict
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Dict, List, Optional
 
 from app.models.enums import ObjectiveType
-from app.schemas.route import RouteComparisonResponse, OptimizationWeights
 from app.schemas.alert import AlertResponse
+from app.schemas.route import OptimizationWeights, RouteComparisonResponse
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class NavigationScenarioRequest(BaseModel):
     origin: str = Field(..., description="Longitude,Latitude of origin")
@@ -28,14 +29,11 @@ class NavigationScenarioRequest(BaseModel):
                 "departure_time": "2026-09-03T12:00:00Z",
                 "forecast_horizon": 24,
                 "navigation_priority": "safest",
-                "custom_weights": {
-                    "alpha": 0.33,
-                    "beta": 0.33,
-                    "gamma": 0.34
-                }
+                "custom_weights": {"alpha": 0.33, "beta": 0.33, "gamma": 0.34},
             }
         }
     )
+
 
 class NavigationScenarioResponse(BaseModel):
     scenario_metadata: dict
@@ -54,7 +52,7 @@ class NavigationScenarioResponse(BaseModel):
                     "vessel_name": "RRS Sir David Attenborough",
                     "origin": "-60.1,-65.2",
                     "destination": "-55.5,-60.1",
-                    "departure_time": "2026-09-03T12:00:00Z"
+                    "departure_time": "2026-09-03T12:00:00Z",
                 },
                 "recommended_route": {
                     "type": "Feature",
@@ -62,24 +60,19 @@ class NavigationScenarioResponse(BaseModel):
                         "distance": 350.5,
                         "eta": "2026-09-04T18:30:00Z",
                         "estimated_fuel": 12.5,
-                        "risk_score": 0.15
+                        "risk_score": 0.15,
                     },
                     "geometry": {
                         "type": "LineString",
-                        "coordinates": [[-60.1, -65.2], [-55.5, -60.1]]
-                    }
+                        "coordinates": [[-60.1, -65.2], [-55.5, -60.1]],
+                    },
                 },
                 "alternatives": [],
-                "environmental_summary": {
-                    "iceberg_risk": 0.8,
-                    "weather_risk": 0.2
-                },
+                "environmental_summary": {"iceberg_risk": 0.8, "weather_risk": 0.2},
                 "alerts": [],
                 "explanation": "Route was recommended due to zero iceberg exposure.",
                 "uncertainty": "Low",
-                "processing_metadata": {
-                    "processing_time_sec": 1.2
-                }
+                "processing_metadata": {"processing_time_sec": 1.2},
             }
         }
     )
