@@ -1,15 +1,13 @@
 from typing import Any, List, Optional, Sequence
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.iceberg import Iceberg, IcebergDetection, IcebergTrajectoryPrediction
+from app.models.iceberg import (Iceberg, IcebergDetection,
+                                IcebergTrajectoryPrediction)
 from app.repositories.base import CRUDBase
-from app.schemas.iceberg import (
-    IcebergDetectionBase,
-    IcebergDetectionCreate,
-    IcebergTrajectoryPredictionBase,
-    IcebergTrajectoryPredictionCreate,
-)
+from app.schemas.iceberg import (IcebergDetectionBase, IcebergDetectionCreate,
+                                 IcebergTrajectoryPredictionBase,
+                                 IcebergTrajectoryPredictionCreate)
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class CRUDIceberg(CRUDBase[Iceberg, Any, Any]):
@@ -29,7 +27,9 @@ class CRUDIceberg(CRUDBase[Iceberg, Any, Any]):
         return result.scalars().all()
 
     async def count(self, db: AsyncSession) -> int:
-        return (await db.execute(select(func.count()).select_from(Iceberg))).scalar_one()
+        return (
+            await db.execute(select(func.count()).select_from(Iceberg))
+        ).scalar_one()
 
     async def create(self, db: AsyncSession, *, obj_in: Any = None) -> Iceberg:
         obj = Iceberg()
@@ -72,7 +72,9 @@ class CRUDIcebergDetection(
                         func.ST_MakeEnvelope(bbox[1], bbox[0], bbox[3], bbox[2], 4326)
                     )
                 )
-        stmt = stmt.order_by(IcebergDetection.timestamp.desc()).offset(skip).limit(limit)
+        stmt = (
+            stmt.order_by(IcebergDetection.timestamp.desc()).offset(skip).limit(limit)
+        )
         result = await db.execute(stmt)
         return result.scalars().all()
 
@@ -101,7 +103,11 @@ class CRUDIcebergDetection(
 
 
 class CRUDIcebergTrajectoryPrediction(
-    CRUDBase[IcebergTrajectoryPrediction, IcebergTrajectoryPredictionCreate, IcebergTrajectoryPredictionBase]
+    CRUDBase[
+        IcebergTrajectoryPrediction,
+        IcebergTrajectoryPredictionCreate,
+        IcebergTrajectoryPredictionBase,
+    ]
 ):
     async def get_multi(
         self,

@@ -7,15 +7,15 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from geoalchemy2 import Geometry
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.models.iceberg import IcebergDetection
 from app.repositories.iceberg import iceberg as iceberg_repo
 from app.repositories.iceberg import iceberg_detection as detection_repo
-from app.models.iceberg import IcebergDetection
 from app.schemas.common import GeoJSONFeature
-from app.schemas.iceberg import IcebergDetectionProperties, IcebergDetectionResponse
+from app.schemas.iceberg import (IcebergDetectionProperties,
+                                 IcebergDetectionResponse)
 from app.utils.geojson import parse_wkt_point
+from geoalchemy2 import Geometry
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,9 @@ class DeterministicSeededDetector(IcebergDetector):
         if max_lon <= min_lon or max_lat <= min_lat:
             min_lon, min_lat, max_lon, max_lat = -1.0, -1.0, 1.0, 1.0
 
-        ref_str = str(image_ref) if image_ref is not None else f"{timestamp.isoformat()}"
+        ref_str = (
+            str(image_ref) if image_ref is not None else f"{timestamp.isoformat()}"
+        )
         digest = hashlib.sha256(ref_str.encode("utf-8")).digest()
         seed_int = int.from_bytes(digest[:8], "big")
 

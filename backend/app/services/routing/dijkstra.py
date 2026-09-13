@@ -59,7 +59,10 @@ class DijkstraShortestPlanner(RoutePlanner):
             current_cost, _, current = heapq.heappop(heap)
             if current_cost > cost_so_far.get(current, float("inf")):
                 continue
-            if current == goal_key or current.distance_to(goal_key) < self.grid_builder.resolution:
+            if (
+                current == goal_key
+                or current.distance_to(goal_key) < self.grid_builder.resolution
+            ):
                 found = True
                 goal_key = current
                 break

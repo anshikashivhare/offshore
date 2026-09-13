@@ -19,11 +19,10 @@ import logging
 import sys
 from typing import List
 
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-
 from app.config.config import settings
 from app.db.session import engine
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,9 @@ async def _check_postgres() -> List[str]:
             await conn.execute(text("SELECT 1"))
             # Verify PostGIS is installed.
             row = (
-                await conn.execute(text("SELECT extname FROM pg_extension WHERE extname='postgis'"))
+                await conn.execute(
+                    text("SELECT extname FROM pg_extension WHERE extname='postgis'")
+                )
             ).first()
             if row is None:
                 errors.append(
@@ -69,7 +70,9 @@ async def run() -> int:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     sys.exit(asyncio.run(run()))
 
 

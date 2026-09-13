@@ -13,19 +13,11 @@ from datetime import datetime
 from typing import Any, Optional
 
 from app.config.config import settings
-from app.ingestion.interfaces import (
-    DataFetcher,
-    DataNormalizer,
-    DataSource,
-    DataValidator,
-    SpatialAligner,
-    TemporalAligner,
-)
-from app.ingestion.utils.reliability import (
-    DatasetUnavailable,
-    IngestionFailure,
-    safe_call,
-)
+from app.ingestion.interfaces import (DataFetcher, DataNormalizer, DataSource,
+                                      DataValidator, SpatialAligner,
+                                      TemporalAligner)
+from app.ingestion.utils.reliability import (DatasetUnavailable,
+                                             IngestionFailure, safe_call)
 
 logger = logging.getLogger("ingestion")
 
@@ -86,9 +78,7 @@ class IngestionPipeline:
             try:
                 self.validator.validate(raw_data)
             except Exception as exc:
-                logger.warning(
-                    "Validation failed for %s: %s", self.source.name, exc
-                )
+                logger.warning("Validation failed for %s: %s", self.source.name, exc)
                 raise IngestionFailure(f"validation failed: {exc}") from exc
 
             logger.info("Normalizing units and handling missing values...")
@@ -121,11 +111,12 @@ class IngestionPipeline:
             )
 
             confidence = (
-                final_data.get("confidence")
-                if isinstance(final_data, dict)
-                else None
+                final_data.get("confidence") if isinstance(final_data, dict) else None
             )
-            if confidence is not None and confidence < settings.RISK_CONFIDENCE_THRESHOLD:
+            if (
+                confidence is not None
+                and confidence < settings.RISK_CONFIDENCE_THRESHOLD
+            ):
                 logger.warning(
                     "Source %s produced low-confidence output: %.3f < %.3f",
                     self.source.name,

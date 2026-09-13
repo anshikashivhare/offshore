@@ -2,11 +2,10 @@ import logging
 import uuid
 from typing import Any, Dict, Optional
 
+from app.config.config import settings
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
-from app.config.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,25 +44,29 @@ def _error_payload(
 def setup_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError):
+        trace_id = getattr(request.state, "request_id", None)
         logger.warning(
-            "AppError at %s [%s]: %s",
+            "AppError at %s [%s]: %s [ID: %s]",
             request.url.path,
             exc.code,
             exc.message,
+            trace_id,
         )
         return JSONResponse(
             status_code=exc.status_code,
-            content=_error_payload(exc.code, exc.message, exc.details or None),
+            content=_error_payload(exc.code, exc.message, exc.details or None, trace_id=trace_id),
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
     ):
+        trace_id = getattr(request.state, "request_id", None)
         logger.info(
-            "Validation error at %s: %s",
+            "Validation error at %s: %s [ID: %s]",
             request.url.path,
             exc.errors(),
+            trace_id,
         )
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -71,12 +74,13 @@ def setup_exception_handlers(app: FastAPI) -> None:
                 code="VALIDATION_ERROR",
                 message="Invalid request payload",
                 details=exc.errors(),
+                trace_id=trace_id,
             ),
         )
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        trace_id = uuid.uuid4().hex
+        trace_id = getattr(request.state, "request_id", uuid.uuid4().hex)
         # Always log the full traceback server-side, never expose it to the client.
         logger.exception(
             "Unhandled exception at %s [trace_id=%s]",

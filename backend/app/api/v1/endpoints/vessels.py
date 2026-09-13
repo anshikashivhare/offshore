@@ -1,13 +1,12 @@
 import uuid
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.repositories.vessel import vessel as vessel_repo
 from app.schemas.common import Pagination
 from app.schemas.vessel import VesselCreate, VesselResponse
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -18,13 +17,16 @@ async def read_vessels(
     pagination: deps.PaginationParams = Depends(),
 ) -> Any:
     """List vessels with pagination."""
-    items = await vessel_repo.get_multi(db, skip=pagination.skip, limit=pagination.limit)
+    items = await vessel_repo.get_multi(
+        db, skip=pagination.skip, limit=pagination.limit
+    )
     total = await vessel_repo.count(db)
-    return Pagination[VesselResponse](
-        data=[VesselResponse.model_validate(v) for v in items],
+    return Pagination[VesselResponse].from_qs(
+        items=items,
         total=total,
         skip=pagination.skip,
         limit=pagination.limit,
+        model_cls=VesselResponse,
     )
 
 

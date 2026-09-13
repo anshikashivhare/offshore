@@ -1,10 +1,10 @@
 from typing import Any, List, Optional, Sequence
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.risk import RiskCell
 from app.repositories.base import CRUDBase
-from app.schemas.risk import RiskCellCreate, RiskCellBase
+from app.schemas.risk import RiskCellBase, RiskCellCreate
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class CRUDRiskCell(CRUDBase[RiskCell, RiskCellCreate, RiskCellBase]):

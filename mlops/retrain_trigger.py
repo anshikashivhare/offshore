@@ -4,8 +4,9 @@ degradation vs production. Either alone triggers a retrain recommendation.
 """
 
 import logging
-from mlops.model_registry import get_production_info
+
 from mlops.experiment_log import get_latest_metric
+from mlops.model_registry import get_production_info
 
 logger = logging.getLogger("mlops.retrain_trigger")
 
@@ -19,7 +20,9 @@ def should_retrain(
     reasons = []
 
     if drift_warnings:
-        reasons.append(f"data drift detected ({len(drift_warnings)} check(s) triggered)")
+        reasons.append(
+            f"data drift detected ({len(drift_warnings)} check(s) triggered)"
+        )
 
     production = get_production_info(model_name)
     latest_metric = get_latest_metric(model_name, metric_name)
@@ -40,5 +43,7 @@ def should_retrain(
     if decision["retrain"]:
         logger.info(f"Retrain recommended for {model_name}: {'; '.join(reasons)}")
     else:
-        logger.info(f"No retrain needed for {model_name} — production model still performing within tolerance")
+        logger.info(
+            f"No retrain needed for {model_name} — production model still performing within tolerance"
+        )
     return decision

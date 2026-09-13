@@ -58,7 +58,9 @@ class AlertEngine:
         else:
             self.proximity_buffer_nm = proximity_buffer_nm
         if intersect_threshold_deg is not None:
-            self.intersect_threshold_nm = haversine_nm(0.0, 0.0, intersect_threshold_deg, 0.0)
+            self.intersect_threshold_nm = haversine_nm(
+                0.0, 0.0, intersect_threshold_deg, 0.0
+            )
         else:
             self.intersect_threshold_nm = intersect_threshold_nm
 
@@ -82,11 +84,16 @@ class AlertEngine:
             "the planned route."
         )
 
-    def _haversine_nm(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    def _haversine_nm(
+        self, lat1: float, lon1: float, lat2: float, lon2: float
+    ) -> float:
         return haversine_nm(lat1, lon1, lat2, lon2)
 
     def _check_proximity(
-        self, route_points: List[Tuple[float, float]], hazard_lat: float, hazard_lon: float
+        self,
+        route_points: List[Tuple[float, float]],
+        hazard_lat: float,
+        hazard_lon: float,
     ) -> Tuple[bool, bool, float]:
         """Return (is_intersecting, is_proximate, min_distance_nm)."""
         is_intersecting = False

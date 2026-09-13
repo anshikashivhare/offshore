@@ -1,14 +1,23 @@
-from pydantic import BaseModel, Field, ConfigDict
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class VesselBase(BaseModel):
     vessel_name: str = Field(..., description="Name of the vessel")
-    vessel_type: str = Field(..., description="Type of the vessel (e.g., Icebreaker, Cargo)")
+    vessel_type: str = Field(
+        ..., description="Type of the vessel (e.g., Icebreaker, Cargo)"
+    )
     cruising_speed: float = Field(..., description="Cruising speed in knots")
     fuel_consumption: float = Field(..., description="Fuel consumption in tons per day")
-    ice_capability: str = Field(..., description="Ice class rating (e.g., Polar Class 1)")
-    operational_limits: Optional[Dict[str, Any]] = Field(None, description="Custom operational limits for routing")
+    ice_capability: str = Field(
+        ..., description="Ice class rating (e.g., Polar Class 1)"
+    )
+    operational_limits: Optional[Dict[str, Any]] = Field(
+        None, description="Custom operational limits for routing"
+    )
+
 
 class VesselCreate(VesselBase):
     model_config = ConfigDict(
@@ -21,11 +30,12 @@ class VesselCreate(VesselBase):
                 "ice_capability": "Polar Class 4",
                 "operational_limits": {
                     "max_ice_thickness_m": 1.5,
-                    "max_wave_height_m": 6.0
-                }
+                    "max_wave_height_m": 6.0,
+                },
             }
         }
     )
+
 
 class VesselResponse(VesselBase):
     vessel_id: uuid.UUID = Field(..., description="Unique identifier for the vessel")
@@ -42,8 +52,8 @@ class VesselResponse(VesselBase):
                 "ice_capability": "Polar Class 4",
                 "operational_limits": {
                     "max_ice_thickness_m": 1.5,
-                    "max_wave_height_m": 6.0
-                }
+                    "max_wave_height_m": 6.0,
+                },
             }
-        }
+        },
     )

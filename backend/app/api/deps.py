@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
 from typing import AsyncGenerator, List, Optional
 
+from app.db.session import AsyncSessionLocal
 from fastapi import Query
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.session import AsyncSessionLocal
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -60,10 +59,18 @@ class BBoxParams:
 
     def __init__(
         self,
-        min_lat: Optional[float] = Query(None, ge=-90, le=90, description="Minimum latitude"),
-        min_lon: Optional[float] = Query(None, ge=-180, le=180, description="Minimum longitude"),
-        max_lat: Optional[float] = Query(None, ge=-90, le=90, description="Maximum latitude"),
-        max_lon: Optional[float] = Query(None, ge=-180, le=180, description="Maximum longitude"),
+        min_lat: Optional[float] = Query(
+            None, ge=-90, le=90, description="Minimum latitude"
+        ),
+        min_lon: Optional[float] = Query(
+            None, ge=-180, le=180, description="Minimum longitude"
+        ),
+        max_lat: Optional[float] = Query(
+            None, ge=-90, le=90, description="Maximum latitude"
+        ),
+        max_lon: Optional[float] = Query(
+            None, ge=-180, le=180, description="Maximum longitude"
+        ),
     ):
         self.min_lat = min_lat
         self.min_lon = min_lon

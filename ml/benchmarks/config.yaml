@@ -1,0 +1,47 @@
+dataset:
+  name: "offshore_synthetic_dataset"
+  version: "1.0"
+
+split:
+  strategy: "chronological_strict_non_overlapping"
+  train_ratio: 0.70
+  validation_ratio: 0.15
+  test_ratio: 0.15
+
+trajectory:
+  targets:
+    - "next_delta_lat"
+    - "next_delta_lon"
+  horizons:
+    - 1
+  hard_cases:
+    strong_wind:
+      condition: "abs(wind_u) > 0.01 or abs(wind_v) > 0.01"
+    strong_current:
+      condition: "abs(current_u) > 0.02 or abs(current_v) > 0.01"
+
+sea_ice:
+  targets:
+    - "concentration"
+  horizons:
+    - 1
+  hard_cases:
+    high_concentration:
+      condition: "concentration > 0.8"
+    low_concentration:
+      condition: "concentration < 0.2"
+
+metrics:
+  trajectory:
+    - "mae"
+    - "rmse"
+    - "mean_position_error_km"
+    - "median_position_error_km"
+    - "p95_position_error_km"
+  sea_ice:
+    - "mae"
+    - "rmse"
+
+acceptance:
+  baseline_improvement_required: true
+  domain_thresholds: null # TBD: Awaiting authoritative safety requirements

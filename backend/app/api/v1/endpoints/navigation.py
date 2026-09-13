@@ -1,14 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.repositories.vessel import vessel as vessel_repo
 from app.schemas.common import ErrorResponse
-from app.schemas.navigation import (
-    NavigationScenarioRequest,
-    NavigationScenarioResponse,
-)
+from app.schemas.navigation import (NavigationScenarioRequest,
+                                    NavigationScenarioResponse)
 from app.services.navigation.orchestrator import NavigationOrchestrator
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -19,9 +16,15 @@ router = APIRouter()
     status_code=status.HTTP_200_OK,
     summary="Plan End-to-End Navigation Scenario",
     responses={
-        400: {"model": ErrorResponse, "description": "Invalid scenario request parameters."},
+        400: {
+            "model": ErrorResponse,
+            "description": "Invalid scenario request parameters.",
+        },
         404: {"model": ErrorResponse, "description": "Specified vessel not found."},
-        500: {"model": ErrorResponse, "description": "Internal error during route evaluation."},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal error during route evaluation.",
+        },
     },
 )
 async def plan_navigation_scenario(
@@ -49,6 +52,4 @@ async def plan_navigation_scenario(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Internal scenario failure: {exc}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal scenario failure: {exc}")

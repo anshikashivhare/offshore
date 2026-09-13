@@ -1,9 +1,9 @@
 from typing import Any, List, Optional
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.forecast import Forecast
 from app.repositories.base import CRUDBase
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class CRUDForecast(CRUDBase[Forecast, Any, Any]):

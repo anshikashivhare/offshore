@@ -1,20 +1,15 @@
 import uuid
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api import deps
 from app.models.alert import Alert
 from app.models.enums import AlertSeverity
 from app.repositories.alert import alert as alert_repo
-from app.schemas.alert import (
-    AlertCreate,
-    AlertProperties,
-    AlertResponse,
-)
+from app.schemas.alert import AlertCreate, AlertProperties, AlertResponse
 from app.schemas.common import GeoJSONFeature, GeoJSONFeatureCollection
 from app.utils.geojson import parse_wkt_point, to_geojson_geometry
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

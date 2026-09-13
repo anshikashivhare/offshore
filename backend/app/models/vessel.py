@@ -1,9 +1,10 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Float, JSON
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from app.models.base import Base
+from sqlalchemy import JSON, Float, String
+from sqlalchemy.orm import Mapped, mapped_column
+
 
 class Vessel(Base):
     __tablename__ = "vessels"
@@ -12,6 +13,10 @@ class Vessel(Base):
     vessel_name: Mapped[str] = mapped_column(String(255), index=True)
     vessel_type: Mapped[str] = mapped_column(String(100))
     cruising_speed: Mapped[float] = mapped_column(Float, comment="in knots")
-    fuel_consumption: Mapped[float] = mapped_column(Float, comment="rate of consumption")
+    fuel_consumption: Mapped[float] = mapped_column(
+        Float, comment="rate of consumption"
+    )
     ice_capability: Mapped[str] = mapped_column(String(50), comment="ice class")
-    operational_limits: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    operational_limits: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )

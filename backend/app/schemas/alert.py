@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+
 from app.models.enums import AlertSeverity
 from app.schemas.common import GeoJSONFeature
+from pydantic import BaseModel, ConfigDict
+
 
 class AlertProperties(BaseModel):
     id: uuid.UUID
@@ -31,10 +33,11 @@ class AlertProperties(BaseModel):
                 "status": "active",
                 "triggering_metric": 0.85,
                 "threshold": 0.60,
-                "confidence": 0.90
+                "confidence": 0.90,
             }
-        }
+        },
     )
+
 
 class AlertCreate(BaseModel):
     alert_type: str
@@ -48,7 +51,7 @@ class AlertCreate(BaseModel):
     triggering_metric: Optional[float] = None
     threshold: Optional[float] = None
     confidence: Optional[float] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -62,11 +65,14 @@ class AlertCreate(BaseModel):
                 "status": "active",
                 "triggering_metric": 0.85,
                 "threshold": 0.60,
-                "confidence": 0.90
+                "confidence": 0.90,
             }
         }
     )
+
+
 class AlertBase(AlertCreate):
     pass
+
 
 AlertResponse = GeoJSONFeature[AlertProperties]

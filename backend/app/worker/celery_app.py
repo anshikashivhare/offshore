@@ -1,8 +1,7 @@
 import os
 
-from celery import Celery
-
 from app.config.config import settings
+from celery import Celery
 
 redis_url = settings.CELERY_BROKER_URL or settings.REDIS_URI
 backend = settings.CELERY_RESULT_BACKEND or redis_url

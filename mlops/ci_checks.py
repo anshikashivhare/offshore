@@ -7,6 +7,7 @@ Run: python -m mlops.ci_checks
 """
 
 import sys
+
 from mlops.experiment_log import get_latest_metric
 
 SANITY_BOUNDS = [
@@ -34,7 +35,9 @@ def run_checks() -> bool:
             print(f"FAIL  {model_name}.{metric_name} = NaN")
             all_passed = False
         elif not (min_allowed <= value <= max_allowed):
-            print(f"FAIL  {model_name}.{metric_name} = {value:.5f} — outside [{min_allowed}, {max_allowed}]")
+            print(
+                f"FAIL  {model_name}.{metric_name} = {value:.5f} — outside [{min_allowed}, {max_allowed}]"
+            )
             all_passed = False
         else:
             print(f"PASS  {model_name}.{metric_name} = {value:.5f}")

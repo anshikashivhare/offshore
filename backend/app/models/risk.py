@@ -1,16 +1,17 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Float, DateTime, JSON
 import uuid
 from datetime import datetime
-from geoalchemy2 import Geometry
 
 from app.models.base import Base
+from geoalchemy2 import Geometry
+from sqlalchemy import JSON, DateTime, Float, String
+from sqlalchemy.orm import Mapped, mapped_column
+
 
 class RiskCell(Base):
     __tablename__ = "risk_cells"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    geometry: Mapped[str] = mapped_column(Geometry('POLYGON', srid=4326), index=True)
+    geometry: Mapped[str] = mapped_column(Geometry("POLYGON", srid=4326), index=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     ice_risk: Mapped[float] = mapped_column(Float)
     iceberg_risk: Mapped[float] = mapped_column(Float)

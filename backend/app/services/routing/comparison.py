@@ -7,16 +7,10 @@ from typing import Any, Dict, List, Optional
 
 from app.models.enums import ObjectiveType
 from app.models.vessel import Vessel
-from app.schemas.route import (
-    OptimizationWeights,
-    RouteAlternative,
-    RouteComparisonMetrics,
-    RouteComparisonResponse,
-    RouteCreate,
-    RouteProperties,
-    RouteRequest,
-    RouteResponse,
-)
+from app.schemas.route import (OptimizationWeights, RouteAlternative,
+                               RouteComparisonMetrics, RouteComparisonResponse,
+                               RouteCreate, RouteProperties, RouteRequest,
+                               RouteResponse)
 from app.services.routing.planner import RoutePlanner
 from app.utils.geojson import parse_wkt_linestring
 
@@ -47,13 +41,17 @@ class RouteComparisonService:
         fuel_diff = recommended.estimated_fuel - shortest.estimated_fuel
         risk_diff = recommended.risk_score - shortest.risk_score
 
-        parts = [f"This route was recommended because the objective is {objective.value.upper()}."]
+        parts = [
+            f"This route was recommended because the objective is {objective.value.upper()}."
+        ]
         if risk_diff < -0.01:
             parts.append(
                 f"It significantly reduces risk exposure compared to the shortest path (by {-risk_diff:.2f})."
             )
         elif risk_diff > 0.01:
-            parts.append(f"It accepts higher risk (by {risk_diff:.2f}) to achieve other goals.")
+            parts.append(
+                f"It accepts higher risk (by {risk_diff:.2f}) to achieve other goals."
+            )
         else:
             parts.append("It maintains a similar risk profile to the baseline.")
 
@@ -86,15 +84,21 @@ class RouteComparisonService:
             return "Confidence unknown for the available risk surface."
         avg = _avg(confidences)
         if avg >= 0.75:
-            return f"High confidence (avg={avg:.2f}). Risk-aware pathfinding is reliable."
+            return (
+                f"High confidence (avg={avg:.2f}). Risk-aware pathfinding is reliable."
+            )
         if avg >= 0.5:
-            return f"Medium confidence (avg={avg:.2f}). Forecasts have moderate variance."
+            return (
+                f"Medium confidence (avg={avg:.2f}). Forecasts have moderate variance."
+            )
         return f"Low confidence (avg={avg:.2f}). Treat risk values as indicative only."
 
     def _get_warnings(self, risk_grid: Any) -> List[str]:
         warnings: List[str] = []
         if not risk_grid:
-            warnings.append("Risk surface empty; route based on geometric shortest path.")
+            warnings.append(
+                "Risk surface empty; route based on geometric shortest path."
+            )
             return warnings
         high = 0
         for v in risk_grid.values():
@@ -182,17 +186,25 @@ class RouteComparisonService:
             if route.properties.route_id == recommended.properties.route_id:
                 continue
             metrics = RouteComparisonMetrics(
-                distance_diff=route.properties.distance - recommended.properties.distance,
+                distance_diff=route.properties.distance
+                - recommended.properties.distance,
                 time_diff_hours=(
                     route.properties.eta - recommended.properties.eta
-                ).total_seconds() / 3600.0,
-                fuel_diff=route.properties.estimated_fuel - recommended.properties.estimated_fuel,
-                risk_diff=route.properties.risk_score - recommended.properties.risk_score,
+                ).total_seconds()
+                / 3600.0,
+                fuel_diff=route.properties.estimated_fuel
+                - recommended.properties.estimated_fuel,
+                risk_diff=route.properties.risk_score
+                - recommended.properties.risk_score,
             )
-            alternatives.append(RouteAlternative(route=route, comparison_metrics=metrics))
+            alternatives.append(
+                RouteAlternative(route=route, comparison_metrics=metrics)
+            )
 
         explanation = self._generate_explanation(
-            recommended.properties, shortest_route.properties, base_request.objective_type
+            recommended.properties,
+            shortest_route.properties,
+            base_request.objective_type,
         )
 
         contributing = {

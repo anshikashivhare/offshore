@@ -2,10 +2,9 @@ from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
+from app.models.base import Base
 from sqlalchemy import JSON, DateTime, Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.models.base import Base
 
 
 class Forecast(Base):
@@ -32,5 +31,7 @@ class Forecast(Base):
     )
 
     __table_args__ = (
-        Index("ix_forecasts_init_horizon", "initialization_time", "forecast_horizon_days"),
+        Index(
+            "ix_forecasts_init_horizon", "initialization_time", "forecast_horizon_days"
+        ),
     )

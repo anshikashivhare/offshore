@@ -7,14 +7,15 @@ Run: python -m ml.training.trajectory_train
 """
 
 import sys
+
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
 from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
 
-from ml.preprocessing.trajectory.data import generate_synthetic_tracks
 from ml.path_utils import get_model_path
+from ml.preprocessing.trajectory.data import generate_synthetic_tracks
 
 FEATURE_COLS = ["lat", "lon", "current_u", "current_v", "wind_u", "wind_v"]
 TARGET_COLS = ["next_delta_lat", "next_delta_lon"]
@@ -34,7 +35,9 @@ def time_based_split_per_iceberg(df, val_frac=0.15, test_frac=0.15):
 def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
     if tracks_csv and reanalysis_nc:
         print(f"Loading real data from {tracks_csv} + {reanalysis_nc}...")
-        from ml.preprocessing.trajectory.real_data_loader import load_track_csv, merge_tracks_with_environment
+        from ml.preprocessing.trajectory.real_data_loader import (
+            load_track_csv, merge_tracks_with_environment)
+
         tracks = load_track_csv(tracks_csv)
         df = merge_tracks_with_environment(tracks, reanalysis_nc)
     else:
@@ -66,11 +69,18 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
     rmse_lon = np.sqrt(mean_squared_error(y_test["next_delta_lon"], preds[:, 1]))
     print(f"Test RMSE — delta_lat: {rmse_lat:.5f}, delta_lon: {rmse_lon:.5f}")
 
-    naive_rmse_lat = np.sqrt(mean_squared_error(y_test["next_delta_lat"], np.zeros(len(y_test))))
-    naive_rmse_lon = np.sqrt(mean_squared_error(y_test["next_delta_lon"], np.zeros(len(y_test))))
-    print(f"Naive (zero-movement) RMSE — delta_lat: {naive_rmse_lat:.5f}, delta_lon: {naive_rmse_lon:.5f}")
+    naive_rmse_lat = np.sqrt(
+        mean_squared_error(y_test["next_delta_lat"], np.zeros(len(y_test)))
+    )
+    naive_rmse_lon = np.sqrt(
+        mean_squared_error(y_test["next_delta_lon"], np.zeros(len(y_test)))
+    )
+    print(
+        f"Naive (zero-movement) RMSE — delta_lat: {naive_rmse_lat:.5f}, delta_lon: {naive_rmse_lon:.5f}"
+    )
 
     import uuid
+
     run_id = str(uuid.uuid4())
     artifact_uri = get_model_path(f"trajectory_model_{run_id}.joblib")
 
@@ -78,14 +88,17 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
     print(f"Model saved to {artifact_uri}")
 
     from mlops.experiment_log import log_experiment
+
     log_experiment(
         run_id=run_id,
         model_name="trajectory_xgboost",
         data_source=f"{tracks_csv}+{reanalysis_nc}" if tracks_csv else "synthetic",
         artifact_uri=artifact_uri,
         metrics={
-            "rmse_lat": float(rmse_lat), "rmse_lon": float(rmse_lon),
-            "naive_rmse_lat": float(naive_rmse_lat), "naive_rmse_lon": float(naive_rmse_lon),
+            "rmse_lat": float(rmse_lat),
+            "rmse_lon": float(rmse_lon),
+            "naive_rmse_lat": float(naive_rmse_lat),
+            "naive_rmse_lon": float(naive_rmse_lon),
         },
         hyperparams={"n_estimators": 200, "max_depth": 4, "learning_rate": 0.05},
     )

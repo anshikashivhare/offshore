@@ -9,7 +9,9 @@ import numpy as np
 import pandas as pd
 
 
-def generate_synthetic_timeseries(rows=20, cols=20, num_days=120, seed=42, spatial_correlation=False):
+def generate_synthetic_timeseries(
+    rows=20, cols=20, num_days=120, seed=42, spatial_correlation=False
+):
     """
     spatial_correlation=True smooths each day's grid with neighbor
     averaging, so nearby cells move together (as real ice does) —
@@ -36,6 +38,7 @@ def generate_synthetic_timeseries(rows=20, cols=20, num_days=120, seed=42, spati
 
     if spatial_correlation:
         from scipy.ndimage import uniform_filter
+
         for t in range(num_days):
             blurred = uniform_filter(series_grid[t], size=3, mode="nearest")
             series_grid[t] = 0.5 * series_grid[t] + 0.5 * blurred
@@ -44,11 +47,16 @@ def generate_synthetic_timeseries(rows=20, cols=20, num_days=120, seed=42, spati
     for r in range(rows):
         for c in range(cols):
             for t, date in enumerate(dates):
-                records.append({
-                    "row": r, "col": c, "date": date,
-                    "lat": -65.0 - r * 0.1, "lon": -60.0 + c * 0.1,
-                    "concentration": series_grid[t, r, c],
-                })
+                records.append(
+                    {
+                        "row": r,
+                        "col": c,
+                        "date": date,
+                        "lat": -65.0 - r * 0.1,
+                        "lon": -60.0 + c * 0.1,
+                        "concentration": series_grid[t, r, c],
+                    }
+                )
     return pd.DataFrame(records)
 
 

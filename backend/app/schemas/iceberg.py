@@ -1,14 +1,18 @@
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Dict, List, Optional
+
 from app.schemas.common import GeoJSONFeature
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class IcebergBase(BaseModel):
     pass
 
+
 class IcebergCreate(IcebergBase):
     pass
+
 
 class IcebergProperties(IcebergBase):
     iceberg_id: uuid.UUID
@@ -16,6 +20,7 @@ class IcebergProperties(IcebergBase):
     latest_detection_timestamp: Optional[datetime] = None
     n_detections: int = 0
     model_config = ConfigDict(from_attributes=True)
+
 
 class IcebergDetectionProperties(BaseModel):
     id: uuid.UUID
@@ -35,10 +40,11 @@ class IcebergDetectionProperties(BaseModel):
                 "estimated_size": 250.5,
                 "confidence": 0.95,
                 "source_imagery": "Sentinel-1 SAR",
-                "detection_metadata": {"pixels": 150}
+                "detection_metadata": {"pixels": 150},
             }
-        }
+        },
     )
+
 
 class IcebergDetectionCreate(BaseModel):
     iceberg_id: uuid.UUID
@@ -48,7 +54,7 @@ class IcebergDetectionCreate(BaseModel):
     confidence: float
     source_imagery: Optional[str] = None
     detection_metadata: Optional[Dict[str, Any]] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -58,10 +64,11 @@ class IcebergDetectionCreate(BaseModel):
                 "estimated_size": 250.5,
                 "confidence": 0.95,
                 "source_imagery": "Sentinel-1 SAR",
-                "detection_metadata": {"pixels": 150}
+                "detection_metadata": {"pixels": 150},
             }
         }
     )
+
 
 class IcebergTrajectoryPredictionProperties(BaseModel):
     id: uuid.UUID
@@ -82,10 +89,11 @@ class IcebergTrajectoryPredictionProperties(BaseModel):
                 "forecast_horizon": 24,
                 "uncertainty_representation": "POLYGON((...))",
                 "model_confidence": 0.85,
-                "model_version": "v1.2"
+                "model_version": "v1.2",
             }
-        }
+        },
     )
+
 
 class IcebergTrajectoryPredictionCreate(BaseModel):
     iceberg_id: uuid.UUID
@@ -95,7 +103,7 @@ class IcebergTrajectoryPredictionCreate(BaseModel):
     uncertainty_representation: Optional[str] = None
     model_confidence: Optional[float] = None
     model_version: Optional[str] = None
-    
+
     model_config = ConfigDict(
         protected_namespaces=(),
         json_schema_extra={
@@ -106,14 +114,17 @@ class IcebergTrajectoryPredictionCreate(BaseModel):
                 "predicted_geometry": "LINESTRING(-60.1 -65.2, -60.0 -65.3)",
                 "uncertainty_representation": "POLYGON((...))",
                 "model_confidence": 0.85,
-                "model_version": "v1.2"
+                "model_version": "v1.2",
             }
-        }
+        },
     )
+
 
 IcebergResponse = IcebergProperties
 IcebergDetectionResponse = GeoJSONFeature[IcebergDetectionProperties]
-IcebergTrajectoryPredictionResponse = GeoJSONFeature[IcebergTrajectoryPredictionProperties]
+IcebergTrajectoryPredictionResponse = GeoJSONFeature[
+    IcebergTrajectoryPredictionProperties
+]
 
 IcebergDetectionBase = IcebergDetectionCreate
 IcebergTrajectoryPredictionBase = IcebergTrajectoryPredictionCreate

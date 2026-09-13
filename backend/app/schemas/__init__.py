@@ -1,74 +1,36 @@
-from app.schemas.alert import (
-    AlertProperties,
-    AlertCreate,
-    AlertBase,
-    AlertResponse,
-)
-from app.schemas.common import (
-    Pagination,
-    ErrorDetail,
-    ErrorResponse,
-    GeoJSONGeometry,
-    GeoJSONFeature,
-    GeoJSONFeatureCollection,
-)
-from app.schemas.forecast import (
-    ForecastRequest,
-    ForecastResult,
-)
-from app.schemas.iceberg import (
-    IcebergProperties,
-    IcebergBase,
-    IcebergCreate,
-    IcebergDetectionProperties,
-    IcebergDetectionCreate,
-    IcebergResponse,
-    IcebergDetectionResponse,
-    IcebergTrajectoryPredictionProperties,
-    IcebergTrajectoryPredictionCreate,
-    IcebergTrajectoryPredictionResponse,
-)
-from app.schemas.job import (
-    JobCreate,
-    JobResponse,
-)
-from app.schemas.navigation import (
-    NavigationScenarioRequest,
-    NavigationScenarioResponse,
-)
-from app.schemas.observation import (
-    SeaIceObservationProperties,
-    SeaIceObservationCreate,
-    SeaIceObservationResponse,
-    WeatherObservationProperties,
-    WeatherObservationCreate,
-    WeatherObservationResponse,
-    OceanObservationProperties,
-    OceanObservationCreate,
-    OceanObservationResponse,
-)
-from app.schemas.risk import (
-    RiskCellProperties,
-    RiskCellCreate,
-    RiskCellBase,
-    RiskCellResponse,
-)
-from app.schemas.route import (
-    RouteProperties,
-    OptimizationWeights,
-    RouteRequest,
-    RouteCreate,
-    RouteBase,
-    RouteResponse,
-    RouteComparisonMetrics,
-    RouteAlternative,
-    RouteComparisonResponse,
-)
-from app.schemas.vessel import (
-    VesselBase,
-    VesselCreate,
-    VesselResponse,
-)
+from app.schemas.alert import (AlertBase, AlertCreate, AlertProperties,
+                               AlertResponse)
+from app.schemas.common import (ErrorDetail, ErrorResponse, GeoJSONFeature,
+                                GeoJSONFeatureCollection, GeoJSONGeometry,
+                                Pagination)
+from app.schemas.forecast import ForecastRequest, ForecastResult
+from app.schemas.iceberg import (IcebergBase, IcebergCreate,
+                                 IcebergDetectionCreate,
+                                 IcebergDetectionProperties,
+                                 IcebergDetectionResponse, IcebergProperties,
+                                 IcebergResponse,
+                                 IcebergTrajectoryPredictionCreate,
+                                 IcebergTrajectoryPredictionProperties,
+                                 IcebergTrajectoryPredictionResponse)
+from app.schemas.job import JobCreate, JobResponse
+from app.schemas.navigation import (NavigationScenarioRequest,
+                                    NavigationScenarioResponse)
+from app.schemas.observation import (OceanObservationCreate,
+                                     OceanObservationProperties,
+                                     OceanObservationResponse,
+                                     SeaIceObservationCreate,
+                                     SeaIceObservationProperties,
+                                     SeaIceObservationResponse,
+                                     WeatherObservationCreate,
+                                     WeatherObservationProperties,
+                                     WeatherObservationResponse)
+from app.schemas.risk import (RiskCellBase, RiskCellCreate, RiskCellProperties,
+                              RiskCellResponse)
+from app.schemas.route import (OptimizationWeights, RouteAlternative,
+                               RouteBase, RouteComparisonMetrics,
+                               RouteComparisonResponse, RouteCreate,
+                               RouteProperties, RouteRequest, RouteResponse)
+from app.schemas.vessel import VesselBase, VesselCreate, VesselResponse
 
 __all__ = [
     "AlertProperties",
