@@ -1,66 +1,95 @@
 import asyncio
+import json
 import logging
 import time
 import uuid
-from typing import Callable
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
+# Paths that are allowed longer execution time for ML/route workloads.
+_SLOW_PATH_PREFIXES = ("/routes", "/risk", "/predict")
 
-class RequestContextMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+
+class RequestContextMiddleware:
+    """Pure ASGI middleware — avoids BaseHTTPMiddleware's streaming-response
+    overhead and the per-request asyncio.Task created by wait_for."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+
         request_id = str(uuid.uuid4())
-        # We can attach the request_id to the request state
-        request.state.request_id = request_id
-        
-        start_time = time.time()
-        
-        # Determine dynamic timeout based on path
-        path = request.url.path
-        timeout_seconds = 15.0  # default
-        
-        # ML inference and heavy route/risk calculations get 60s
-        if "/routes" in path or "/risk" in path or "/predict" in path:
-            timeout_seconds = 60.0
-            
-        is_ws = request.scope.get("type") == "websocket"
-            
-        try:
-            if is_ws:
-                # WebSockets are long-lived, do not enforce a timeout
-                response = await call_next(request)
-            else:
-                # We use asyncio.wait_for to enforce the API-level timeout
-                response = await asyncio.wait_for(call_next(request), timeout=timeout_seconds)
-                response.headers["X-Request-ID"] = request_id
-        except asyncio.TimeoutError:
-            process_time = time.time() - start_time
-            logger.error(f"Request timeout exceeded ({timeout_seconds}s) for {request.method} {path} [ID: {request_id}]")
-            return JSONResponse(
-                status_code=504,
-                content={
-                    "error": {
-                        "code": "GATEWAY_TIMEOUT",
-                        "message": f"Request exceeded the {timeout_seconds} second limit.",
-                        "request_id": request_id,
-                    }
-                },
-                headers={"X-Request-ID": request_id}
-            )
-        except Exception as exc:
-            # Let the standard exception handlers handle it, but log here for latency tracking if it failed
-            process_time = time.time() - start_time
-            logger.error(f"Request failed: {request.method} {path} [ID: {request_id}] in {process_time:.3f}s: {exc}")
-            raise
-            
-        process_time = time.time() - start_time
-        status_code = getattr(response, "status_code", "WS")
-        logger.info(
-            f"Request completed: {request.method} {path} - Status: {status_code} "
-            f"- Latency: {process_time:.3f}s - [ID: {request_id}]"
+        scope.setdefault("state", {})["request_id"] = request_id
+
+        if scope["type"] == "websocket":
+            # WebSockets are long-lived — no timeout enforced.
+            await self.app(scope, receive, send)
+            return
+
+        path: str = scope.get("path", "")
+        timeout_seconds = (
+            60.0 if any(path.startswith(p) for p in _SLOW_PATH_PREFIXES) else 15.0
         )
-        return response
+
+        start_time = time.perf_counter()
+        method = scope.get("method", "")
+
+        status_holder: list = []
+
+        async def send_with_tracking(message):
+            if message["type"] == "http.response.start":
+                status_holder.append(message.get("status", 0))
+                # Inject X-Request-ID into response headers.
+                headers = list(message.get("headers", []))
+                headers.append((b"x-request-id", request_id.encode()))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        try:
+            await asyncio.wait_for(
+                self.app(scope, receive, send_with_tracking),
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            elapsed = time.perf_counter() - start_time
+            logger.error(
+                "Request timeout (%.1fs) for %s %s [ID: %s]",
+                elapsed, method, path, request_id,
+            )
+            body = json.dumps({
+                "error": {
+                    "code": "GATEWAY_TIMEOUT",
+                    "message": f"Request exceeded the {timeout_seconds:.0f} second limit.",
+                    "request_id": request_id,
+                }
+            }).encode()
+            await send({
+                "type": "http.response.start",
+                "status": 504,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"x-request-id", request_id.encode()),
+                ],
+            })
+            await send({"type": "http.response.body", "body": body})
+            return
+        except Exception as exc:
+            elapsed = time.perf_counter() - start_time
+            logger.error(
+                "Request failed: %s %s [ID: %s] in %.3fs: %s",
+                method, path, request_id, elapsed, exc,
+            )
+            raise
+
+        elapsed = time.perf_counter() - start_time
+        status = status_holder[0] if status_holder else "?"
+        logger.info(
+            "Request completed: %s %s - Status: %s - Latency: %.3fs - [ID: %s]",
+            method, path, status, elapsed, request_id,
+        )

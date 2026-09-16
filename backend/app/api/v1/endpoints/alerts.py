@@ -1,3 +1,4 @@
+import asyncio as _aio
 import uuid
 from typing import Any, Optional
 
@@ -24,45 +25,41 @@ async def get_alerts(
     time_range: deps.TimeRangeParams = Depends(),
 ) -> Any:
     """List alerts with optional filtering by route, severity, type, and time."""
-    rows = await alert_repo.get_multi(
-        db,
-        skip=pagination.skip,
-        limit=pagination.limit,
+    filters = dict(
         route_id=route_id,
         severity=severity.value if severity else None,
         alert_type=alert_type,
         start_time=time_range.start_time,
         end_time=time_range.end_time,
     )
-    total = await alert_repo.count(
-        db,
-        route_id=route_id,
-        severity=severity.value if severity else None,
-        alert_type=alert_type,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
+
+    # FIX: fire get_multi and count concurrently — halves DB round-trips vs
+    # the previous two sequential awaits with identical WHERE clauses.
+    rows, total = await _aio.gather(
+        alert_repo.get_multi(db, skip=pagination.skip, limit=pagination.limit, **filters),
+        alert_repo.count(db, **filters),
     )
-    features = []
-    for row in rows:
-        geometry = to_geojson_geometry(row.location)
-        properties = AlertProperties(
-            id=row.id,
-            alert_type=row.alert_type,
-            severity=row.severity,
-            timestamp=row.timestamp,
-            route_id=row.route_id,
-            hazard_source=row.hazard_source,
-            message=row.message,
-            status=row.status,
-            triggering_metric=row.triggering_metric,
-            threshold=row.threshold,
-            confidence=row.confidence,
+
+    features = [
+        GeoJSONFeature[AlertResponse](
+            type="Feature",
+            geometry=to_geojson_geometry(row.location),
+            properties=AlertProperties(
+                id=row.id,
+                alert_type=row.alert_type,
+                severity=row.severity,
+                timestamp=row.timestamp,
+                route_id=row.route_id,
+                hazard_source=row.hazard_source,
+                message=row.message,
+                status=row.status,
+                triggering_metric=row.triggering_metric,
+                threshold=row.threshold,
+                confidence=row.confidence,
+            ),
         )
-        features.append(
-            GeoJSONFeature[AlertResponse](
-                type="Feature", geometry=geometry, properties=properties
-            )
-        )
+        for row in rows
+    ]
     return GeoJSONFeatureCollection[AlertResponse](
         features=features,
         total=total,
@@ -99,20 +96,20 @@ async def create_alert(
     db.add(obj)
     await db.commit()
     await db.refresh(obj)
-    geometry = to_geojson_geometry(obj.location)
-    properties = AlertProperties(
-        id=obj.id,
-        alert_type=obj.alert_type,
-        severity=obj.severity,
-        timestamp=obj.timestamp,
-        route_id=obj.route_id,
-        hazard_source=obj.hazard_source,
-        message=obj.message,
-        status=obj.status,
-        triggering_metric=obj.triggering_metric,
-        threshold=obj.threshold,
-        confidence=obj.confidence,
-    )
     return GeoJSONFeature[AlertResponse](
-        type="Feature", geometry=geometry, properties=properties
+        type="Feature",
+        geometry=to_geojson_geometry(obj.location),
+        properties=AlertProperties(
+            id=obj.id,
+            alert_type=obj.alert_type,
+            severity=obj.severity,
+            timestamp=obj.timestamp,
+            route_id=obj.route_id,
+            hazard_source=obj.hazard_source,
+            message=obj.message,
+            status=obj.status,
+            triggering_metric=obj.triggering_metric,
+            threshold=obj.threshold,
+            confidence=obj.confidence,
+        ),
     )

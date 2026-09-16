@@ -1,3 +1,4 @@
+import asyncio as _aio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -10,6 +11,7 @@ from app.services.risk.engine import DEFAULT_WEIGHTS, RiskEngine
 from app.utils.geojson import to_geojson_geometry
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -53,6 +55,34 @@ def _parse_bbox(bbox: str) -> List[float]:
     return [minx, miny, maxx, maxy]
 
 
+async def _get_cells_with_total(
+    db: AsyncSession,
+    *,
+    skip: int,
+    limit: int,
+    bb: Optional[List[float]],
+    time_range: deps.TimeRangeParams,
+):
+    """Run get_multi and count concurrently to halve DB round-trips."""
+    cells, total = await _aio.gather(
+        risk_cell_repo.get_multi(
+            db,
+            skip=skip,
+            limit=limit,
+            bbox=bb,
+            start_time=time_range.start_time,
+            end_time=time_range.end_time,
+        ),
+        risk_cell_repo.count(
+            db,
+            bbox=bb,
+            start_time=time_range.start_time,
+            end_time=time_range.end_time,
+        ),
+    )
+    return cells, total
+
+
 @router.post("/map", status_code=status.HTTP_201_CREATED)
 async def generate_risk_map(
     request: GenerateMapRequest,
@@ -83,44 +113,41 @@ async def generate_risk_map(
             detail="Grid produced no cells. Check bbox and resolution.",
         )
 
-    inserted_ids: List[str] = []
-    for cell_data in cells:
-        db_cell = RiskCell(**cell_data.model_dump())
-        db.add(db_cell)
-        await db.flush()
-        inserted_ids.append(str(db_cell.id))
+    # FIX: bulk insert all cells in a single commit instead of flushing per row.
+    db_cells = [RiskCell(**cell_data.model_dump()) for cell_data in cells]
+    db.add_all(db_cells)
     await db.commit()
+    for db_cell in db_cells:
+        await db.refresh(db_cell)
 
     return {
         "message": "Risk map generated",
-        "cell_ids": inserted_ids,
-        "n_cells": len(inserted_ids),
+        "cell_ids": [str(c.id) for c in db_cells],
+        "n_cells": len(db_cells),
     }
 
 
 @router.get("/map")
 async def get_risk_map(
     db: AsyncSession = Depends(deps.get_db),
+    pagination: deps.PaginationParams = Depends(),
     time_range: deps.TimeRangeParams = Depends(),
     bbox: deps.BBoxParams = Depends(),
 ) -> Any:
-    """Get the most recent risk cells for a bbox/time range.
+    """Get the most recent risk cells for a bbox/time range (paginated).
 
     Returns a GeoJSON FeatureCollection. For a continuous raster surface, build
     it client-side from the returned cells.
     """
+    # FIX: replaced hardcoded limit=1000 with PaginationParams.
     bb: Optional[List[float]] = None
     try:
         bb = bbox.as_tuple()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    cells = await risk_cell_repo.get_multi(
-        db,
-        skip=0,
-        limit=1000,
-        bbox=bb,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
+
+    cells, total = await _get_cells_with_total(
+        db, skip=pagination.skip, limit=pagination.limit, bb=bb, time_range=time_range
     )
     features = [
         GeoJSONFeature[RiskCellResponse](
@@ -130,7 +157,10 @@ async def get_risk_map(
         for cell in cells
     ]
     return GeoJSONFeatureCollection[RiskCellResponse](
-        features=features, total=len(features), skip=0, limit=1000
+        features=features,
+        total=total,
+        skip=pagination.skip,
+        limit=pagination.limit,
     )
 
 
@@ -147,19 +177,9 @@ async def get_risk_cells(
         bb = bbox.as_tuple()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    cells = await risk_cell_repo.get_multi(
-        db,
-        skip=pagination.skip,
-        limit=pagination.limit,
-        bbox=bb,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
-    )
-    total = await risk_cell_repo.count(
-        db,
-        bbox=bb,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
+
+    cells, total = await _get_cells_with_total(
+        db, skip=pagination.skip, limit=pagination.limit, bb=bb, time_range=time_range
     )
     features = [
         GeoJSONFeature[RiskCellResponse](

@@ -1,3 +1,4 @@
+import asyncio as _aio
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -74,12 +75,16 @@ async def get_iceberg(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
         )
-    latest = await detection_repo.latest_for_iceberg(db, iceberg_id)
+    # FIX: run latest detection + count concurrently instead of 2 sequential awaits.
+    latest, n_detections = await _aio.gather(
+        detection_repo.latest_for_iceberg(db, iceberg_id),
+        detection_repo.count(db, iceberg_id=iceberg_id),
+    )
     return IcebergResponse(
         iceberg_id=iceberg.iceberg_id,
         latest_detection_id=latest.id if latest else None,
         latest_detection_timestamp=latest.timestamp if latest else None,
-        n_detections=await detection_repo.count(db, iceberg_id=iceberg_id),
+        n_detections=n_detections,
     )
 
 

@@ -1,6 +1,6 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict
-from typing import Optional as Opt
 
 from app.api import deps
 from app.models.risk import RiskCell
@@ -14,9 +14,9 @@ from app.schemas.route import (RouteComparisonResponse, RouteProperties,
 from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.comparison import RouteComparisonService
 from app.services.routing.dijkstra import DijkstraShortestPlanner
-from app.utils.geojson import parse_wkt_linestring
+from app.utils.geojson import parse_wkt_linestring, to_geojson_geometry
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -34,6 +34,7 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
 
     The A* and Dijkstra planners both consume a dict-of-float risk grid.
     """
+    # FIX: imports moved to module level — no longer re-imported per request/per row.
     try:
         origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
         dest_lon, dest_lat = (float(x) for x in request.destination.split(","))
@@ -45,8 +46,6 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
     min_lat = min(origin_lat, dest_lat) - margin
     max_lat = max(origin_lat, dest_lat) + margin
 
-    from sqlalchemy import func
-
     envelope = func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
     st_intersects = getattr(RiskCell.geometry, "ST_Intersects", None)
     stmt = select(RiskCell)
@@ -57,8 +56,6 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
     grid: Dict[Any, float] = {}
     for cell in rows:
         try:
-            from app.utils.geojson import to_geojson_geometry
-
             geom = to_geojson_geometry(cell.geometry)
         except Exception:
             continue

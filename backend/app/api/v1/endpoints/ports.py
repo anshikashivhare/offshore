@@ -1,14 +1,32 @@
 import json
-import os
-from typing import List, Optional
+import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Query, Depends
 from pydantic import BaseModel
+from app.api.dependencies.cache import cache_response, clear_cache_for_prefix
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+@router.post("/reload", response_model=bool)
+def reload_ports():
+    """Reload ports JSON file and invalidate related caches."""
+    global PORTS_DATA
+    try:
+        with _ports_path.open("r", encoding="utf-8") as f:
+            PORTS_DATA = json.load(f)
+        # Invalidate cache for both list and search endpoints
+        clear_cache_for_prefix("/api/v1/ports")
+        return True
+    except Exception as exc:
+        logger.error("Failed to reload ports data: %s", exc)
+        return False
+
 
 from app.api import deps
 from app.schemas.common import Pagination
-
-router = APIRouter()
 
 
 class Port(BaseModel):
@@ -17,32 +35,30 @@ class Port(BaseModel):
     lat: float
     lon: float
 
-
-# Load ports into memory on startup
-PORTS_DATA = []
+# Load ports data once at module import using pathlib for clarity
+_ports_path = Path(__file__).resolve().parents[4] / "data" / "ports.json"
 try:
-    ports_file = os.path.join(os.path.dirname(__file__), "../../../../data/ports.json")
-    with open(ports_file, "r") as f:
+    with _ports_path.open("r", encoding="utf-8") as f:
         PORTS_DATA = json.load(f)
-except Exception as e:
-    print(f"Error loading ports: {e}")
+except Exception as exc:
+    logger.error("Failed to load ports data: %s", exc)
+    PORTS_DATA = []
 
 
 @router.get("/", response_model=Pagination[Port])
+@cache_response()
 def get_ports(pagination: deps.PaginationParams = Depends()):
-    """Returns the paginated list of all global ports."""
+    """Return a paginated list of all global ports."""
     return Pagination.from_list(PORTS_DATA, pagination.skip, pagination.limit)
 
 
 @router.get("/search", response_model=Pagination[Port])
+@cache_response()
 def search_ports(
     q: str = Query(..., min_length=1),
     pagination: deps.PaginationParams = Depends(),
 ):
-    """Returns ports matching a name or country substring with pagination."""
+    """Search ports by name or country substring (case‑insensitive) with pagination."""
     q_lower = q.lower()
-    results = [
-        p for p in PORTS_DATA 
-        if q_lower in p["name"].lower() or q_lower in p["country"].lower()
-    ]
+    results = [p for p in PORTS_DATA if q_lower in p["name"].lower() or q_lower in p["country"].lower()]
     return Pagination.from_list(results, pagination.skip, pagination.limit)
