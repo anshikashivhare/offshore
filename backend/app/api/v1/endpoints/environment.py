@@ -1,3 +1,4 @@
+import asyncio as _aio
 from typing import Any, List
 
 from app.api import deps
@@ -43,13 +44,12 @@ async def get_sea_ice_observations(
 ) -> Any:
     """Retrieve sea-ice observations filtered by bbox and time range."""
     bb = _bbox_or_400(bbox)
-    rows = await sea_ice_observation.get_multi(
-        db,
-        skip=pagination.skip,
-        limit=pagination.limit,
-        bbox=bb,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
+    filters = dict(bbox=bb, start_time=time_range.start_time, end_time=time_range.end_time)
+
+    # FIX: run get_multi and count concurrently; total was previously just len(page).
+    rows, total = await _aio.gather(
+        sea_ice_observation.get_multi(db, skip=pagination.skip, limit=pagination.limit, **filters),
+        sea_ice_observation.count(db, **filters),
     )
     features = [
         GeoJSONFeature[SeaIceObservationResponse](
@@ -59,10 +59,7 @@ async def get_sea_ice_observations(
         for r in rows
     ]
     return GeoJSONFeatureCollection[SeaIceObservationResponse](
-        features=features,
-        total=len(features),
-        skip=pagination.skip,
-        limit=pagination.limit,
+        features=features, total=total, skip=pagination.skip, limit=pagination.limit
     )
 
 
@@ -78,13 +75,11 @@ async def get_weather_observations(
 ) -> Any:
     """Retrieve weather observations filtered by bbox and time range."""
     bb = _bbox_or_400(bbox)
-    rows = await weather_observation.get_multi(
-        db,
-        skip=pagination.skip,
-        limit=pagination.limit,
-        bbox=bb,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
+    filters = dict(bbox=bb, start_time=time_range.start_time, end_time=time_range.end_time)
+
+    rows, total = await _aio.gather(
+        weather_observation.get_multi(db, skip=pagination.skip, limit=pagination.limit, **filters),
+        weather_observation.count(db, **filters),
     )
     features = [
         GeoJSONFeature[WeatherObservationResponse](
@@ -94,10 +89,7 @@ async def get_weather_observations(
         for r in rows
     ]
     return GeoJSONFeatureCollection[WeatherObservationResponse](
-        features=features,
-        total=len(features),
-        skip=pagination.skip,
-        limit=pagination.limit,
+        features=features, total=total, skip=pagination.skip, limit=pagination.limit
     )
 
 
@@ -113,13 +105,11 @@ async def get_ocean_observations(
 ) -> Any:
     """Retrieve ocean-current observations filtered by bbox and time range."""
     bb = _bbox_or_400(bbox)
-    rows = await ocean_observation.get_multi(
-        db,
-        skip=pagination.skip,
-        limit=pagination.limit,
-        bbox=bb,
-        start_time=time_range.start_time,
-        end_time=time_range.end_time,
+    filters = dict(bbox=bb, start_time=time_range.start_time, end_time=time_range.end_time)
+
+    rows, total = await _aio.gather(
+        ocean_observation.get_multi(db, skip=pagination.skip, limit=pagination.limit, **filters),
+        ocean_observation.count(db, **filters),
     )
     features = [
         GeoJSONFeature[OceanObservationResponse](
@@ -129,8 +119,5 @@ async def get_ocean_observations(
         for r in rows
     ]
     return GeoJSONFeatureCollection[OceanObservationResponse](
-        features=features,
-        total=len(features),
-        skip=pagination.skip,
-        limit=pagination.limit,
+        features=features, total=total, skip=pagination.skip, limit=pagination.limit
     )

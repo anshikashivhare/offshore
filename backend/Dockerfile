@@ -41,7 +41,7 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
     && rm -rf /wheels
 
 # Copy only the application source.
-COPY app ./app
+COPY gunicorn_config.py ./gunicorn_config.py
 COPY alembic.ini ./alembic.ini
 COPY migrations ./migrations
 COPY scripts ./scripts

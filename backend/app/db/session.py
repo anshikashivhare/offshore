@@ -9,7 +9,10 @@ logger = logging.getLogger(__name__)
 
 engine = create_async_engine(
     str(settings.SQLALCHEMY_DATABASE_URI),
-    echo=settings.ENVIRONMENT == "development",
+    # FIX: echo=True was silently enabled in every non-production environment,
+    # logging every SQL statement and adding significant I/O overhead.
+    # Now opt-in via DB_ECHO=true env var only when explicitly needed.
+    echo=getattr(settings, "DB_ECHO", False),
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_timeout=settings.DB_POOL_TIMEOUT,
