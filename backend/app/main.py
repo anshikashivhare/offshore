@@ -103,3 +103,13 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
+frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist", "public")
+if os.path.exists(frontend_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
