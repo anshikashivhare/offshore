@@ -1,0 +1,15 @@
+node_modules
+.pnpm-store
+.git
+.gitignore
+.env*
+dist
+build
+coverage
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+.vscode
+.idea
