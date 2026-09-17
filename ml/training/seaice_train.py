@@ -100,7 +100,12 @@ def train_model(nc_path: str = None):
         data_source=nc_path or "synthetic",
         artifact_uri=artifact_uri,
         metrics={"test_rmse": float(rmse), "naive_rmse": float(naive_rmse)},
-        hyperparams={"n_estimators": 200, "max_depth": 5, "learning_rate": 0.05},
+        hyperparams={
+            "n_estimators": 300,
+            "max_depth": 5,
+            "learning_rate": 0.05,
+            "early_stopping_rounds": 30,
+        },
     )
 
     return model, rmse, artifact_uri
