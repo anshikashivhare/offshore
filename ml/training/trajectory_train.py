@@ -100,7 +100,12 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
             "naive_rmse_lat": float(naive_rmse_lat),
             "naive_rmse_lon": float(naive_rmse_lon),
         },
-        hyperparams={"n_estimators": 200, "max_depth": 4, "learning_rate": 0.05},
+        hyperparams={
+            "n_estimators": 300,
+            "max_depth": 4,
+            "learning_rate": 0.05,
+            "early_stopping_rounds": 30,
+        },
     )
 
     return model, artifact_uri

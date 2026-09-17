@@ -134,6 +134,7 @@ def train_convlstm(input_len=5, epochs=100, lr=3e-3, batch_size=64):
             "epochs": epochs,
             "lr": lr,
             "input_len": input_len,
+            "early_stopping_patience": patience,
         },
     )
 
