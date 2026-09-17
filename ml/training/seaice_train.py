@@ -9,8 +9,9 @@ import sys
 
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
-from xgboost import XGBRegressor
+import joblib
 
 from ml.path_utils import get_model_path
 from ml.preprocessing.seaice.data import generate_synthetic_timeseries
@@ -64,18 +65,13 @@ def train_model(nc_path: str = None):
     X_train, y_train = train[FEATURE_COLS], train[TARGET_COL]
     X_val, y_val = val[FEATURE_COLS], val[TARGET_COL]
     X_test, y_test = test[FEATURE_COLS], test[TARGET_COL]
-
-    model = XGBRegressor(
-        n_estimators=300,
+    model = RandomForestRegressor(
+        n_estimators=100,
         max_depth=5,
-        learning_rate=0.05,
-        subsample=0.8,
-        colsample_bytree=0.8,
         random_state=42,
-        early_stopping_rounds=30,
     )
     print("Training...")
-    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+    model.fit(X_train, y_train)
 
     preds = model.predict(X_test)
     rmse = np.sqrt(mean_squared_error(y_test, preds))
@@ -87,9 +83,11 @@ def train_model(nc_path: str = None):
     import uuid
 
     run_id = str(uuid.uuid4())
-    artifact_uri = get_model_path(f"seaice_xgb_{run_id}.json")
+    artifact_uri = get_model_path(f"seaice_xgb_{run_id}.joblib")
 
-    model.save_model(artifact_uri)
+    joblib.dump(model, artifact_uri)
+    default_uri = get_model_path("seaice_xgb.joblib")
+    joblib.dump(model, default_uri)
     print(f"Model saved to {artifact_uri}")
 
     from mlops.experiment_log import log_experiment

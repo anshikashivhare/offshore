@@ -12,7 +12,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error
-from xgboost import XGBRegressor
+from sklearn.ensemble import RandomForestRegressor
 
 from ml.path_utils import get_model_path
 from ml.preprocessing.trajectory.data import generate_synthetic_tracks
@@ -51,18 +51,14 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
     X_val, y_val = val[FEATURE_COLS], val[TARGET_COLS]
     X_test, y_test = test[FEATURE_COLS], test[TARGET_COLS]
 
-    model = XGBRegressor(
-        n_estimators=300,
+    model = RandomForestRegressor(
+        n_estimators=100,
         max_depth=4,
-        learning_rate=0.05,
-        subsample=0.8,
-        colsample_bytree=0.8,
         random_state=42,
-        early_stopping_rounds=30,
     )
 
     print("Training...")
-    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+    model.fit(X_train, y_train)
 
     preds = model.predict(X_test)
     rmse_lat = np.sqrt(mean_squared_error(y_test["next_delta_lat"], preds[:, 0]))
@@ -85,6 +81,8 @@ def train_model(tracks_csv: str = None, reanalysis_nc: str = None):
     artifact_uri = get_model_path(f"trajectory_model_{run_id}.joblib")
 
     joblib.dump(model, artifact_uri)
+    default_uri = get_model_path("trajectory_model.joblib")
+    joblib.dump(model, default_uri)
     print(f"Model saved to {artifact_uri}")
 
     from mlops.experiment_log import log_experiment
