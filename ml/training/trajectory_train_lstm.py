@@ -128,7 +128,7 @@ def train_lstm(seq_len=5, epochs=100, lr=3e-3, batch_size=64):
             "epochs": epochs,
             "lr": lr,
             "seq_len": seq_len,
-            "early_stopping_patience": patience,
+            "early_stopping_patience": 10,
         },
     )
 
