@@ -46,14 +46,12 @@ except Exception as exc:
 
 
 @router.get("/", response_model=Pagination[Port])
-@cache_response()
 def get_ports(pagination: deps.PaginationParams = Depends()):
     """Return a paginated list of all global ports."""
     return Pagination.from_list(PORTS_DATA, pagination.skip, pagination.limit)
 
 
 @router.get("/search", response_model=Pagination[Port])
-@cache_response()
 def search_ports(
     q: str = Query(..., min_length=1),
     pagination: deps.PaginationParams = Depends(),

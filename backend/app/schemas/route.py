@@ -7,6 +7,15 @@ from app.schemas.common import GeoJSONFeature
 from pydantic import BaseModel, ConfigDict
 
 
+from typing import Optional, List, Dict, Any
+
+class WaypointDetail(BaseModel):
+    lat: float
+    lon: float
+    eta: datetime
+    data_provenance: str
+    env_conditions: Dict[str, Any]
+
 class RouteProperties(BaseModel):
     route_id: uuid.UUID
     vessel_id: uuid.UUID
@@ -18,6 +27,9 @@ class RouteProperties(BaseModel):
     estimated_fuel: float
     risk_score: float
     objective_type: ObjectiveType
+    algorithm_version: Optional[str] = None
+    waypoints: Optional[List[WaypointDetail]] = None
+    
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -32,7 +44,8 @@ class RouteProperties(BaseModel):
                 "estimated_fuel": 12.5,
                 "risk_score": 0.15,
                 "objective_type": "safest",
-                "algorithm_version": "v2.0",
+                "algorithm_version": "AStar-4D-TimeAware-v1.0",
+                "waypoints": []
             }
         },
     )
@@ -78,6 +91,7 @@ class RouteCreate(BaseModel):
     risk_score: float
     objective_type: ObjectiveType
     algorithm_version: Optional[str] = None
+    waypoints: Optional[List[WaypointDetail]] = None
 
 
 class RouteBase(RouteCreate):

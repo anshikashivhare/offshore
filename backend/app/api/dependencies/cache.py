@@ -37,7 +37,7 @@ def cache_response(ttl: int = 300) -> Callable[[Callable], Callable]:
     """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def wrapper(*args, request: Request = Depends(), **kwargs):
+        async def wrapper(*args, request: Request, **kwargs):
             key = _cache_key(request)
             # Try Redis first
             if _redis_client:

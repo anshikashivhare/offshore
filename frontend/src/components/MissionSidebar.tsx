@@ -25,6 +25,9 @@ type MissionSidebarProps = {
   onLocationChange: (kind: "origin" | "destination", label: string) => void;
   onPickMode: (mode: "origin" | "destination" | null) => void;
   onToggleLayer: (key: LayerKey) => void;
+  isCalculating?: boolean;
+  onCalculateRoute?: () => void;
+  routeError?: string | null;
 };
 
 const layerRows: Array<{ key: LayerKey; label: string; color: string }> = [
@@ -53,6 +56,9 @@ export default function MissionSidebar({
   onLocationChange,
   onPickMode,
   onToggleLayer,
+  isCalculating,
+  onCalculateRoute,
+  routeError,
 }: MissionSidebarProps) {
   const [openMissionSetup, setOpenMissionSetup] = useState(true);
   const [openVesselProfile, setOpenVesselProfile] = useState(false);
@@ -319,6 +325,30 @@ export default function MissionSidebar({
             </div>
           )}
         </section>
+      </div>
+
+      <div style={{ padding: "16px", marginTop: "auto" }}>
+        {routeError && (
+          <div style={{ color: "#ef4444", fontSize: "12px", marginBottom: "8px", padding: "8px", backgroundColor: "#fef2f2", borderRadius: "4px" }}>
+            {routeError}
+          </div>
+        )}
+        <button
+          onClick={onCalculateRoute}
+          disabled={isCalculating}
+          style={{
+            width: "100%",
+            padding: "12px",
+            backgroundColor: isCalculating ? "#6C8E91" : "#183B43",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: isCalculating ? "not-allowed" : "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          {isCalculating ? "Calculating Route..." : "Calculate Route"}
+        </button>
       </div>
     </aside>
   );

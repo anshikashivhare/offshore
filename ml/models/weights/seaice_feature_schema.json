@@ -1,19 +1,23 @@
 {
-  "run_id": "c088c140",
+  "run_id": "02f388c9",
   "feature_cols": [
     "latitude",
     "longitude",
     "sea_ice_concentration",
-    "air_temperature_c",
-    "sea_surface_temperature_c",
-    "ocean_current_u_m_s",
-    "ocean_current_v_m_s",
     "forecast_horizon_hours",
+    "sea_surface_temperature_c",
+    "air_temperature_c",
+    "sea_level_pressure_hpa",
+    "wind_speed_m_s",
+    "wind_u_m_s",
+    "wind_v_m_s",
+    "current_u_m_s",
+    "current_v_m_s",
+    "current_speed_m_s",
+    "sea_surface_height_anomaly_cm",
     "month",
     "sin_doy",
-    "cos_doy",
-    "wind_u",
-    "wind_v"
+    "cos_doy"
   ],
   "target_col": "target_sea_ice_concentration",
   "xgb_params": {
@@ -31,10 +35,10 @@
     "n_jobs": -1
   },
   "data_source": "SYNTHETIC_PROTOTYPE",
-  "dataset_path": "/Users/apple/Downloads/ml/data/raw/sea_ice_synthetic.csv",
-  "n_train": 1750,
-  "n_val": 375,
-  "n_test": 375,
+  "dataset_path": "/Users/apple/Downloads/ml/data/processed/sea_ice_aligned_2026.csv",
+  "n_train": 12775,
+  "n_val": 2737,
+  "n_test": 2738,
   "preprocessing": {
     "temporal_features": [
       "month",

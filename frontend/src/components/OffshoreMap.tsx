@@ -12,6 +12,7 @@ import {
 } from "./map-components";
 import type {
   Coordinate,
+  AppLocation,
   Iceberg,
   IcebergTrack,
   IcebergTrajectory,
@@ -32,7 +33,10 @@ type OffshoreMapProps = {
   selectedRouteId: string;
   selectedIcebergId: string | null;
   origin: Coordinate;
+  originLabel?: string;
   destination: Coordinate;
+  destinationLabel?: string;
+  locations?: AppLocation[];
   pickMode: "origin" | "destination" | null;
   viewMode: "map" | "globe";
   onSelectRoute: (id: string) => void;
@@ -159,23 +163,18 @@ function MapLabelSuppressor() {
 }
 
 /**
- * Fires exactly once after the map is ready and fits the initial viewport
- * to the bounding box of the supplied route coordinates (origin + destination
- * + waypoints), with comfortable padding and a maximum-zoom cap.
- *
- * A ref guard prevents re-firing after the user manually interacts.
+ * Fits the viewport to the bounding box of the supplied route coordinates 
+ * whenever they change (e.g., origin/dest changes, or new route calculated).
  */
-function InitialViewFitter({
+function DynamicViewFitter({
   coords,
 }: {
   coords: [number, number][];
 }) {
   const { map, isLoaded } = useMap();
-  const fittedRef = useRef(false);
 
   useEffect(() => {
-    if (!map || !isLoaded || fittedRef.current || coords.length < 2) return;
-    fittedRef.current = true;
+    if (!map || !isLoaded || coords.length < 2) return;
 
     const lngs = coords.map((c) => c[0]);
     const lats = coords.map((c) => c[1]);
@@ -192,7 +191,7 @@ function InitialViewFitter({
       {
         padding: { top: 80, bottom: 80, left: 60, right: 80 },
         maxZoom: 3.5,
-        duration: 0, // instant on first load, no animation jank
+        duration: 1000, 
       }
     );
   }, [map, isLoaded, coords]);
@@ -211,7 +210,10 @@ export default function OffshoreMap({
   selectedRouteId,
   selectedIcebergId,
   origin,
+  originLabel = "Origin",
   destination,
+  destinationLabel = "Destination",
+  locations = [],
   pickMode,
   viewMode,
   onSelectRoute,
@@ -236,21 +238,17 @@ export default function OffshoreMap({
     });
   }, []);
 
-  // Coords for the initial viewport fit: origin + destination + selected route geometry.
-  // Stable reference so InitialViewFitter's effect doesn't re-run on unrelated renders.
-  const initialFitCoordsRef = useRef<[number, number][] | null>(null);
-  const initialFitCoords = useMemo(() => {
-    if (initialFitCoordsRef.current) return initialFitCoordsRef.current;
+  // Coords for viewport fit: origin + destination + selected route geometry.
+  // Re-calculates (and therefore re-fits) when these inputs change.
+  const fitCoords = useMemo(() => {
     const selectedRoute = routes.find((r) => r.id === selectedRouteId) ?? routes[0];
     const pts: [number, number][] = [
       [origin.lng, origin.lat],
       [destination.lng, destination.lat],
       ...(selectedRoute ? selectedRoute.geometry.map(toLngLat) : []),
     ];
-    initialFitCoordsRef.current = pts;
     return pts;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally empty — captures first-render values only
+  }, [origin.lng, origin.lat, destination.lng, destination.lat, selectedRouteId, routes]);
 
   // Convert route coordinates to [lng, lat] tuples
   const routeCoordArrays = useMemo(
@@ -321,8 +319,8 @@ export default function OffshoreMap({
         <MapClickHandler pickMode={pickMode} onPickCoordinate={onPickCoordinate} />
         {/* Suppress unwanted basemap labels (duplicate ANTARCTICA, RGåbøya, etc.) */}
         <MapLabelSuppressor />
-        {/* Fit the initial viewport to the route corridor on first load only */}
-        <InitialViewFitter coords={initialFitCoords} />
+        {/* Fits the viewport to the route corridor whenever origin/dest/route changes */}
+        <DynamicViewFitter coords={fitCoords} />
 
         {/* ============ POLAR GRATICULES (PARALLELS & MERIDIANS) ============ */}
         {parallels.map(({ lat, coords }) => (
@@ -498,7 +496,7 @@ export default function OffshoreMap({
             </div>
           </MarkerContent>
           <MarkerLabel>
-            <span className="waypoint-label">Rothera</span>
+            <span className="waypoint-label">{originLabel.split(",")[0]}</span>
           </MarkerLabel>
         </MapMarker>
 
@@ -510,9 +508,26 @@ export default function OffshoreMap({
             </div>
           </MarkerContent>
           <MarkerLabel>
-            <span className="waypoint-label">Casey</span>
+            <span className="waypoint-label">{destinationLabel.split(",")[0]}</span>
           </MarkerLabel>
         </MapMarker>
+
+        {/* ============ ALL AVAILABLE PORTS (except origin/dest) ============ */}
+        {locations.map((loc) => {
+          if (loc.label === originLabel || loc.label === destinationLabel) return null;
+          return (
+            <MapMarker key={loc.label} longitude={loc.coordinate.lng} latitude={loc.coordinate.lat}>
+              <MarkerContent>
+                <div className="waypoint-pin" style={{ background: "#8A9B9D" }}>
+                  <span className="waypoint-inner-dot" />
+                </div>
+              </MarkerContent>
+              <MarkerLabel>
+                <span className="waypoint-label">{loc.label.split(",")[0]}</span>
+              </MarkerLabel>
+            </MapMarker>
+          );
+        })}
 
         {/* ============ GEOGRAPHIC LABELS (ANTARCTICA, WEDDELL SEA, ROSS SEA) ============ */}
         <MapMarker longitude={0} latitude={-82}>

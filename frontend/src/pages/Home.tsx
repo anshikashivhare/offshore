@@ -12,7 +12,7 @@ import {
 import DecisionPanel from "@/components/DecisionPanel";
 import MissionSidebar from "@/components/MissionSidebar";
 import OffshoreMap from "@/components/OffshoreMap";
-import { fetchIcebergs, fetchRoutes } from "@/lib/api";
+import { fetchIcebergs, fetchRoutes, fetchPorts, fetchLiveRouteEnvironment, planRoute } from "@/lib/api";
 import {
   AppHeader,
   ForecastBadge,
@@ -36,38 +36,7 @@ import {
 } from "@/lib/offshore-mock-data";
 import type { Coordinate, LayerKey, Priority } from "@/lib/offshore-types";
 
-/**
- * Generates mock route geometry between origin and destination.
- * Visualization mechanism preserving existing algorithm offsets.
- */
-function generateMockGeometry(
-  origin: Coordinate,
-  destination: Coordinate,
-  style: "recommended" | "safest" | "fastest" | "fuel"
-): Coordinate[] {
-  const waypoints: Coordinate[] = [origin];
-  const steps = style === "fastest" ? 3 : 4;
-
-  const offsets: Record<string, number> = {
-    recommended: 0,
-    safest: -1.5,
-    fastest: 1.5,
-    fuel: 0.8,
-  };
-  const offset = offsets[style];
-
-  for (let i = 1; i <= steps; i++) {
-    const t = i / (steps + 1);
-    const lat = origin.lat + (destination.lat - origin.lat) * t + offset * Math.sin(Math.PI * t);
-    const lng = origin.lng + (destination.lng - origin.lng) * t + offset * 3 * Math.sin(Math.PI * t * 0.7);
-    waypoints.push({ lat, lng });
-  }
-
-  waypoints.push(destination);
-  return waypoints;
-}
-
-const routeStyles = ["recommended", "safest", "fastest", "fuel"] as const;
+// Mock geometry generation removed in favor of actual backend calculation
 
 export default function Home() {
   const [layers, setLayers] = useState(defaultLayers);
@@ -89,11 +58,37 @@ export default function Home() {
 
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
   const [liveRoutes, setLiveRoutes] = useState(staticRoutes);
+  const [liveLocations, setLiveLocations] = useState(locations);
+  const [liveEnvironment, setLiveEnvironment] = useState<any>(null);
+  const [liveEnvError, setLiveEnvError] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchPorts()
+      .then((data) => {
+        if (data && data.data && data.data.length > 0) {
+          const ports = data.data.map((p: any) => ({
+            label: `${p.name}, ${p.country}`,
+            coordinate: { lat: p.lat, lng: p.lon }
+          }));
+          // Merge static + live, filtering out dupes by label could be done, but a concat is fine for now
+          setLiveLocations([...locations, ...ports]);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch live ports:", err));
     fetchIcebergs()
       .then((data) => {
-        if (data && data.length > 0) setLiveIcebergs(data);
+        if (data && data.features && data.features.length > 0) {
+          const mapped = data.features.map((f: any) => ({
+            id: f.properties.iceberg_id.split("-")[0].toUpperCase(),
+            position: { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] },
+            sizeKm: f.properties.estimated_size / 1000,
+            timestamp: f.properties.timestamp,
+            confidence: f.properties.confidence,
+            drift: "NNW",
+            risk: "moderate"
+          }));
+          setLiveIcebergs(mapped);
+        }
       })
       .catch((err) => console.error("Failed to fetch live icebergs:", err));
 
@@ -104,23 +99,86 @@ export default function Home() {
       .catch((err) => console.error("Failed to fetch live routes:", err));
   }, []);
 
-  // Routes with geometry regenerated from current origin/destination
-  const routes = useMemo(
-    () =>
-      liveRoutes.map((route, i) => ({
-        ...route,
-        geometry: generateMockGeometry(origin, destination, routeStyles[i % routeStyles.length]),
-      })),
-    [origin, destination, liveRoutes]
-  );
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  // Directly use liveRoutes which will now contain backend results
+  const routes = liveRoutes;
+
+  const handleCalculateRoute = useCallback(async () => {
+    setIsCalculating(true);
+    setLiveEnvError(null);
+    try {
+      const requestPayload = {
+        vessel_id: selectedVesselId,
+        origin: `${origin.lng},${origin.lat}`,
+        destination: `${destination.lng},${destination.lat}`,
+        departure_time: new Date(selectedDate.getTime() + forecastHours * 60 * 60 * 1000).toISOString(),
+        objective_type: priority === "Time Efficient" || priority === "Fuel Efficient" ? "shortest" : "safest"
+      };
+      
+      const feature = await planRoute(requestPayload);
+      
+      const distNm = feature.properties.distance || 0;
+      const etaDays = feature.properties.eta 
+        ? (new Date(feature.properties.eta).getTime() - new Date(feature.properties.departure_time).getTime()) / (1000 * 3600 * 24)
+        : 0;
+
+      const mappedRoute = {
+        id: feature.properties.route_id,
+        name: `${priority} Route (${new Date().toLocaleTimeString()})`,
+        objective: priority === "Time Efficient" ? "Fastest" as const 
+                 : priority === "Fuel Efficient" ? "Fuel Efficient" as const 
+                 : priority === "Safety First" ? "Safest" as const 
+                 : "Recommended" as const,
+        distanceNm: distNm,
+        distanceKm: distNm * 1.852,
+        etaHours: etaDays * 24,
+        fuelLitres: feature.properties.estimated_fuel || 0,
+        estimatedDays: etaDays,
+        riskScore: feature.properties.risk_score || 0,
+        exposure: `${Math.round(etaDays)} days`,
+        status: "Calculated",
+        accent: "#2563eb",
+        geometry: feature.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] })),
+        data_provenance: feature.properties.waypoints?.map((w: any) => w.data_provenance) || []
+      };
+
+      setLiveRoutes([mappedRoute]);
+      setSelectedRouteId(mappedRoute.id);
+    } catch (err: any) {
+      console.error(err);
+      setLiveEnvError(err.message || "Route calculation failed");
+    } finally {
+      setIsCalculating(false);
+    }
+  }, [selectedVesselId, origin, destination, selectedDate, forecastHours, priority]);
 
   const selectedRoute = useMemo(
     () => routes.find((route) => route.id === selectedRouteId) ?? routes[0],
     [selectedRouteId, routes]
   );
 
+  useEffect(() => {
+    if (!selectedRoute) return;
+    const fetchEnv = async () => {
+      try {
+        const targetEta = new Date(selectedDate.getTime() + forecastHours * 60 * 60 * 1000).toISOString();
+        const waypoints = selectedRoute.geometry.map(c => ({ lat: c.lat, lon: c.lng, eta: targetEta }));
+        const subset = waypoints.length > 50 ? waypoints.filter((_, i) => i % Math.ceil(waypoints.length/50) === 0).slice(0, 50) : waypoints;
+        const res = await fetchLiveRouteEnvironment(subset);
+        setLiveEnvironment(res);
+        setLiveEnvError(null);
+      } catch (err: any) {
+        setLiveEnvError(err.message || "Failed to fetch live environment.");
+      }
+    };
+    fetchEnv();
+    const interval = setInterval(fetchEnv, 60000);
+    return () => clearInterval(interval);
+  }, [selectedRoute, selectedDate, forecastHours]);
+
   const handleLocationChange = (kind: "origin" | "destination", label: string) => {
-    const location = locations.find((item) => item.label === label);
+    const location = liveLocations.find((item) => item.label === label);
     if (!location) return;
     if (kind === "origin") {
       setOrigin(location.coordinate);
@@ -199,7 +257,7 @@ export default function Home() {
         {/* Light Mission Configuration Panel (~270px) matching Image 2 */}
         <div className={`mission-config-wrapper ${mobileSidebar ? "open" : ""}`}>
           <MissionSidebar
-            locations={locations}
+            locations={liveLocations}
             vessels={vessels}
             selectedVesselId={selectedVesselId}
             origin={{ label: originLabel, coordinate: origin }}
@@ -214,6 +272,9 @@ export default function Home() {
             onToggleLayer={(key: LayerKey) =>
               setLayers((current) => ({ ...current, [key]: !current[key] }))
             }
+            isCalculating={isCalculating}
+            onCalculateRoute={handleCalculateRoute}
+            routeError={liveEnvError}
           />
         </div>
 
@@ -284,7 +345,10 @@ export default function Home() {
               selectedRouteId={selectedRouteId}
               selectedIcebergId={selectedIcebergId}
               origin={origin}
+              originLabel={originLabel}
               destination={destination}
+              destinationLabel={destinationLabel}
+              locations={liveLocations}
               pickMode={pickMode}
               viewMode={viewMode}
               onSelectRoute={setSelectedRouteId}
@@ -327,13 +391,19 @@ export default function Home() {
       <footer className="bottom-status-bar" aria-label="Operational status bar">
         <div className="status-bar-left">
           <div className="status-indicator-group">
-            <span className="live-status-dot" />
-            <span>Data stream connected</span>
+            <span className={`live-status-dot ${liveEnvError ? "error" : "success"}`} style={{ backgroundColor: liveEnvError ? "#ef4444" : "#10b981" }} />
+            <span>
+              {liveEnvError 
+                ? `STALE DATA: ${liveEnvError}` 
+                : (liveEnvironment 
+                    ? `Live Retrieval: Success (Forecast: ${liveEnvironment.waypoints[0]?.weather_status?.latest_forecast_time || "N/A"})` 
+                    : "Connecting live stream...")}
+            </span>
           </div>
           <span className="status-v-divider">|</span>
-          <span>Map projection: {viewMode === "globe" ? "Polar Orthographic" : "Antarctic Polar Stereographic"}</span>
+          <span>ML Prediction: Active (XGBoost Route Risk)</span>
           <span className="status-v-divider">|</span>
-          <span>Selected alert: {activeAlertId.replace("alert-", "ALERT-")}</span>
+          <span>Map projection: {viewMode === "globe" ? "Polar Orthographic" : "Antarctic Polar Stereographic"}</span>
         </div>
 
         <div className="status-bar-right">
