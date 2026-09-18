@@ -1,0 +1,49 @@
+{
+  "run_id": "f57dbb9b",
+  "feature_cols": [
+    "latitude_t",
+    "longitude_t",
+    "dlat_1",
+    "dlon_1",
+    "dlat_2",
+    "dlon_2",
+    "speed_1",
+    "speed_2",
+    "wind_u",
+    "wind_v",
+    "ocean_current_u_m_s",
+    "ocean_current_v_m_s",
+    "sea_ice_concentration",
+    "forecast_horizon_hours",
+    "month",
+    "sin_doy",
+    "cos_doy"
+  ],
+  "target_lat_col": "target_dlat",
+  "target_lon_col": "target_dlon",
+  "xgb_params": {
+    "n_estimators": 300,
+    "learning_rate": 0.05,
+    "max_depth": 5,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 3,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "objective": "reg:squarederror",
+    "tree_method": "hist",
+    "random_state": 42,
+    "n_jobs": -1
+  },
+  "data_source": "SYNTHETIC_PROTOTYPE",
+  "dataset_path": "/Users/apple/Downloads/ml/data/raw/iceberg_trajectory_synthetic.csv",
+  "n_train": 1038,
+  "n_val": 231,
+  "n_test": 231,
+  "preprocessing": {
+    "wind_decomposed": true,
+    "velocity_lag_features": true,
+    "targets": "delta from current position (degrees)",
+    "split_method": "per_iceberg_chronological_70_15_15"
+  }
+}

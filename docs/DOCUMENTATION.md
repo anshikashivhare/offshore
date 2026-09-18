@@ -142,7 +142,7 @@ Interactive docs: `/api/v1/docs` (Swagger) | `/api/v1/redoc` (ReDoc)
 | `vessels` | name, ice_class, max_speed, draft |
 
 ### Migrations
-Managed via **Alembic** (`alembic.ini` + `backend/migrations/`).
+
 
 ---
 
