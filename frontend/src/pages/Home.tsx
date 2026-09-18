@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   CircleHelp,
   Globe,
   Map as MapIcon,
   Maximize2,
-  PanelRight,
-  Route as RouteIcon,
   Settings2,
 } from "lucide-react";
 import DecisionPanel from "@/components/DecisionPanel";
@@ -38,9 +37,7 @@ import type { Coordinate, LayerKey, Priority } from "@/lib/offshore-types";
 
 /**
  * Generates mock route geometry between origin and destination.
- * This is a frontend-only visualization mechanism — NOT a real
- * maritime route optimization. Designed to be replaced by a
- * real routing service/model when available.
+ * Visualization mechanism preserving existing algorithm offsets.
  */
 function generateMockGeometry(
   origin: Coordinate,
@@ -50,7 +47,6 @@ function generateMockGeometry(
   const waypoints: Coordinate[] = [origin];
   const steps = style === "fastest" ? 3 : 4;
 
-  // Offset factor to create visual variety between routes
   const offsets: Record<string, number> = {
     recommended: 0,
     safest: -1.5,
@@ -138,11 +134,11 @@ export default function Home() {
     (coordinate: Coordinate) => {
       if (pickMode === "origin") {
         setOrigin(coordinate);
-        setOriginLabel(`${coordinate.lat.toFixed(2)}°, ${coordinate.lng.toFixed(2)}°`);
+        setOriginLabel(`${coordinate.lat.toFixed(2)}°S, ${coordinate.lng.toFixed(2)}°W`);
       }
       if (pickMode === "destination") {
         setDestination(coordinate);
-        setDestinationLabel(`${coordinate.lat.toFixed(2)}°, ${coordinate.lng.toFixed(2)}°`);
+        setDestinationLabel(`${coordinate.lat.toFixed(2)}°S, ${coordinate.lng.toFixed(2)}°W`);
       }
       setPickMode(null);
     },
@@ -150,14 +146,13 @@ export default function Home() {
   );
 
   const handleFocus = useCallback((_coordinate: Coordinate) => {
-    /* MapLibre pan/zoom is handled via map controls. Focus hook is API-ready. */
+    /* MapLibre focus */
   }, []);
 
   const handleToggleFullscreen = useCallback(() => {
     setIsFullscreen((v) => !v);
   }, []);
 
-  // Listen for ESC key to exit fullscreen
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape" && isFullscreen) {
@@ -167,7 +162,6 @@ export default function Home() {
     [isFullscreen]
   );
 
-  // Dynamic title from origin/destination labels
   const routeTitle = useMemo(() => {
     const o = originLabel.replace(" Research Station", "").replace(" Research Port", "").replace(" Station", "");
     const d = destinationLabel.replace(" Research Station", "").replace(" Research Port", "").replace(" Station", "");
@@ -182,9 +176,12 @@ export default function Home() {
 
   return (
     <div className="offshore-app" onKeyDown={handleKeyDown} tabIndex={-1}>
+      {/* Top Header matching Image 2 */}
       <AppHeader onMenu={() => setMobileSidebar((value) => !value)} routeLabel={shortRouteTitle} />
+
       <div className="workspace">
-        <div className={`sidebar-drawer ${mobileSidebar ? "open" : ""}`}>
+        {/* Light Mission Configuration Panel (~270px) matching Image 2 */}
+        <div className={`mission-config-wrapper ${mobileSidebar ? "open" : ""}`}>
           <MissionSidebar
             locations={locations}
             vessels={vessels}
@@ -203,19 +200,26 @@ export default function Home() {
             }
           />
         </div>
+
+        {/* Dominant Map Workspace (Centerpiece) matching Image 2 */}
         <main className={`map-workspace ${isFullscreen ? "map-fullscreen" : ""}`}>
+          {/* Map Header */}
           <div className="map-header">
-            <div>
+            <div className="map-header-left">
               <span className="eyebrow">MISSION 08 · ROUTE PLANNING</span>
-              <h1>{routeTitle}</h1>
-              <p>Risk-aware passage planning · Antarctic Peninsula to Wilkes Land</p>
+              <h1 className="map-passage-title">{routeTitle}</h1>
+              <p className="map-passage-sub">
+                Risk-aware passage planning · Antarctic Peninsula to Wilkes Land
+              </p>
             </div>
+
             <div className="map-header-actions">
               <ForecastBadge forecast={forecastMeta} />
-              {/* Map/Globe toggle */}
-              <div className="view-toggle">
+
+              {/* Map / Globe toggle matching Image 2 */}
+              <div className="map-globe-toggle">
                 <button
-                  className={`view-toggle-btn ${viewMode === "map" ? "active" : ""}`}
+                  className={`toggle-tab-btn ${viewMode === "map" ? "active" : ""}`}
                   onClick={() => setViewMode("map")}
                   aria-label="Map view"
                   title="Map view"
@@ -224,7 +228,7 @@ export default function Home() {
                   <span>Map</span>
                 </button>
                 <button
-                  className={`view-toggle-btn ${viewMode === "globe" ? "active" : ""}`}
+                  className={`toggle-tab-btn ${viewMode === "globe" ? "active" : ""}`}
                   onClick={() => setViewMode("globe")}
                   aria-label="Globe view"
                   title="Globe view"
@@ -233,21 +237,25 @@ export default function Home() {
                   <span>Globe</span>
                 </button>
               </div>
-              <button className="icon-button" aria-label="Open help">
-                <CircleHelp size={16} />
+
+              <button className="control-icon-btn" aria-label="Open help" title="System Help">
+                <CircleHelp size={15} />
               </button>
-              <button className="icon-button" aria-label="Open settings">
-                <Settings2 size={16} />
+              <button className="control-icon-btn" aria-label="Open settings" title="Map Settings">
+                <Settings2 size={15} />
               </button>
               <button
-                className={`icon-button ${isFullscreen ? "active" : ""}`}
+                className={`control-icon-btn ${isFullscreen ? "active" : ""}`}
                 aria-label="Fullscreen map"
+                title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen Map"}
                 onClick={handleToggleFullscreen}
               >
-                <Maximize2 size={16} />
+                <Maximize2 size={15} />
               </button>
             </div>
           </div>
+
+          {/* Map Frame with light polar basemap and legend */}
           <div className={`map-frame ${isFullscreen ? "fullscreen" : ""}`}>
             <OffshoreMap
               layers={layers}
@@ -270,6 +278,8 @@ export default function Home() {
             />
             <MapOverlayLegend />
           </div>
+
+          {/* Time Control Bar matching Image 2 */}
           <Timeline
             forecast={forecastMeta}
             forecastHours={forecastHours}
@@ -277,34 +287,54 @@ export default function Home() {
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
           />
+
+          {/* Passage Overview / Environmental Metrics KPI Strip matching Image 2 */}
           <KpiStrip forecast={forecastMeta} />
         </main>
-        <DecisionPanel
-          routes={routes}
-          selectedRoute={selectedRoute}
-          alerts={alerts}
-          onSelectRoute={setSelectedRouteId}
-          onFocusAlert={(alert) => {
-            setActiveAlertId(alert.id);
-            handleFocus(alert.location);
-          }}
-        />
+
+        {/* Right Route Options Panel (~290px) matching Image 2 */}
+        <div className="route-options-wrapper">
+          <DecisionPanel
+            routes={routes}
+            selectedRoute={selectedRoute}
+            alerts={alerts}
+            onSelectRoute={setSelectedRouteId}
+            onFocusAlert={(alert) => {
+              setActiveAlertId(alert.id);
+              handleFocus(alert.location);
+            }}
+          />
+        </div>
       </div>
-      <div className="bottom-status">
-        <span>
-          <i className="status-live" /> Data stream connected
-        </span>
-        <span>
-          Map projection: {viewMode === "globe" ? "Globe" : "Mercator"}
-        </span>
-        <span>
-          Selected alert: {activeAlertId.replace("alert-", "ALERT-")}
-        </span>
-        <span className="bottom-right">
-          <Bell size={13} /> 2 route-relevant alerts <PanelRight size={13} />
-          <RouteIcon size={13} /> {selectedRoute.name} selected <ChevronDown size={13} />
-        </span>
-      </div>
+
+      {/* Bottom Status Bar matching Image 2 */}
+      <footer className="bottom-status-bar" aria-label="Operational status bar">
+        <div className="status-bar-left">
+          <div className="status-indicator-group">
+            <span className="live-status-dot" />
+            <span>Data stream connected</span>
+          </div>
+          <span className="status-v-divider">|</span>
+          <span>Map projection: {viewMode === "globe" ? "Polar Orthographic" : "Antarctic Polar Stereographic"}</span>
+          <span className="status-v-divider">|</span>
+          <span>Selected alert: {activeAlertId.replace("alert-", "ALERT-")}</span>
+        </div>
+
+        <div className="status-bar-right">
+          <span className="status-item-alert">
+            <Bell size={13} /> 2 route-relevant alerts
+          </span>
+          <button className="status-icon-link" aria-label="Documentation" title="Documentation">
+            <BookOpen size={13} />
+          </button>
+          <button className="status-icon-link" aria-label="Settings" title="Settings">
+            <Settings2 size={13} />
+          </button>
+          <span className="status-active-route">
+            {selectedRoute.name} selected <ChevronDown size={12} />
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

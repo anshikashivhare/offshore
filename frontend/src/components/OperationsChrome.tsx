@@ -1,12 +1,17 @@
 import { useRef } from "react";
 import {
   Activity,
+  Calendar,
   CalendarDays,
+  Clock,
   Clock3,
   CloudSnow,
   Database,
   Menu,
+  Play,
   Satellite,
+  Shield,
+  ShieldAlert,
   Waves,
 } from "lucide-react";
 import type { ForecastMeta } from "@/lib/offshore-types";
@@ -19,44 +24,61 @@ export function AppHeader({
   routeLabel?: string;
 }) {
   return (
-    <header className="app-header">
+    <header className="app-header" aria-label="Operational Header">
       <button
-        className="mobile-menu"
+        className="mobile-menu-btn"
         onClick={onMenu}
-        aria-label="Open mission menu"
+        aria-label="Toggle mission planner menu"
       >
         <Menu size={18} />
       </button>
-      <div className="brand">
-        <div className="brand-mark">
-          <span />
-          <span />
-          <span />
+
+      {/* Brand: Mountain Emblem + OFFSHORE + NAVIGATION INTELLIGENCE */}
+      <div className="header-brand-group">
+        <div className="brand-logo-emblem">
+          <svg width="34" height="28" viewBox="0 0 34 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 24L12 6L20 20L25 11L32 24H2Z" fill="#527C78" stroke="#183B43" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M12 6L16 13H8L12 6Z" fill="#F3F1EA" />
+            <path d="M25 11L28 17H22L25 11Z" fill="#DCE5E5" />
+          </svg>
         </div>
-        <div>
-          <strong>OFFSHORE</strong>
-          <small>navigation intelligence</small>
+        <div className="brand-text-block">
+          <span className="brand-name">OFFSHORE</span>
+          <span className="brand-tagline">NAVIGATION INTELLIGENCE</span>
         </div>
       </div>
-      <div className="header-context">
-        <span className="context-dot" /> Antarctic sector{" "}
-        <b>{routeLabel || "Rothera → Casey"}</b>
-        <span className="header-divider" />
-        <span className="header-time">
-          <Clock3 size={14} /> 13 SEP 2026 · 11:42 UTC
-        </span>
+
+      {/* Center Pills matching Image 2 */}
+      <div className="header-center-pills">
+        {/* Pill 1: Antarctic sector */}
+        <div className="header-pill">
+          <span className="pill-dot-dark" />
+          <span className="pill-label">Antarctic sector</span>
+          <strong className="pill-val">{routeLabel || "Rothera → Casey"}</strong>
+        </div>
+
+        {/* Pill 2: Timestamp */}
+        <div className="header-pill">
+          <CalendarDays size={13} className="pill-icon" />
+          <span className="pill-mono-text">13 SEP 2026 · 11:42 UTC</span>
+        </div>
       </div>
-      <div className="header-actions">
-        <div className="sync-status">
-          <span />
-          <div>
-            <b>System nominal</b>
-            <small>Last sync 04 min ago</small>
+
+      {/* Right Pills matching Image 2 */}
+      <div className="header-right-group">
+        {/* System status pill */}
+        <div className="header-status-pill">
+          <span className="status-dot-green" />
+          <div className="status-pill-texts">
+            <span className="status-line-1">System nominal</span>
+            <span className="status-line-2">Last sync 04 min ago</span>
           </div>
         </div>
-        <button className="avatar" aria-label="Open operator profile">
-          OC
-        </button>
+
+        {/* Dark Avatar Square matching Image 2 */}
+        <div className="operator-square" title="Operator Console (Active)">
+          <span>OC</span>
+        </div>
       </div>
     </header>
   );
@@ -64,62 +86,83 @@ export function AppHeader({
 
 export function KpiStrip({ forecast }: { forecast: ForecastMeta }) {
   return (
-    <div className="kpi-strip">
-      <div className="kpi-heading">
-        <span className="eyebrow">PASSAGE OVERVIEW</span>
-        <span>Mock data · API schema ready</span>
+    <section className="passage-overview-strip" aria-label="Passage Overview and Metrics">
+      {/* Title block */}
+      <div className="overview-title-cell">
+        <span className="overview-heading">PASSAGE OVERVIEW</span>
+        <span className="overview-sub">Mock data · API schema ready</span>
       </div>
-      <div className="kpi">
-        <CloudSnow size={16} />
-        <span>
-          <b>42%</b>
-          <small>sea-ice concentration</small>
-        </span>
-        <em className="status-pill mint">stable</em>
+
+      {/* Metric 1: Sea-ice concentration */}
+      <div className="overview-metric-cell">
+        <div className="metric-icon-circle">
+          <svg width="24" height="24" viewBox="0 0 24 24" className="gauge-svg">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="#DCE5E5" strokeWidth="3" />
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              fill="none"
+              stroke="#527C78"
+              strokeWidth="3"
+              strokeDasharray="56.5"
+              strokeDashoffset="32.8"
+              strokeLinecap="round"
+              transform="rotate(-90 12 12)"
+            />
+          </svg>
+        </div>
+        <div className="metric-text-group">
+          <span className="metric-large-num">42%</span>
+          <span className="metric-sub-label">sea-ice concentration</span>
+        </div>
+        <span className="metric-status-badge badge-mint">STABLE</span>
       </div>
-      <div className="kpi">
-        <Waves size={16} />
-        <span>
-          <b>0.8 m</b>
-          <small>significant wave height</small>
-        </span>
-        <em className="status-pill blue">forecast</em>
+
+      {/* Metric 2: Significant wave height */}
+      <div className="overview-metric-cell">
+        <div className="metric-icon-plain">
+          <Waves size={16} className="icon-blue" />
+        </div>
+        <div className="metric-text-group">
+          <span className="metric-large-num">0.8 m</span>
+          <span className="metric-sub-label">significant wave height</span>
+        </div>
+        <span className="metric-status-badge badge-blue">FORECAST</span>
       </div>
-      <div className="kpi">
-        <Activity size={16} />
-        <span>
-          <b>0.31</b>
-          <small>route risk score</small>
-        </span>
-        <em className="status-pill amber">moderate</em>
+
+      {/* Metric 3: Route risk score */}
+      <div className="overview-metric-cell">
+        <div className="metric-icon-plain">
+          <ShieldAlert size={16} className="icon-amber" />
+        </div>
+        <div className="metric-text-group">
+          <span className="metric-large-num">0.31</span>
+          <span className="metric-sub-label">route risk score</span>
+        </div>
+        <span className="metric-status-badge badge-amber">MODERATE</span>
       </div>
-      <div className="kpi">
-        <Database size={16} />
-        <span>
-          <b>{forecast.confidence}</b>
-          <small>data confidence</small>
-        </span>
-        <em className="status-pill slate">72 h horizon</em>
+
+      {/* Metric 4: Data confidence */}
+      <div className="overview-metric-cell">
+        <div className="metric-icon-plain">
+          <Shield size={16} className="icon-slate" />
+        </div>
+        <div className="metric-text-group">
+          <span className="metric-large-num">{forecast.confidence}</span>
+          <span className="metric-sub-label">data confidence</span>
+        </div>
+        <span className="metric-status-badge badge-slate">{forecast.horizonHours} H HORIZON</span>
       </div>
-    </div>
+    </section>
   );
 }
 
 /** Format a date as "DD MMM" */
 function fmtShort(date: Date) {
   const months = [
-    "JAN",
-    "FEB",
-    "MAR",
-    "APR",
-    "MAY",
-    "JUN",
-    "JUL",
-    "AUG",
-    "SEP",
-    "OCT",
-    "NOV",
-    "DEC",
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
   ];
   return `${date.getDate()} ${months[date.getMonth()]}`;
 }
@@ -127,18 +170,8 @@ function fmtShort(date: Date) {
 /** Format a date as "DD Mon YYYY" */
 function fmtLong(date: Date) {
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
@@ -158,14 +191,14 @@ export function Timeline({
 }) {
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // Build tick dates from selectedDate: day before, day of, and 3 days after
+  // 5 tick dates matching Image 2: [12 SEP, 13 SEP - NOW, 14 SEP, 15 SEP, 16 SEP]
   const tickDates = Array.from({ length: 5 }, (_, i) => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + i - 1);
     return d;
   });
 
-  const fillPercent = (forecastHours / forecast.horizonHours) * 100;
+  const fillPercent = Math.min(100, Math.max(0, (forecastHours / forecast.horizonHours) * 100));
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onForecastHoursChange(Number(e.target.value));
@@ -183,54 +216,57 @@ export function Timeline({
     }
   };
 
-  // Format selected date for the date input value
   const dateInputValue = selectedDate.toISOString().split("T")[0];
 
   return (
-    <div className="timeline">
-      <div className="timeline-label">
-        <CalendarDays size={14} />
-        <span>TIME CONTROL</span>
-        <b>{forecast.horizonHours} h forecast</b>
+    <div className="time-control-bar" aria-label="Forecast Time Control">
+      {/* Left: Play button + TIME CONTROL label */}
+      <div className="time-control-left">
+        <button type="button" className="time-play-btn" title="Play forecast timeline" aria-label="Play forecast">
+          <Play size={10} fill="currentColor" />
+        </button>
+        <div className="time-control-label-group">
+          <span className="time-control-title">TIME CONTROL</span>
+          <span className="time-control-horizon">{forecast.horizonHours} h forecast</span>
+        </div>
       </div>
-      <div className="timeline-track">
-        <div className="timeline-line">
-          <span
-            className="timeline-fill"
-            style={{ width: `${fillPercent}%` }}
-          />
-          <i
-            className="timeline-pin"
-            style={{ left: `${fillPercent}%` }}
-          />
+
+      {/* Center: Ruler line and slider */}
+      <div className="time-control-center">
+        <div className="time-slider-track">
+          <div className="time-slider-bg" />
+          <div className="time-slider-progress" style={{ width: `${fillPercent}%` }} />
+          <div className="time-slider-pin" style={{ left: `${fillPercent}%` }} />
           <input
             type="range"
             min={0}
             max={forecast.horizonHours}
             value={forecastHours}
             onChange={handleSliderChange}
-            className="timeline-slider"
-            aria-label="Forecast time"
+            className="time-range-input"
+            aria-label="Forecast hours slider"
           />
         </div>
-        <div className="timeline-ticks">
+
+        {/* Tick labels matching Image 2 */}
+        <div className="time-ticks-row">
           {tickDates.map((d, i) => (
-            <span
-              key={i}
-              className={i === 1 ? "active" : ""}
-            >
-              {i === 1 ? `${fmtShort(d)} · NOW` : fmtShort(d)}
+            <span key={i} className={`time-tick-label ${i === 1 ? "is-now" : ""}`}>
+              {i === 1 ? `${fmtShort(d)} - NOW` : fmtShort(d)}
             </span>
           ))}
         </div>
       </div>
+
+      {/* Right: Date Button */}
       <button
-        className="timeline-select"
+        className="time-date-picker-btn"
         onClick={handleDateClick}
         type="button"
+        title="Select baseline date"
       >
-        <CalendarDays size={13} />
-        {fmtLong(selectedDate)}
+        <Calendar size={13} className="btn-calendar-icon" />
+        <span>{fmtLong(selectedDate)}</span>
         <input
           ref={dateInputRef}
           type="date"
@@ -246,25 +282,36 @@ export function Timeline({
 
 export function MapOverlayLegend() {
   return (
-    <div className="map-legend">
-      <div className="legend-head">
-        <span>ANALYTICAL OVERLAYS</span>
-        <small>LIVE VIEW</small>
+    <div className="chart-analytical-legend" aria-label="Analytical Overlays Legend">
+      <div className="legend-head-row">
+        <span className="legend-head-title">ANALYTICAL OVERLAYS</span>
+        <span className="legend-head-mode">LIVE VIEW</span>
       </div>
-      <div className="legend-row">
-        <i className="gradient-ice" />
-        <span>Sea-ice concentration</span>
-        <b>0–100%</b>
-      </div>
-      <div className="legend-row">
-        <i className="risk-dots" />
-        <span>Predicted risk</span>
-        <b>LOW · AVOID</b>
-      </div>
-      <div className="legend-row">
-        <i className="line-predicted" />
-        <span>Trajectory forecast</span>
-        <b>72 h</b>
+
+      <div className="legend-items-list">
+        <div className="legend-item-row">
+          <span className="legend-swatch ice-swatch" />
+          <span className="legend-item-label">Sea-ice concentration</span>
+          <span className="legend-item-val">0–100%</span>
+        </div>
+
+        <div className="legend-item-row">
+          <span className="legend-swatch risk-hatched-swatch" />
+          <span className="legend-item-label">Predicted risk</span>
+          <span className="legend-item-val">Low — Avoid</span>
+        </div>
+
+        <div className="legend-item-row">
+          <span className="legend-swatch forecast-dashed-swatch" />
+          <span className="legend-item-label">Trajectory forecast</span>
+          <span className="legend-item-val">72 h</span>
+        </div>
+
+        <div className="legend-item-row">
+          <span className="legend-swatch iceberg-triangle-swatch">▲</span>
+          <span className="legend-item-label">Observed icebergs</span>
+          <span className="legend-item-val">Live data</span>
+        </div>
       </div>
     </div>
   );
@@ -272,14 +319,14 @@ export function MapOverlayLegend() {
 
 export function ForecastBadge({ forecast }: { forecast: ForecastMeta }) {
   return (
-    <div className="forecast-badge">
-      <Satellite size={14} />
-      <span>
-        <b>Forecast available</b>
-        <small>
+    <div className="map-forecast-pill">
+      <Satellite size={14} className="forecast-pill-icon" />
+      <div className="forecast-pill-text">
+        <strong className="forecast-pill-status">Forecast available</strong>
+        <span className="forecast-pill-meta">
           {forecast.asOf} · {forecast.confidence} confidence
-        </small>
-      </span>
+        </span>
+      </div>
     </div>
   );
 }
