@@ -7,6 +7,7 @@ import {
   MapMarker,
   MarkerContent,
   MarkerLabel,
+  MapGeoJSON,
   useMap,
   type MapRef,
 } from "./map-components";
@@ -195,6 +196,69 @@ function DynamicViewFitter({
       }
     );
   }, [map, isLoaded, coords]);
+
+  return null;
+}
+
+function PortsLayer({
+  locations,
+  originLabel,
+  destinationLabel,
+}: {
+  locations: any[];
+  originLabel: string;
+  destinationLabel: string;
+}) {
+  const { map, isLoaded } = useMap();
+
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+
+    const sourceId = "offshore-ports";
+    const layerId = "offshore-ports-circle";
+
+    const features = locations
+      .filter((loc) => loc.label !== originLabel && loc.label !== destinationLabel)
+      .map((loc) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [loc.coordinate.lng, loc.coordinate.lat],
+        },
+        properties: {
+          label: loc.label.split(",")[0],
+        },
+      }));
+
+    if (!map.getSource(sourceId)) {
+      map.addSource(sourceId, {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features,
+        } as any,
+      });
+    } else {
+      (map.getSource(sourceId) as any).setData({
+        type: "FeatureCollection",
+        features,
+      });
+    }
+
+    if (!map.getLayer(layerId)) {
+      map.addLayer({
+        id: layerId,
+        type: "circle",
+        source: sourceId,
+        paint: {
+          "circle-color": "#8A9B9D",
+          "circle-radius": 3.5,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#FFFFFF",
+        },
+      });
+    }
+  }, [map, isLoaded, locations, originLabel, destinationLabel]);
 
   return null;
 }
@@ -513,34 +577,7 @@ export default function OffshoreMap({
         </MapMarker>
 
         {/* ============ ALL AVAILABLE PORTS (except origin/dest) ============ */}
-        <MapGeoJSON
-          id="global-ports-layer"
-          data={{
-            type: "FeatureCollection",
-            features: locations
-              .filter((loc) => loc.label !== originLabel && loc.label !== destinationLabel)
-              .map((loc) => ({
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [loc.coordinate.lng, loc.coordinate.lat],
-                },
-                properties: {
-                  label: loc.label.split(",")[0],
-                },
-              })),
-          }}
-          pointStyle={{
-            type: "circle",
-            paint: {
-              "circle-color": "#8A9B9D",
-              "circle-radius": 3.5,
-              "circle-stroke-width": 1,
-              "circle-stroke-color": "#FFFFFF",
-            },
-          }}
-          interactive={false}
-        />
+
 
         {/* ============ GEOGRAPHIC LABELS (ANTARCTICA, WEDDELL SEA, ROSS SEA) ============ */}
         <MapMarker longitude={0} latitude={-82}>
@@ -563,6 +600,9 @@ export default function OffshoreMap({
             <span className="geo-label-ocean">INDIAN<br />OCEAN</span>
           </MarkerContent>
         </MapMarker>
+
+        {/* ============ PORT LAYER ============ */}
+        <PortsLayer locations={locations} originLabel={originLabel} destinationLabel={destinationLabel} />
 
         {/* ============ NAUTICAL MAP CONTROLS (TOP-LEFT) ============ */}
         <NauticalMapControls onReset={handleReset} />
