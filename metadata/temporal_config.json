@@ -1,0 +1,29 @@
+{
+  "integrated_start_date": "2025-01-01",
+  "integrated_end_date": "2026-06-23",
+  "status": "prototype_locked",
+  "reason": "Prototype period selected to reduce data volume while retaining sufficient recent data for pipeline development and time-based validation.",
+  "datasets": {
+    "nsidc_sic_cdr_v6": {
+      "prototype_start": "2025-01-01",
+      "prototype_end": "2026-06-23",
+      "temporal_resolution": "daily"
+    },
+    "era5": {
+      "prototype_start": "2025-01-01",
+      "prototype_end": "2026-06-23",
+      "temporal_resolution": "hourly"
+    },
+    "copernicus_marine": {
+      "prototype_start": "2025-01-01",
+      "prototype_end": "2026-06-23",
+      "temporal_resolution": "daily"
+    },
+    "usnic_icebergs": {
+      "prototype_start": "2025-01-01",
+      "prototype_end": "2026-06-23",
+      "temporal_resolution": "weekly",
+      "role": "large_iceberg_observation_and_validation"
+    }
+  }
+}

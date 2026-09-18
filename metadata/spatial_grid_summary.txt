@@ -1,0 +1,12 @@
+NSIDC Antarctic Sea-Ice Spatial Grid Summary
+============================================
+
+X cells: 316
+Y cells: 332
+X range: -3937500.00 -> 3937500.00 m
+Y range: -3937500.00 -> 4337500.00 m
+X spacing: 25000.00 m
+Y spacing: 25000.00 m
+Total cells: 104912
+Valid cells: 54268
+Valid coverage: 51.73%
