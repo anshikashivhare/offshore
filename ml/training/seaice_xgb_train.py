@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 # ─────────────────────────────────────────────────────────────
 # 0. Paths
 # ─────────────────────────────────────────────────────────────
-RAW_CSV       = Path("/Users/apple/Downloads/ml/data/raw/sea_ice_synthetic.csv")
+RAW_CSV       = Path("/Users/apple/Downloads/ml/data/processed/sea_ice_aligned_2026.csv")
 PROCESSED_DIR = Path("/Users/apple/Downloads/ml/data/processed")
 MODEL_DIR     = Path("/Users/apple/Downloads/offshore/ml/models/weights")
 REPORTS_DIR   = Path("/Users/apple/Downloads/ml/reports")
@@ -50,10 +50,14 @@ REQUIRED_FEATURES = [
     "sea_ice_concentration",
     "air_temperature_c",
     "sea_surface_temperature_c",
+    "sea_level_pressure_hpa",
     "wind_speed_m_s",
-    "wind_direction_deg",
-    "ocean_current_u_m_s",
-    "ocean_current_v_m_s",
+    "wind_u_m_s",
+    "wind_v_m_s",
+    "current_speed_m_s",
+    "current_u_m_s",
+    "current_v_m_s",
+    "sea_surface_height_anomaly_cm",
     "forecast_horizon_hours",
 ]
 TARGET_COL = "target_sea_ice_concentration"
@@ -112,13 +116,8 @@ df["year"]        = df["timestamp"].dt.year
 df["sin_doy"]     = np.sin(2 * np.pi * df["day_of_year"] / 365.25)
 df["cos_doy"]     = np.cos(2 * np.pi * df["day_of_year"] / 365.25)
 
-# Wind components from speed + direction (avoids circular discontinuity)
-df["wind_u"] = df["wind_speed_m_s"] * np.cos(np.radians(df["wind_direction_deg"]))
-df["wind_v"] = df["wind_speed_m_s"] * np.sin(np.radians(df["wind_direction_deg"]))
-
 # Drop non-predictive cols
-DROP_COLS = ["sample_id", "data_source_type", "timestamp",
-             "wind_speed_m_s", "wind_direction_deg",
+DROP_COLS = ["sample_id", "cell_id", "data_source_type", "data_status", "timestamp",
              "day_of_year", "year"]  # year removed to avoid spurious memorisation
 df_model = df.drop(columns=DROP_COLS)
 

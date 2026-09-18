@@ -23,19 +23,21 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-RAW_CSV   = Path("/Users/apple/Downloads/ml/data/raw/iceberg_trajectory_synthetic.csv")
+RAW_CSV   = Path("/Users/apple/Downloads/ml/data/processed/iceberg_aligned_2026.csv")
 MODEL_DIR = PROJECT_ROOT / "ml" / "models" / "weights"
 SCHEMA    = MODEL_DIR / "iceberg_feature_schema.json"
 LAT_MODEL = MODEL_DIR / "iceberg_xgb_lat_latest.json"
 LON_MODEL = MODEL_DIR / "iceberg_xgb_lon_latest.json"
 
 EXPECTED_RAW_COLS = [
-    "sample_id", "iceberg_id", "timestamp",
+    "sample_id", "iceberg_id", "timestamp", "cell_id",
     "latitude_t_minus_2", "longitude_t_minus_2",
     "latitude_t_minus_1", "longitude_t_minus_1",
     "latitude_t", "longitude_t",
-    "wind_speed_m_s", "wind_direction_deg",
-    "ocean_current_u_m_s", "ocean_current_v_m_s",
+    "wind_speed_m_s", "wind_u_m_s", "wind_v_m_s",
+    "current_speed_m_s", "current_u_m_s", "current_v_m_s",
+    "sea_surface_temperature_c", "air_temperature_c", "sea_level_pressure_hpa",
+    "sea_surface_height_anomaly_cm",
     "sea_ice_concentration", "forecast_horizon_hours",
     "target_latitude", "target_longitude",
     "data_source_type",
@@ -45,8 +47,10 @@ FEATURE_COLS = [
     "latitude_t", "longitude_t",
     "dlat_1", "dlon_1", "dlat_2", "dlon_2",
     "speed_1", "speed_2",
-    "wind_u", "wind_v",
-    "ocean_current_u_m_s", "ocean_current_v_m_s",
+    "wind_u_m_s", "wind_v_m_s", "wind_speed_m_s",
+    "current_u_m_s", "current_v_m_s", "current_speed_m_s",
+    "sea_surface_temperature_c", "air_temperature_c",
+    "sea_level_pressure_hpa", "sea_surface_height_anomaly_cm",
     "sea_ice_concentration", "forecast_horizon_hours",
     "month", "sin_doy", "cos_doy",
 ]
@@ -82,8 +86,6 @@ def processed_df(raw_df):
     df["dlon_2"] = df["longitude_t_minus_1"] - df["longitude_t_minus_2"]
     df["speed_1"] = np.sqrt(df["dlat_1"] ** 2 + df["dlon_1"] ** 2)
     df["speed_2"] = np.sqrt(df["dlat_2"] ** 2 + df["dlon_2"] ** 2)
-    df["wind_u"] = df["wind_speed_m_s"] * np.cos(np.radians(df["wind_direction_deg"]))
-    df["wind_v"] = df["wind_speed_m_s"] * np.sin(np.radians(df["wind_direction_deg"]))
     df["month"]   = df["timestamp"].dt.month
     df["sin_doy"] = np.sin(2 * np.pi * df["timestamp"].dt.dayofyear / 365.25)
     df["cos_doy"] = np.cos(2 * np.pi * df["timestamp"].dt.dayofyear / 365.25)
@@ -129,7 +131,7 @@ class TestDatasetLoading:
         assert RAW_CSV.exists()
 
     def test_row_count(self, raw_df):
-        assert len(raw_df) == 1500, f"Expected 1500 rows, got {len(raw_df)}"
+        assert len(raw_df) == 30424, f"Expected 30424 rows, got {len(raw_df)}"
 
     def test_expected_columns(self, raw_df):
         missing = [c for c in EXPECTED_RAW_COLS if c not in raw_df.columns]
@@ -188,12 +190,9 @@ class TestPreprocessing:
     def test_no_nan(self, processed_df):
         assert processed_df[FEATURE_COLS].isnull().sum().sum() == 0
 
-    def test_wind_decomp_correct(self, raw_df):
-        df = raw_df.copy()
-        wu = df["wind_speed_m_s"] * np.cos(np.radians(df["wind_direction_deg"]))
-        wv = df["wind_speed_m_s"] * np.sin(np.radians(df["wind_direction_deg"]))
-        recon = np.sqrt(wu ** 2 + wv ** 2)
-        np.testing.assert_allclose(recon.values, df["wind_speed_m_s"].values, rtol=1e-5)
+    def test_wind_already_decomposed(self, raw_df):
+        assert "wind_u_m_s" in raw_df.columns
+        assert "wind_v_m_s" in raw_df.columns
 
     def test_velocity_lags_correct(self, processed_df, raw_df):
         # Check dlat_1 = lat_t - lat_{t-1}
@@ -341,7 +340,7 @@ class TestModelSaveLoad:
             assert k in schema
 
     def test_schema_feature_count(self, schema):
-        assert len(schema["feature_cols"]) == 17
+        assert len(schema["feature_cols"]) == 23
 
     def test_models_loadable(self):
         import xgboost as xgb
@@ -379,8 +378,10 @@ class TestInference:
             latitude_t=-65.5,     longitude_t=61.7,
             latitude_t_minus_1=-65.54, longitude_t_minus_1=61.65,
             latitude_t_minus_2=-65.58, longitude_t_minus_2=61.61,
-            wind_speed_m_s=2.0, wind_direction_deg=315.0,
-            ocean_current_u_m_s=0.18, ocean_current_v_m_s=0.09,
+            wind_u_m_s=1.4, wind_v_m_s=-1.4, wind_speed_m_s=2.0,
+            current_u_m_s=0.18, current_v_m_s=0.09, current_speed_m_s=0.2,
+            sea_surface_temperature_c=-1.0, air_temperature_c=-12.0,
+            sea_level_pressure_hpa=995.0, sea_surface_height_anomaly_cm=0.0,
             sea_ice_concentration=0.35, forecast_horizon_hours=6,
         )
         assert "predicted_delta_lat" in result
@@ -396,8 +397,10 @@ class TestInference:
                 latitude_t=10.0, longitude_t=60.0,
                 latitude_t_minus_1=10.04, longitude_t_minus_1=59.95,
                 latitude_t_minus_2=10.08, longitude_t_minus_2=59.90,
-                wind_speed_m_s=2.0, wind_direction_deg=0.0,
-                ocean_current_u_m_s=0.1, ocean_current_v_m_s=0.05,
+                wind_u_m_s=1.4, wind_v_m_s=-1.4, wind_speed_m_s=2.0,
+                current_u_m_s=0.1, current_v_m_s=0.05, current_speed_m_s=0.11,
+                sea_surface_temperature_c=-1.0, air_temperature_c=-12.0,
+                sea_level_pressure_hpa=995.0, sea_surface_height_anomaly_cm=0.0,
                 sea_ice_concentration=0.3,
             )
 
@@ -408,8 +411,10 @@ class TestInference:
                 latitude_t=-65.5, longitude_t=61.7,
                 latitude_t_minus_1=-65.54, longitude_t_minus_1=61.65,
                 latitude_t_minus_2=-65.58, longitude_t_minus_2=61.61,
-                wind_speed_m_s=2.0, wind_direction_deg=315.0,
-                ocean_current_u_m_s=0.18, ocean_current_v_m_s=0.09,
+                wind_u_m_s=1.4, wind_v_m_s=-1.4, wind_speed_m_s=2.0,
+                current_u_m_s=0.18, current_v_m_s=0.09, current_speed_m_s=0.2,
+                sea_surface_temperature_c=-1.0, air_temperature_c=-12.0,
+                sea_level_pressure_hpa=995.0, sea_surface_height_anomaly_cm=0.0,
                 sea_ice_concentration=1.8,
             )
 
@@ -419,8 +424,10 @@ class TestInference:
             latitude_t=-66.0, longitude_t=50.0,
             latitude_t_minus_1=-66.04, longitude_t_minus_1=49.95,
             latitude_t_minus_2=-66.08, longitude_t_minus_2=49.90,
-            wind_speed_m_s=5.0, wind_direction_deg=180.0,
-            ocean_current_u_m_s=0.1, ocean_current_v_m_s=0.05,
+            wind_u_m_s=1.4, wind_v_m_s=-1.4, wind_speed_m_s=2.0,
+            current_u_m_s=0.1, current_v_m_s=0.05, current_speed_m_s=0.11,
+            sea_surface_temperature_c=-1.0, air_temperature_c=-12.0,
+            sea_level_pressure_hpa=995.0, sea_surface_height_anomaly_cm=0.0,
             sea_ice_concentration=0.5,
         )
         for k in ["predicted_delta_lat", "predicted_delta_lon",
@@ -435,8 +442,10 @@ class TestInference:
             latitude_t=-65.5, longitude_t=61.7,
             latitude_t_minus_1=-65.54, longitude_t_minus_1=61.65,
             latitude_t_minus_2=-65.58, longitude_t_minus_2=61.61,
-            wind_speed_m_s=2.0, wind_direction_deg=315.0,
-            ocean_current_u_m_s=0.18, ocean_current_v_m_s=0.09,
+            wind_u_m_s=1.4, wind_v_m_s=-1.4, wind_speed_m_s=2.0,
+            current_u_m_s=0.18, current_v_m_s=0.09, current_speed_m_s=0.2,
+            sea_surface_temperature_c=-1.0, air_temperature_c=-12.0,
+            sea_level_pressure_hpa=995.0, sea_surface_height_anomaly_cm=0.0,
             sea_ice_concentration=0.35,
         )
         r1 = predict_iceberg_trajectory(**kw)

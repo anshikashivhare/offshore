@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 # ─────────────────────────────────────────────────────────────────────────────
 # 0. Paths
 # ─────────────────────────────────────────────────────────────────────────────
-RAW_CSV       = Path("/Users/apple/Downloads/ml/data/raw/iceberg_trajectory_synthetic.csv")
+RAW_CSV       = Path("/Users/apple/Downloads/ml/data/processed/iceberg_aligned_2026.csv")
 PROCESSED_DIR = Path("/Users/apple/Downloads/ml/data/processed")
 MODEL_DIR     = Path("/Users/apple/Downloads/offshore/ml/models/weights")
 REPORTS_DIR   = Path("/Users/apple/Downloads/ml/reports")
@@ -48,12 +48,14 @@ df.columns = df.columns.str.strip()           # strip \r artefacts
 print(f"\n[1] Loaded {len(df):,} rows from {RAW_CSV.name}")
 
 REQUIRED_RAW = [
-    "iceberg_id", "timestamp",
+    "iceberg_id", "timestamp", "cell_id",
     "latitude_t_minus_2", "longitude_t_minus_2",
     "latitude_t_minus_1", "longitude_t_minus_1",
     "latitude_t",         "longitude_t",
-    "wind_speed_m_s",     "wind_direction_deg",
-    "ocean_current_u_m_s", "ocean_current_v_m_s",
+    "wind_speed_m_s",     "wind_u_m_s", "wind_v_m_s",
+    "current_speed_m_s",  "current_u_m_s", "current_v_m_s",
+    "sea_surface_temperature_c", "air_temperature_c", "sea_level_pressure_hpa",
+    "sea_surface_height_anomaly_cm",
     "sea_ice_concentration", "forecast_horizon_hours",
     "target_latitude",    "target_longitude",
     "data_source_type",
@@ -109,9 +111,7 @@ df["dlon_2"] = df["longitude_t_minus_1"] - df["longitude_t_minus_2"]
 df["speed_1"] = np.sqrt(df["dlat_1"] ** 2 + df["dlon_1"] ** 2)
 df["speed_2"] = np.sqrt(df["dlat_2"] ** 2 + df["dlon_2"] ** 2)
 
-# Wind decomposition (avoids direction circularity)
-df["wind_u"] = df["wind_speed_m_s"] * np.cos(np.radians(df["wind_direction_deg"]))
-df["wind_v"] = df["wind_speed_m_s"] * np.sin(np.radians(df["wind_direction_deg"]))
+
 
 # Temporal
 df["month"]   = df["timestamp"].dt.month
@@ -128,8 +128,10 @@ FEATURE_COLS = [
     "dlat_1", "dlon_1",
     "dlat_2", "dlon_2",
     "speed_1", "speed_2",
-    "wind_u", "wind_v",
-    "ocean_current_u_m_s", "ocean_current_v_m_s",
+    "wind_u_m_s", "wind_v_m_s", "wind_speed_m_s",
+    "current_u_m_s", "current_v_m_s", "current_speed_m_s",
+    "sea_surface_temperature_c", "air_temperature_c",
+    "sea_level_pressure_hpa", "sea_surface_height_anomaly_cm",
     "sea_ice_concentration",
     "forecast_horizon_hours",
     "month", "sin_doy", "cos_doy",

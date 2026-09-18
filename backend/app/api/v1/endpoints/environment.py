@@ -121,3 +121,21 @@ async def get_ocean_observations(
     return GeoJSONFeatureCollection[OceanObservationResponse](
         features=features, total=total, skip=pagination.skip, limit=pagination.limit
     )
+
+from app.schemas.environment_live import LiveEnvironmentRequest, LiveEnvironmentResponse
+from app.services.environment.live_data import fetch_live_environment_for_waypoints
+
+@router.post(
+    "/live",
+    response_model=LiveEnvironmentResponse,
+)
+async def get_live_environment(
+    request: LiveEnvironmentRequest,
+) -> Any:
+    """Fetch live external environmental data for a set of waypoints."""
+    # Ensure we don't spam for too many waypoints
+    if len(request.waypoints) > 50:
+        raise HTTPException(status_code=400, detail="Too many waypoints requested for live fetch. Max 50.")
+    
+    return await fetch_live_environment_for_waypoints(request.waypoints)
+

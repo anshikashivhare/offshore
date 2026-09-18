@@ -45,10 +45,14 @@ def predict_sea_ice_concentration(
     sea_ice_concentration: float,
     air_temperature_c: float,
     sea_surface_temperature_c: float,
-    ocean_current_u_m_s: float,
-    ocean_current_v_m_s: float,
+    sea_level_pressure_hpa: float,
     wind_speed_m_s: float,
-    wind_direction_deg: float,
+    wind_u_m_s: float,
+    wind_v_m_s: float,
+    current_speed_m_s: float,
+    current_u_m_s: float,
+    current_v_m_s: float,
+    sea_surface_height_anomaly_cm: float,
     forecast_horizon_hours: int = 24,
     timestamp: Optional[str] = None,
 ) -> dict[str, Any]:
@@ -73,24 +77,24 @@ def predict_sea_ice_concentration(
     sin_doy = float(np.sin(2 * np.pi * doy / 365.25))
     cos_doy = float(np.cos(2 * np.pi * doy / 365.25))
 
-    # Wind decomposition
-    wind_u = wind_speed_m_s * np.cos(np.radians(wind_direction_deg))
-    wind_v = wind_speed_m_s * np.sin(np.radians(wind_direction_deg))
-
     feature_vals = {
-        "latitude":                  latitude,
-        "longitude":                 longitude,
-        "sea_ice_concentration":     sea_ice_concentration,
-        "air_temperature_c":         air_temperature_c,
-        "sea_surface_temperature_c": sea_surface_temperature_c,
-        "ocean_current_u_m_s":       ocean_current_u_m_s,
-        "ocean_current_v_m_s":       ocean_current_v_m_s,
-        "forecast_horizon_hours":    forecast_horizon_hours,
-        "month":                     month,
-        "sin_doy":                   sin_doy,
-        "cos_doy":                   cos_doy,
-        "wind_u":                    wind_u,
-        "wind_v":                    wind_v,
+        "latitude":                      latitude,
+        "longitude":                     longitude,
+        "sea_ice_concentration":         sea_ice_concentration,
+        "air_temperature_c":             air_temperature_c,
+        "sea_surface_temperature_c":     sea_surface_temperature_c,
+        "sea_level_pressure_hpa":        sea_level_pressure_hpa,
+        "wind_speed_m_s":                wind_speed_m_s,
+        "wind_u_m_s":                    wind_u_m_s,
+        "wind_v_m_s":                    wind_v_m_s,
+        "current_speed_m_s":             current_speed_m_s,
+        "current_u_m_s":                 current_u_m_s,
+        "current_v_m_s":                 current_v_m_s,
+        "sea_surface_height_anomaly_cm": sea_surface_height_anomaly_cm,
+        "forecast_horizon_hours":        forecast_horizon_hours,
+        "month":                         month,
+        "sin_doy":                       sin_doy,
+        "cos_doy":                       cos_doy,
     }
 
     if not (-90 <= latitude <= -50):
@@ -162,10 +166,14 @@ if __name__ == "__main__":
         sea_ice_concentration=0.45,
         air_temperature_c=-14.0,
         sea_surface_temperature_c=-0.5,
-        ocean_current_u_m_s=0.08,
-        ocean_current_v_m_s=-0.03,
+        sea_level_pressure_hpa=1000.0,
         wind_speed_m_s=8.0,
-        wind_direction_deg=270.0,
+        wind_u_m_s=4.0,
+        wind_v_m_s=-4.0,
+        current_speed_m_s=0.1,
+        current_u_m_s=0.08,
+        current_v_m_s=-0.03,
+        sea_surface_height_anomaly_cm=0.0,
         forecast_horizon_hours=24,
     )
     print(json.dumps(

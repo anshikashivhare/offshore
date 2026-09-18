@@ -48,10 +48,16 @@ def predict_iceberg_trajectory(
     longitude_t_minus_1: float,
     latitude_t_minus_2: float,
     longitude_t_minus_2: float,
+    wind_u_m_s: float,
+    wind_v_m_s: float,
     wind_speed_m_s: float,
-    wind_direction_deg: float,
-    ocean_current_u_m_s: float,
-    ocean_current_v_m_s: float,
+    current_u_m_s: float,
+    current_v_m_s: float,
+    current_speed_m_s: float,
+    sea_surface_temperature_c: float,
+    air_temperature_c: float,
+    sea_level_pressure_hpa: float,
+    sea_surface_height_anomaly_cm: float,
     sea_ice_concentration: float,
     forecast_horizon_hours: int = 6,
     timestamp: Optional[str] = None,
@@ -85,9 +91,6 @@ def predict_iceberg_trajectory(
     speed_1 = math.sqrt(dlat_1 ** 2 + dlon_1 ** 2)
     speed_2 = math.sqrt(dlat_2 ** 2 + dlon_2 ** 2)
 
-    wind_u = wind_speed_m_s * np.cos(np.radians(wind_direction_deg))
-    wind_v = wind_speed_m_s * np.sin(np.radians(wind_direction_deg))
-
     feature_vals = {
         "latitude_t":            latitude_t,
         "longitude_t":           longitude_t,
@@ -97,10 +100,16 @@ def predict_iceberg_trajectory(
         "dlon_2":                dlon_2,
         "speed_1":               speed_1,
         "speed_2":               speed_2,
-        "wind_u":                float(wind_u),
-        "wind_v":                float(wind_v),
-        "ocean_current_u_m_s":   ocean_current_u_m_s,
-        "ocean_current_v_m_s":   ocean_current_v_m_s,
+        "wind_u_m_s":            wind_u_m_s,
+        "wind_v_m_s":            wind_v_m_s,
+        "wind_speed_m_s":        wind_speed_m_s,
+        "current_u_m_s":         current_u_m_s,
+        "current_v_m_s":         current_v_m_s,
+        "current_speed_m_s":     current_speed_m_s,
+        "sea_surface_temperature_c": sea_surface_temperature_c,
+        "air_temperature_c":     air_temperature_c,
+        "sea_level_pressure_hpa": sea_level_pressure_hpa,
+        "sea_surface_height_anomaly_cm": sea_surface_height_anomaly_cm,
         "sea_ice_concentration":  sea_ice_concentration,
         "forecast_horizon_hours": forecast_horizon_hours,
         "month":                 ts.month,
@@ -184,8 +193,10 @@ if __name__ == "__main__":
         latitude_t=-65.5,     longitude_t=61.7,
         latitude_t_minus_1=-65.54, longitude_t_minus_1=61.65,
         latitude_t_minus_2=-65.58, longitude_t_minus_2=61.61,
-        wind_speed_m_s=2.0,   wind_direction_deg=315.0,
-        ocean_current_u_m_s=0.18, ocean_current_v_m_s=0.09,
+        wind_u_m_s=1.4,       wind_v_m_s=-1.4,        wind_speed_m_s=2.0,
+        current_u_m_s=0.18,   current_v_m_s=0.09,     current_speed_m_s=0.2,
+        sea_surface_temperature_c=-1.0, air_temperature_c=-12.0,
+        sea_level_pressure_hpa=995.0, sea_surface_height_anomaly_cm=0.0,
         sea_ice_concentration=0.35, forecast_horizon_hours=6,
     )
     print(json.dumps({k: v for k, v in result.items()}, indent=2))

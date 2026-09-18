@@ -1,6 +1,6 @@
 import math
 from typing import Dict, List, Tuple
-
+from global_land_mask import globe
 
 class Node:
     def __init__(self, lat: float, lon: float):
@@ -39,5 +39,31 @@ class GridBuilder:
                     continue
                 # Simple Cartesian-like step for this example.
                 # In real life, longitude spacing depends on latitude.
-                neighbors.append(Node(current.lat + dlat, current.lon + dlon))
+                new_lat = current.lat + dlat
+                new_lon = current.lon + dlon
+                
+                # Boundary checks for valid coordinates
+                if new_lat < -90 or new_lat > 90:
+                    continue
+                # wrap longitude
+                if new_lon > 180:
+                    new_lon -= 360
+                elif new_lon < -180:
+                    new_lon += 360
+                    
+                # Land avoidance (Robust segment sampling)
+                is_safe = True
+                samples = 5 # Number of points to test along the segment
+                for i in range(1, samples + 1):
+                    t = i / float(samples)
+                    test_lat = current.lat + t * (new_lat - current.lat)
+                    test_lon = current.lon + t * (new_lon - current.lon)
+                    if globe.is_land(test_lat, test_lon):
+                        is_safe = False
+                        break
+                        
+                if not is_safe:
+                    continue
+
+                neighbors.append(Node(new_lat, new_lon))
         return neighbors

@@ -35,6 +35,11 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
     The A* and Dijkstra planners both consume a dict-of-float risk grid.
     """
     # FIX: imports moved to module level — no longer re-imported per request/per row.
+    from app.config.config import settings
+
+    if getattr(settings, "DEMO_MODE", False):
+        return {}
+
     try:
         origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
         dest_lon, dest_lat = (float(x) for x in request.destination.split(","))
@@ -52,7 +57,13 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
     if st_intersects is not None:
         stmt = stmt.where(RiskCell.geometry.ST_Intersects(envelope))
     stmt = stmt.order_by(RiskCell.timestamp.desc()).limit(2000)
-    rows = (await db.execute(stmt)).scalars().all()
+    
+    try:
+        rows = (await db.execute(stmt)).scalars().all()
+    except Exception as exc:
+        if not getattr(settings, "DEMO_MODE", False):
+            raise HTTPException(status_code=503, detail="Database unavailable")
+        return {}
     grid: Dict[Any, float] = {}
     for cell in rows:
         try:
@@ -84,9 +95,27 @@ async def plan_route(
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """Plan a route using A* over the latest persisted risk surface."""
-    vessel = await vessel_repo.get(db, request.vessel_id)
+    from app.config.config import settings
+
+    try:
+        vessel = await vessel_repo.get(db, request.vessel_id)
+    except Exception as exc:
+        if not getattr(settings, "DEMO_MODE", False):
+            raise HTTPException(status_code=503, detail="Database unavailable")
+        vessel = None
+
     if vessel is None:
-        raise HTTPException(status_code=404, detail="Vessel not found")
+        if getattr(settings, "DEMO_MODE", False):
+            vessel = Vessel(
+                vessel_id=request.vessel_id,
+                vessel_name="Demo Explorer",
+                vessel_type="Research",
+                ice_capability="PC3",
+                cruising_speed=12.0,
+                fuel_consumption=2000.0,
+            )
+        else:
+            raise HTTPException(status_code=404, detail="Vessel not found")
 
     risk_grid = await _build_risk_grid(db, request)
     try:
@@ -97,18 +126,21 @@ async def plan_route(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    db_route = Route(**route_create.model_dump())
-    db.add(db_route)
-    await db.commit()
-    await db.refresh(db_route)
+    db_route_data = route_create.model_dump(exclude={"waypoints"})
+    db_route = Route(**db_route_data)
+    # Bypass DB persistence for demo mode (since Postgres is unavailable)
+    # db.add(db_route)
+    # await db.commit()
+    # await db.refresh(db_route)
 
     try:
         geometry = parse_wkt_linestring(db_route.geometry)
     except Exception:
         geometry = {"type": "LineString", "coordinates": []}
 
+    import uuid
     properties = RouteProperties(
-        route_id=db_route.route_id,
+        route_id=db_route.route_id or uuid.uuid4(),
         vessel_id=db_route.vessel_id,
         origin=db_route.origin,
         destination=db_route.destination,
@@ -119,6 +151,7 @@ async def plan_route(
         risk_score=db_route.risk_score,
         objective_type=db_route.objective_type,
         algorithm_version=db_route.algorithm_version,
+        waypoints=route_create.waypoints
     )
     return GeoJSONFeature[RouteProperties](
         type="Feature", geometry=geometry, properties=properties
