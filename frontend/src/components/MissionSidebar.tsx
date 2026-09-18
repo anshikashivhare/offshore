@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Anchor, ChevronDown, Crosshair, Layers3, MapPin, Radio, ShipWheel, SlidersHorizontal } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  Clock,
+  Layers,
+  MapPin,
+  Settings2,
+  Shield,
+  Ship,
+} from "lucide-react";
 import type { AppLocation, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
 
 type MissionSidebarProps = {
@@ -19,26 +28,298 @@ type MissionSidebarProps = {
 };
 
 const layerRows: Array<{ key: LayerKey; label: string; color: string }> = [
-  { key: "seaIce", label: "Current sea ice", color: "#65c4b7" }, { key: "forecast", label: "Forecast · 72 h", color: "#73b9d8" }, { key: "icebergs", label: "Iceberg detections", color: "#f4b979" }, { key: "tracks", label: "Historical tracks", color: "#a4aeb8" }, { key: "trajectories", label: "Predicted trajectories", color: "#d59ce2" }, { key: "uncertainty", label: "Uncertainty envelope", color: "#c08fd0" }, { key: "risk", label: "Dynamic risk surface", color: "#ee7f69" }, { key: "routes", label: "Candidate routes", color: "#66d2c3" }, { key: "vessel", label: "Vessel position", color: "#e5f4ee" },
+  { key: "seaIce", label: "Sea-ice concentration", color: "#527C78" },
+  { key: "forecast", label: "Forecast model · 72h", color: "#6C8E91" },
+  { key: "icebergs", label: "Iceberg detections", color: "#C66B45" },
+  { key: "tracks", label: "Historical tracks", color: "#596A6D" },
+  { key: "trajectories", label: "Predicted trajectories", color: "#3B5F66" },
+  { key: "uncertainty", label: "Uncertainty boundary", color: "#8A9B9D" },
+  { key: "risk", label: "Dynamic risk surface", color: "#C66B45" },
+  { key: "routes", label: "Candidate routes", color: "#527C78" },
+  { key: "vessel", label: "Vessel position", color: "#183B43" },
 ];
 
-export default function MissionSidebar({ locations, vessels, selectedVesselId, origin, destination, priority, layers, pickMode, onVesselChange, onPriorityChange, onLocationChange, onPickMode, onToggleLayer }: MissionSidebarProps) {
-  const [openSection, setOpenSection] = useState<"mission" | "layers" | "vessel">("mission");
-  const vessel = vessels.find((item) => item.id === selectedVesselId) ?? vessels[0];
-  const toggleSection = (section: "mission" | "layers" | "vessel") => setOpenSection(openSection === section ? "mission" : section);
+export default function MissionSidebar({
+  locations,
+  vessels,
+  selectedVesselId,
+  origin,
+  destination,
+  priority,
+  layers,
+  pickMode,
+  onVesselChange,
+  onPriorityChange,
+  onLocationChange,
+  onPickMode,
+  onToggleLayer,
+}: MissionSidebarProps) {
+  const [openMissionSetup, setOpenMissionSetup] = useState(true);
+  const [openVesselProfile, setOpenVesselProfile] = useState(false);
+  const [openMapLayers, setOpenMapLayers] = useState(false);
+
+  const currentVessel = vessels.find((item) => item.id === selectedVesselId) ?? vessels[0];
+
   return (
-    <aside className="mission-sidebar">
-      <div className="sidebar-intro"><span className="eyebrow">MISSION CONFIGURATION</span><h2>Plan a passage</h2><p>Set the operating context before comparing route recommendations.</p></div>
-      <section className="side-section"><button className="section-heading" onClick={() => toggleSection("mission")}><span><Crosshair size={15} /> Mission setup</span><ChevronDown size={14} className={openSection === "mission" ? "rotated" : ""} /></button>{openSection === "mission" && <div className="section-body mission-form">
-        <label>Origin<select value={origin.label} onChange={(event) => onLocationChange("origin", event.target.value)}>{locations.map((location) => <option key={location.label}>{location.label}</option>)}</select></label><button className={`map-pick ${pickMode === "origin" ? "active" : ""}`} onClick={() => onPickMode(pickMode === "origin" ? null : "origin")}><MapPin size={13} /> Pick on map</button>
-        <label>Destination<select value={destination.label} onChange={(event) => onLocationChange("destination", event.target.value)}>{locations.map((location) => <option key={location.label}>{location.label}</option>)}</select></label><button className={`map-pick ${pickMode === "destination" ? "active" : ""}`} onClick={() => onPickMode(pickMode === "destination" ? null : "destination")}><MapPin size={13} /> Pick on map</button>
-        <div className="field-grid"><label>Departure<input type="date" defaultValue="2026-09-13" /></label><label>UTC time<input type="time" defaultValue="12:00" /></label></div>
-        <label>Navigation priority<select value={priority} onChange={(event) => onPriorityChange(event.target.value as Priority)}><option>Safety First</option><option>Balanced</option><option>Fuel Efficient</option><option>Time Efficient</option></select></label>
-        <div className="priority-note"><SlidersHorizontal size={13} /><span>{priority === "Safety First" ? "Minimizes predicted environmental risk." : priority === "Fuel Efficient" ? "Emphasizes estimated fuel consumption." : priority === "Time Efficient" ? "Emphasizes total transit time." : "Balances time, fuel and predicted risk."}</span></div>
-      </div>}</section>
-      <section className="side-section"><button className="section-heading" onClick={() => toggleSection("vessel")}><span><ShipWheel size={15} /> Vessel profile</span><ChevronDown size={14} className={openSection === "vessel" ? "rotated" : ""} /></button>{openSection === "vessel" && <div className="section-body vessel-form"><label>Selected vessel<select value={selectedVesselId} onChange={(event) => onVesselChange(event.target.value)}>{vessels.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><div className="vessel-summary"><div className="vessel-icon"><Anchor size={18} /></div><div><strong>{vessel.type}</strong><span>{vessel.iceClass}</span></div></div><div className="vessel-specs"><span><b>{vessel.cruisingSpeedKn}</b> kn<span>cruising</span></span><span><b>{vessel.fuelBurnLph.toLocaleString()}</b> L/h<span>fuel burn</span></span></div></div>}</section>
-      <section className="side-section"><button className="section-heading" onClick={() => toggleSection("layers")}><span><Layers3 size={15} /> Map layers</span><ChevronDown size={14} className={openSection === "layers" ? "rotated" : ""} /></button>{openSection === "layers" && <div className="section-body layer-list">{layerRows.map((row) => <label className="layer-row" key={row.key}><span className="layer-name"><i style={{ background: row.color }} />{row.label}</span><input type="checkbox" checked={layers[row.key]} onChange={() => onToggleLayer(row.key)} /></label>)}</div>}</section>
-      <div className="sidebar-foot"><Radio size={13} /><span>Mock data mode</span><em>API-ready</em></div>
+    <aside className="mission-config-panel" aria-label="Mission Configuration">
+      {/* Eyebrow & Main Title matching Image 2 */}
+      <div className="config-header">
+        <span className="config-eyebrow">MISSION CONFIGURATION</span>
+        <h2 className="config-title">Plan a passage</h2>
+        <p className="config-desc">
+          Set the operating context before comparing route recommendations.
+        </p>
+      </div>
+
+      <div className="config-body">
+        {/* Accordion 1: Mission setup (Expanded by default) */}
+        <section className="config-section">
+          <button
+            type="button"
+            className="section-header-btn"
+            onClick={() => setOpenMissionSetup(!openMissionSetup)}
+            aria-expanded={openMissionSetup}
+          >
+            <div className="section-header-left">
+              <Settings2 size={14} className="section-icon" />
+              <span>Mission setup</span>
+            </div>
+            <ChevronDown
+              size={14}
+              className={`chevron-icon ${openMissionSetup ? "rotated" : ""}`}
+            />
+          </button>
+
+          {openMissionSetup && (
+            <div className="section-content">
+              {/* Origin */}
+              <div className="field-group">
+                <label htmlFor="origin-select" className="field-label">
+                  Origin
+                </label>
+                <div className="select-wrapper">
+                  <select
+                    id="origin-select"
+                    className="field-select"
+                    value={origin.label}
+                    onChange={(e) => onLocationChange("origin", e.target.value)}
+                  >
+                    {locations.map((loc) => (
+                      <option key={loc.label} value={loc.label}>
+                        {loc.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pick-row">
+                  <button
+                    type="button"
+                    className={`pick-map-btn ${pickMode === "origin" ? "active" : ""}`}
+                    onClick={() => onPickMode(pickMode === "origin" ? null : "origin")}
+                  >
+                    <MapPin size={12} />
+                    <span>Pick on map</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Destination */}
+              <div className="field-group">
+                <label htmlFor="dest-select" className="field-label">
+                  Destination
+                </label>
+                <div className="select-wrapper">
+                  <select
+                    id="dest-select"
+                    className="field-select"
+                    value={destination.label}
+                    onChange={(e) => onLocationChange("destination", e.target.value)}
+                  >
+                    {locations.map((loc) => (
+                      <option key={loc.label} value={loc.label}>
+                        {loc.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pick-row">
+                  <button
+                    type="button"
+                    className={`pick-map-btn ${pickMode === "destination" ? "active" : ""}`}
+                    onClick={() => onPickMode(pickMode === "destination" ? null : "destination")}
+                  >
+                    <MapPin size={12} />
+                    <span>Pick on map</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Departure & UTC Time */}
+              <div className="split-fields-row">
+                <div className="field-group flex-1">
+                  <label htmlFor="dep-date" className="field-label">
+                    Departure
+                  </label>
+                  <div className="input-icon-box">
+                    <input
+                      id="dep-date"
+                      type="date"
+                      defaultValue="2026-09-13"
+                      className="field-input"
+                    />
+                    <Calendar size={13} className="field-input-icon" />
+                  </div>
+                </div>
+
+                <div className="field-group flex-1">
+                  <label htmlFor="dep-time" className="field-label">
+                    UTC time
+                  </label>
+                  <div className="input-icon-box">
+                    <input
+                      id="dep-time"
+                      type="time"
+                      defaultValue="12:00"
+                      className="field-input"
+                    />
+                    <Clock size={13} className="field-input-icon" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation priority */}
+              <div className="field-group">
+                <label htmlFor="priority-select" className="field-label">
+                  Navigation priority
+                </label>
+                <div className="select-wrapper">
+                  <select
+                    id="priority-select"
+                    className="field-select"
+                    value={priority}
+                    onChange={(e) => onPriorityChange(e.target.value as Priority)}
+                  >
+                    <option value="Safety First">Safety First</option>
+                    <option value="Balanced">Balanced</option>
+                    <option value="Fuel Efficient">Fuel Efficient</option>
+                    <option value="Time Efficient">Time Efficient</option>
+                  </select>
+                </div>
+
+                {/* Light green callout box matching Image 2 */}
+                <div className="priority-callout-box">
+                  <Shield size={14} className="callout-icon" />
+                  <span className="callout-text">
+                    {priority === "Safety First" && "Minimizes predicted environmental risk."}
+                    {priority === "Balanced" && "Balances transit schedule with sea ice exposure."}
+                    {priority === "Fuel Efficient" && "Emphasizes minimum fuel consumption curve."}
+                    {priority === "Time Efficient" && "Prioritizes direct navigational corridor."}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Accordion 2: Vessel profile */}
+        <section className="config-section">
+          <button
+            type="button"
+            className="section-header-btn"
+            onClick={() => setOpenVesselProfile(!openVesselProfile)}
+            aria-expanded={openVesselProfile}
+          >
+            <div className="section-header-left">
+              <Ship size={14} className="section-icon" />
+              <span>Vessel profile</span>
+            </div>
+            <ChevronDown
+              size={14}
+              className={`chevron-icon ${openVesselProfile ? "rotated" : ""}`}
+            />
+          </button>
+
+          {openVesselProfile && (
+            <div className="section-content">
+              <div className="field-group">
+                <label htmlFor="vessel-select" className="field-label">
+                  Selected Vessel
+                </label>
+                <div className="select-wrapper">
+                  <select
+                    id="vessel-select"
+                    className="field-select"
+                    value={selectedVesselId}
+                    onChange={(e) => onVesselChange(e.target.value)}
+                  >
+                    {vessels.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="vessel-specs-strip">
+                <div className="vessel-spec-cell">
+                  <span className="spec-tag">ICE CLASS</span>
+                  <span className="spec-val">{currentVessel.iceClass}</span>
+                </div>
+                <div className="vessel-spec-cell">
+                  <span className="spec-tag">CRUISING</span>
+                  <span className="spec-val">{currentVessel.cruisingSpeedKn} kn</span>
+                </div>
+                <div className="vessel-spec-cell">
+                  <span className="spec-tag">BURN RATE</span>
+                  <span className="spec-val">{currentVessel.fuelBurnLph.toLocaleString()} L/h</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Accordion 3: Map layers */}
+        <section className="config-section">
+          <button
+            type="button"
+            className="section-header-btn"
+            onClick={() => setOpenMapLayers(!openMapLayers)}
+            aria-expanded={openMapLayers}
+          >
+            <div className="section-header-left">
+              <Layers size={14} className="section-icon" />
+              <span>Map layers</span>
+            </div>
+            <ChevronDown
+              size={14}
+              className={`chevron-icon ${openMapLayers ? "rotated" : ""}`}
+            />
+          </button>
+
+          {openMapLayers && (
+            <div className="section-content">
+              <div className="layer-options-list">
+                {layerRows.map((row) => (
+                  <label key={row.key} className="layer-row-item">
+                    <span
+                      className="layer-row-swatch"
+                      style={{ backgroundColor: row.color }}
+                    />
+                    <span className="layer-row-title">{row.label}</span>
+                    <input
+                      type="checkbox"
+                      className="layer-checkbox"
+                      checked={layers[row.key]}
+                      onChange={() => onToggleLayer(row.key)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
     </aside>
   );
 }
