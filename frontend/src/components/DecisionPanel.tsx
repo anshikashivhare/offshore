@@ -1,16 +1,157 @@
-import { AlertTriangle, ArrowUpRight, Check, ChevronRight, Info, ShieldAlert, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronRight,
+  Info,
+  ShieldAlert,
+} from "lucide-react";
 import type { Alert, Route } from "@/lib/offshore-types";
 
-type DecisionPanelProps = { routes: Route[]; selectedRoute: Route; alerts: Alert[]; onSelectRoute: (id: string) => void; onFocusAlert: (alert: Alert) => void };
+type DecisionPanelProps = {
+  routes: Route[];
+  selectedRoute: Route;
+  alerts: Alert[];
+  onSelectRoute: (id: string) => void;
+  onFocusAlert: (alert: Alert) => void;
+};
 
-const toneFor = (score: number) => score < 0.3 ? "low" : score < 0.5 ? "moderate" : "high";
+export default function DecisionPanel({
+  routes,
+  selectedRoute,
+  alerts,
+  onSelectRoute,
+  onFocusAlert,
+}: DecisionPanelProps) {
+  return (
+    <aside className="route-options-panel" aria-label="Route Options and Comparison">
+      {/* Header matching Image 2 */}
+      <div className="options-panel-header">
+        <span className="options-title">ROUTE OPTIONS</span>
+        <span className="options-count">{routes.length} CANDIDATES</span>
+      </div>
 
-export default function DecisionPanel({ routes, selectedRoute, alerts, onSelectRoute, onFocusAlert }: DecisionPanelProps) {
-  return <aside className="decision-panel">
-    <section className="panel-section route-results"><div className="panel-kicker"><span>ROUTE OPTIONS</span><span className="result-count">{routes.length} candidates</span></div><div className="route-cards">{routes.map((route) => <button className={`route-card ${route.id === selectedRoute.id ? "selected" : ""}`} key={route.id} onClick={() => onSelectRoute(route.id)}><div className="route-card-top"><span className={`route-mark ${route.accent}`} /><div><strong>{route.name}</strong><small>{route.objective}</small></div>{route.id === selectedRoute.id && <Check size={15} className="route-check" />}</div><div className="route-metrics"><span><b>{route.distanceKm.toLocaleString()}</b> km</span><span><b>{route.etaHours}</b> h</span><span><b>{Math.round(route.riskScore * 100)}</b><i className={toneFor(route.riskScore)}>/100</i></span></div><div className="route-foot"><span>{route.exposure}</span><ArrowUpRight size={13} /></div></button>)}</div></section>
-    <section className="panel-section selected-route"><div className="panel-kicker"><span>SELECTED ROUTE</span><span className="live-tag"><i /> live model</span></div><div className="selected-route-header"><div><h3>{selectedRoute.name} · {selectedRoute.objective}</h3><p>{selectedRoute.status}</p></div><span className="risk-badge"><b>{Math.round(selectedRoute.riskScore * 100)}</b><small>risk score</small></span></div><div className="big-metrics"><div><strong>{selectedRoute.distanceKm.toLocaleString()}</strong><span>distance · km</span></div><div><strong>{selectedRoute.etaHours}<small>h</small></strong><span>estimated ETA</span></div><div><strong>{Math.round(selectedRoute.fuelLitres / 1000)}k</strong><span>fuel · litres</span></div></div></section>
-    <section className="panel-section explanation"><div className="panel-kicker"><span><Sparkles size={13} /> WHY THIS ROUTE?</span><span className="confidence">moderate confidence</span></div><p><b>{selectedRoute.name}</b> is recommended for the current <b>{selectedRoute.objective.toLowerCase()}</b> priority because it keeps predicted iceberg exposure below the fastest option while adding only a small transit-time trade-off.</p><ul><li><Check size={13} /> 34% lower predicted iceberg exposure</li><li><Check size={13} /> Moderate sea-ice concentration in corridor</li><li><Check size={13} /> 7 h faster than the lowest-risk option</li></ul></section>
-    <section className="panel-section alert-section"><div className="panel-kicker"><span><ShieldAlert size={13} /> ROUTE ALERTS</span><span className="alert-count">{alerts.filter((alert) => alert.severity === "high").length} high</span></div>{alerts.slice(0, 2).map((alert) => <button className={`alert-row ${alert.severity}`} key={alert.id} onClick={() => onFocusAlert(alert)}><span className="alert-icon">{alert.severity === "high" ? <AlertTriangle size={15} /> : <Info size={15} />}</span><span><strong>{alert.title}</strong><small>{alert.time} · {alert.hazardType}</small></span><ChevronRight size={14} /></button>)}</section>
-    <div className="panel-disclaimer"><AlertTriangle size={13} /><span>Decision support only. Forecasts and route metrics are estimates, not autonomous navigation instructions.</span></div>
-  </aside>;
+      {/* Candidate Route Cards matching Image 2 */}
+      <div className="route-cards-stack">
+        {routes.map((route) => {
+          const isSelected = route.id === selectedRoute.id;
+          const isRust = route.riskScore >= 0.45 || route.objective === "Fastest";
+          const isSafest = route.objective === "Safest";
+          const isFuel = route.objective === "Fuel Efficient";
+
+          let barClass = "bar-neutral";
+          if (isSelected) barClass = "bar-selected";
+          else if (isSafest) barClass = "bar-safest";
+          else if (isRust) barClass = "bar-rust";
+          else if (isFuel) barClass = "bar-fuel";
+
+          return (
+            <button
+              key={route.id}
+              type="button"
+              className={`route-item-card ${isSelected ? "is-selected" : ""} ${barClass}`}
+              onClick={() => onSelectRoute(route.id)}
+            >
+              {/* Card Top */}
+              <div className="card-top-row">
+                <div className="card-name-group">
+                  <strong className="card-route-title">{route.name}</strong>
+                  {route.objective === "Recommended" ? (
+                    <span className="badge-recommended">Recommended</span>
+                  ) : (
+                    <span className="card-route-sub">{route.objective}</span>
+                  )}
+                </div>
+                {isSelected && <Check size={16} className="selected-check-icon" strokeWidth={2.5} />}
+              </div>
+
+              {/* 3 Metric Columns in IBM Plex Mono */}
+              <div className="card-metrics-grid">
+                <div className="metric-col">
+                  <span className="metric-num">{route.distanceKm.toLocaleString()}</span>
+                  <span className="metric-dim">km</span>
+                </div>
+                <div className="metric-col">
+                  <span className="metric-num">{route.etaHours}</span>
+                  <span className="metric-dim">h</span>
+                </div>
+                <div className="metric-col">
+                  <span
+                    className={`metric-num ${
+                      isRust ? "num-rust" : isSelected ? "num-green" : "num-neutral"
+                    }`}
+                  >
+                    {Math.round(route.riskScore * 100)}
+                  </span>
+                  <span className="metric-dim">/100</span>
+                </div>
+              </div>
+
+              {/* Card Footer */}
+              <div className="card-footer-row">
+                <span className="exposure-text">{route.exposure}</span>
+                <ChevronRight size={13} className="chevron-arrow" />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Expanded Rationale & Alerts section (available on scroll) */}
+      <div className="options-secondary-section">
+        {/* Selected Route Assessment */}
+        <div className="selected-summary-box">
+          <div className="summary-kicker">
+            <span>SELECTED ROUTE RATIONALE</span>
+            <span className="badge-calc">ESTIMATE</span>
+          </div>
+          <p className="summary-desc">
+            <strong>{selectedRoute.name}</strong> keeps estimated iceberg encounters below allowable
+            risk bounds with an optimal speed curve.
+          </p>
+        </div>
+
+        {/* Hazard Alerts */}
+        <div className="alerts-sub-block">
+          <div className="alerts-kicker">
+            <span className="alerts-kicker-title">
+              <ShieldAlert size={12} /> ROUTE ALERTS
+            </span>
+            <span className="alerts-kicker-badge">
+              {alerts.filter((a) => a.severity === "high").length} HIGH
+            </span>
+          </div>
+
+          <div className="alerts-cards">
+            {alerts.slice(0, 2).map((alert) => (
+              <button
+                key={alert.id}
+                type="button"
+                className={`alert-micro-card ${alert.severity === "high" ? "alert-high" : "alert-normal"}`}
+                onClick={() => onFocusAlert(alert)}
+              >
+                <span className="alert-micro-icon">
+                  {alert.severity === "high" ? (
+                    <AlertTriangle size={13} className="icon-rust" />
+                  ) : (
+                    <Info size={13} className="icon-neutral" />
+                  )}
+                </span>
+                <div className="alert-micro-text">
+                  <strong className="alert-micro-title">{alert.title}</strong>
+                  <span className="alert-micro-meta">{alert.time} · {alert.hazardType}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="panel-disclaimer-note">
+          <p>
+            Antarctic navigation decision support. Metrics are simulated estimates, not autonomous instructions.
+          </p>
+        </div>
+      </div>
+    </aside>
+  );
 }
