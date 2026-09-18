@@ -46,9 +46,10 @@ function toLngLat(c: Coordinate): [number, number] {
   return [c.lng, c.lat];
 }
 
-// Center directly over the Antarctic passage between Peninsula and Wilkes Land
-const DEFAULT_CENTER: [number, number] = [25, -74];
-const DEFAULT_ZOOM = 2.7;
+// Fallback center/zoom used by the Reset View button.
+// Placed midway along the Rothera → Casey southern corridor.
+const DEFAULT_CENTER: [number, number] = [21, -67];
+const DEFAULT_ZOOM = 2.2;
 
 /** Custom Light Map Controls matching Image 2 top-left controls */
 function NauticalMapControls({ onReset }: { onReset: () => void }) {
@@ -107,6 +108,98 @@ function MapClickHandler({
   return null;
 }
 
+/**
+ * Hides basemap symbol layers that are unwanted in the Antarctic polar view:
+ *  - place_continent: the basemap's own continent label (duplicate of our custom ANTARCTICA marker)
+ *  - small place name layers that produce stray labels like "RGåbøya" at certain zoom levels
+ * Re-applies on every style reload so it survives theme switches and projection changes.
+ */
+const SUPPRESSED_BASEMAP_LAYERS = [
+  // Continent label — we render our own ANTARCTICA marker; hiding this removes the duplicate
+  "place_continent",
+  // Small-settlement and city layers irrelevant to the Antarctic polar view
+  "place_hamlet",
+  "place_suburbs",
+  "place_villages",
+  "place_town",
+  "place_city_r6",
+  "place_city_r5",
+  "place_city_dot_r7",
+];
+
+function MapLabelSuppressor() {
+  const { map, isLoaded } = useMap();
+
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+
+    const apply = () => {
+      SUPPRESSED_BASEMAP_LAYERS.forEach((layerId) => {
+        try {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, "visibility", "none");
+          }
+        } catch {
+          // Layer may not exist in all style variants — silently ignore
+        }
+      });
+    };
+
+    // Apply immediately (style already loaded when isLoaded becomes true)
+    apply();
+
+    // Re-apply after any future style reloads (e.g. theme switch)
+    map.on("style.load", apply);
+    return () => {
+      map.off("style.load", apply);
+    };
+  }, [map, isLoaded]);
+
+  return null;
+}
+
+/**
+ * Fires exactly once after the map is ready and fits the initial viewport
+ * to the bounding box of the supplied route coordinates (origin + destination
+ * + waypoints), with comfortable padding and a maximum-zoom cap.
+ *
+ * A ref guard prevents re-firing after the user manually interacts.
+ */
+function InitialViewFitter({
+  coords,
+}: {
+  coords: [number, number][];
+}) {
+  const { map, isLoaded } = useMap();
+  const fittedRef = useRef(false);
+
+  useEffect(() => {
+    if (!map || !isLoaded || fittedRef.current || coords.length < 2) return;
+    fittedRef.current = true;
+
+    const lngs = coords.map((c) => c[0]);
+    const lats = coords.map((c) => c[1]);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+
+    map.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      {
+        padding: { top: 80, bottom: 80, left: 60, right: 80 },
+        maxZoom: 3.5,
+        duration: 0, // instant on first load, no animation jank
+      }
+    );
+  }, [map, isLoaded, coords]);
+
+  return null;
+}
+
 export default function OffshoreMap({
   layers,
   icebergs,
@@ -142,6 +235,22 @@ export default function OffshoreMap({
       duration: 1200,
     });
   }, []);
+
+  // Coords for the initial viewport fit: origin + destination + selected route geometry.
+  // Stable reference so InitialViewFitter's effect doesn't re-run on unrelated renders.
+  const initialFitCoordsRef = useRef<[number, number][] | null>(null);
+  const initialFitCoords = useMemo(() => {
+    if (initialFitCoordsRef.current) return initialFitCoordsRef.current;
+    const selectedRoute = routes.find((r) => r.id === selectedRouteId) ?? routes[0];
+    const pts: [number, number][] = [
+      [origin.lng, origin.lat],
+      [destination.lng, destination.lat],
+      ...(selectedRoute ? selectedRoute.geometry.map(toLngLat) : []),
+    ];
+    initialFitCoordsRef.current = pts;
+    return pts;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — captures first-render values only
 
   // Convert route coordinates to [lng, lat] tuples
   const routeCoordArrays = useMemo(
@@ -207,8 +316,13 @@ export default function OffshoreMap({
         zoom={DEFAULT_ZOOM}
         projection={projection}
         className="offshore-maplibre light-polar-map"
+        attributionControl={false}
       >
         <MapClickHandler pickMode={pickMode} onPickCoordinate={onPickCoordinate} />
+        {/* Suppress unwanted basemap labels (duplicate ANTARCTICA, RGåbøya, etc.) */}
+        <MapLabelSuppressor />
+        {/* Fit the initial viewport to the route corridor on first load only */}
+        <InitialViewFitter coords={initialFitCoords} />
 
         {/* ============ POLAR GRATICULES (PARALLELS & MERIDIANS) ============ */}
         {parallels.map(({ lat, coords }) => (
@@ -383,7 +497,7 @@ export default function OffshoreMap({
               <span className="waypoint-inner-dot" />
             </div>
           </MarkerContent>
-          <MarkerLabel position="left">
+          <MarkerLabel>
             <span className="waypoint-label">Rothera</span>
           </MarkerLabel>
         </MapMarker>
@@ -395,7 +509,7 @@ export default function OffshoreMap({
               <span className="waypoint-inner-dot" />
             </div>
           </MarkerContent>
-          <MarkerLabel position="right">
+          <MarkerLabel>
             <span className="waypoint-label">Casey</span>
           </MarkerLabel>
         </MapMarker>

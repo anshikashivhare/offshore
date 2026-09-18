@@ -19,9 +19,13 @@ import type { ForecastMeta } from "@/lib/offshore-types";
 export function AppHeader({
   onMenu,
   routeLabel,
+  forecastDateTime,
 }: {
   onMenu: () => void;
   routeLabel?: string;
+  /** Computed forecast date+time string (e.g. "14 Sep 2026 · 16:00 UTC").
+   *  When provided, replaces the static timestamp in the header pill. */
+  forecastDateTime?: string;
 }) {
   return (
     <header className="app-header" aria-label="Operational Header">
@@ -57,10 +61,12 @@ export function AppHeader({
           <strong className="pill-val">{routeLabel || "Rothera → Casey"}</strong>
         </div>
 
-        {/* Pill 2: Timestamp */}
+        {/* Pill 2: Selected forecast date — updates with selectedDate + forecastHours */}
         <div className="header-pill">
           <CalendarDays size={13} className="pill-icon" />
-          <span className="pill-mono-text">13 SEP 2026 · 11:42 UTC</span>
+          <span className="pill-mono-text">
+            {forecastDateTime ?? "13 SEP 2026 · 11:42 UTC"}
+          </span>
         </div>
       </div>
 
@@ -176,6 +182,17 @@ function fmtLong(date: Date) {
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+/** Format a date as "DD Mon YYYY · HH:MM UTC" for forecast datetime display */
+export function fmtForecastDateTime(date: Date) {
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const hh = String(date.getUTCHours()).padStart(2, "0");
+  const mm = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${date.getUTCDate()} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()} · ${hh}:${mm} UTC`;
+}
+
 export function Timeline({
   forecast,
   forecastHours,
@@ -212,7 +229,12 @@ export function Timeline({
   const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (val) {
-      onDateChange(new Date(val + "T00:00:00"));
+      // Parse as UTC midnight so it round-trips correctly through
+      // toISOString().split("T")[0] → the controlled `value` on re-render.
+      // Using local midnight ("T00:00:00") would shift by the UTC offset
+      // on toISOString(), causing the controlled input to snap back and
+      // appear as if the selection was ignored.
+      onDateChange(new Date(val + "T00:00:00Z"));
     }
   };
 
@@ -258,7 +280,7 @@ export function Timeline({
         </div>
       </div>
 
-      {/* Right: Date Button */}
+      {/* Right: Date Button — displays computed forecast datetime (base date + slider hours) */}
       <button
         className="time-date-picker-btn"
         onClick={handleDateClick}
@@ -266,7 +288,7 @@ export function Timeline({
         title="Select baseline date"
       >
         <Calendar size={13} className="btn-calendar-icon" />
-        <span>{fmtLong(selectedDate)}</span>
+        <span>{fmtForecastDateTime(new Date(selectedDate.getTime() + forecastHours * 60 * 60 * 1000))}</span>
         <input
           ref={dateInputRef}
           type="date"
@@ -317,14 +339,22 @@ export function MapOverlayLegend() {
   );
 }
 
-export function ForecastBadge({ forecast }: { forecast: ForecastMeta }) {
+export function ForecastBadge({
+  forecast,
+  forecastDateTime,
+}: {
+  forecast: ForecastMeta;
+  /** Computed forecast date+time string derived from selectedDate + forecastHours.
+   *  When provided, replaces forecast.asOf for the displayed date portion. */
+  forecastDateTime?: string;
+}) {
   return (
     <div className="map-forecast-pill">
       <Satellite size={14} className="forecast-pill-icon" />
       <div className="forecast-pill-text">
         <strong className="forecast-pill-status">Forecast available</strong>
         <span className="forecast-pill-meta">
-          {forecast.asOf} · {forecast.confidence} confidence
+          {forecastDateTime ?? forecast.asOf} · {forecast.confidence} confidence
         </span>
       </div>
     </div>

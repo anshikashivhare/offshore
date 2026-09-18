@@ -19,6 +19,7 @@ import {
   KpiStrip,
   MapOverlayLegend,
   Timeline,
+  fmtForecastDateTime,
 } from "@/components/OperationsChrome";
 import {
   alerts,
@@ -174,10 +175,25 @@ export default function Home() {
     return `${o} → ${d}`;
   }, [originLabel, destinationLabel]);
 
+  /**
+   * The single computed forecast date+time string derived from the user's
+   * selected base date and the forecast-hour slider offset.
+   * This is the source of truth for all UI elements that display the
+   * currently selected forecast date: the header pill and the ForecastBadge.
+   */
+  const forecastDateTime = useMemo(
+    () => fmtForecastDateTime(new Date(selectedDate.getTime() + forecastHours * 60 * 60 * 1000)),
+    [selectedDate, forecastHours]
+  );
+
   return (
     <div className="offshore-app" onKeyDown={handleKeyDown} tabIndex={-1}>
       {/* Top Header matching Image 2 */}
-      <AppHeader onMenu={() => setMobileSidebar((value) => !value)} routeLabel={shortRouteTitle} />
+      <AppHeader
+        onMenu={() => setMobileSidebar((value) => !value)}
+        routeLabel={shortRouteTitle}
+        forecastDateTime={forecastDateTime}
+      />
 
       <div className="workspace">
         {/* Light Mission Configuration Panel (~270px) matching Image 2 */}
@@ -214,7 +230,7 @@ export default function Home() {
             </div>
 
             <div className="map-header-actions">
-              <ForecastBadge forecast={forecastMeta} />
+              <ForecastBadge forecast={forecastMeta} forecastDateTime={forecastDateTime} />
 
               {/* Map / Globe toggle matching Image 2 */}
               <div className="map-globe-toggle">
