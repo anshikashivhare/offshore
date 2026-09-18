@@ -107,71 +107,6 @@ function MapClickHandler({
   return null;
 }
 
-/**
- * Filter out unwanted / duplicate vector tile text layers from the basemap,
- * such as stray hamlet/island points (e.g. RGåbøya), country/continent duplicates,
- * and ocean text colliding with the navigation corridor.
- */
-function MapCleanLabels() {
-  const { map } = useMap();
-
-  useEffect(() => {
-    if (!map) return;
-
-    const hideUnwanted = () => {
-      const unwantedLayers = [
-        "place_hamlet",
-        "place_suburbs",
-        "place_villages",
-        "place_town",
-        "place_country_2",
-        "place_country_1",
-        "place_state",
-        "place_continent",
-        "place_city_r6",
-        "place_city_r5",
-        "place_city_dot_r7",
-        "place_city_dot_r4",
-        "place_city_dot_r2",
-        "place_city_dot_z7",
-        "place_capital_dot_z7",
-        "poi_stadium",
-        "poi_park",
-        "roadname_minor",
-        "roadname_sec",
-        "roadname_pri",
-        "roadname_major",
-        "housenumber",
-        "watername_ocean",
-        "waterway_label",
-      ];
-
-      for (const id of unwantedLayers) {
-        if (map.getLayer(id)) {
-          try {
-            map.setLayoutProperty(id, "visibility", "none");
-          } catch {
-            /* ignore if layer already updating */
-          }
-        }
-      }
-    };
-
-    if (map.isStyleLoaded()) {
-      hideUnwanted();
-    }
-    map.on("style.load", hideUnwanted);
-    map.on("styledata", hideUnwanted);
-
-    return () => {
-      map.off("style.load", hideUnwanted);
-      map.off("styledata", hideUnwanted);
-    };
-  }, [map]);
-
-  return null;
-}
-
 export default function OffshoreMap({
   layers,
   icebergs,
@@ -273,7 +208,6 @@ export default function OffshoreMap({
         projection={projection}
         className="offshore-maplibre light-polar-map"
       >
-        <MapCleanLabels />
         <MapClickHandler pickMode={pickMode} onPickCoordinate={onPickCoordinate} />
 
         {/* ============ POLAR GRATICULES (PARALLELS & MERIDIANS) ============ */}
@@ -480,6 +414,11 @@ export default function OffshoreMap({
         <MapMarker longitude={-175} latitude={-75}>
           <MarkerContent>
             <span className="geo-label-sea">ROSS SEA</span>
+          </MarkerContent>
+        </MapMarker>
+        <MapMarker longitude={85} latitude={-55}>
+          <MarkerContent>
+            <span className="geo-label-ocean">INDIAN<br />OCEAN</span>
           </MarkerContent>
         </MapMarker>
 

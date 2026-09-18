@@ -1680,3 +1680,250 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     min-height: 380px;
   }
 }
+
+/* =========================================================================
+   LANDING PAGE STYLING (RESTORED ORIGINAL DESIGN)
+   ========================================================================= */
+.landing-page {
+  min-height: 100vh;
+  background: #08141b;
+  background-image:
+    radial-gradient(circle at 54% 10%, rgba(47, 112, 116, 0.12), transparent 38%),
+    linear-gradient(180deg, #0b1820 0%, #08141b 60%);
+  display: flex;
+  flex-direction: column;
+  color: #dce8e4;
+  font-family: "DM Sans", "IBM Plex Sans", -apple-system, sans-serif;
+}
+
+.landing-header {
+  height: 68px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(177, 210, 207, 0.12);
+  background: rgba(8, 20, 27, 0.92);
+}
+
+.landing-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 203px;
+}
+
+.landing-header .brand > div:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.landing-header .brand strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.17em;
+  color: #effaf6;
+  font-weight: 700;
+}
+
+.landing-header .brand small {
+  color: #6e898b;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 8px;
+}
+
+.landing-header .brand-mark {
+  width: 27px;
+  height: 27px;
+  border: 1px solid rgba(112, 210, 193, 0.7);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 2px;
+  padding-bottom: 6px;
+  transform: rotate(-13deg);
+}
+
+.landing-header .brand-mark span {
+  width: 3px;
+  border-radius: 3px;
+  background: #70d2c1;
+}
+
+.landing-header .brand-mark span:nth-child(1) {
+  height: 7px;
+  opacity: 0.45;
+}
+
+.landing-header .brand-mark span:nth-child(2) {
+  height: 12px;
+}
+
+.landing-header .brand-mark span:nth-child(3) {
+  height: 9px;
+  opacity: 0.7;
+}
+
+.landing-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px 48px;
+  gap: 20px;
+}
+
+.landing-eyebrow {
+  color: #6d9998;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+}
+
+.landing-hero h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: #eff7f3;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.landing-hero p {
+  max-width: 460px;
+  color: #789092;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.landing-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px 32px;
+  background: #70d2c1;
+  color: #08141b;
+  border: none;
+  border-radius: 5px;
+  font-family: "DM Sans", "IBM Plex Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.landing-cta:hover {
+  background: #8ee0d2;
+  transform: translateY(-1px);
+}
+
+.landing-cta:active {
+  transform: translateY(0);
+}
+
+.landing-capabilities {
+  padding: 48px 32px 56px;
+  text-align: center;
+  border-top: 1px solid rgba(177, 210, 207, 0.12);
+}
+
+.landing-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  max-width: 960px;
+  margin: 28px auto 0;
+}
+
+.landing-card {
+  padding: 24px 18px;
+  background: rgba(12, 30, 38, 0.82);
+  border: 1px solid rgba(177, 210, 207, 0.12);
+  border-radius: 6px;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.landing-card:hover {
+  border-color: rgba(177, 210, 207, 0.22);
+  background: rgba(16, 38, 46, 0.9);
+}
+
+.landing-card-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: #70d2c1;
+  border: 1px solid rgba(112, 210, 193, 0.2);
+  background: rgba(112, 210, 193, 0.08);
+  margin-bottom: 14px;
+}
+
+.landing-card h3 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e2eee9;
+  margin: 0 0 8px;
+}
+
+.landing-card p {
+  color: #789092;
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.landing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 24px;
+  border-top: 1px solid rgba(177, 210, 207, 0.12);
+  color: #5e7a7c;
+  font-size: 11px;
+}
+
+/* Landing page responsive */
+@media (max-width: 900px) {
+  .landing-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .landing-hero h1 {
+    font-size: 34px;
+  }
+}
+
+@media (max-width: 620px) {
+  .landing-header {
+    height: 60px;
+    padding: 0 16px;
+  }
+  .landing-hero {
+    padding: 56px 18px 36px;
+  }
+  .landing-hero h1 {
+    font-size: 26px;
+  }
+  .landing-hero p {
+    font-size: 12px;
+  }
+  .landing-cards {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+  .landing-capabilities {
+    padding: 36px 18px 44px;
+  }
+}
+
