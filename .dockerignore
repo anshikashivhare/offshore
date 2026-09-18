@@ -43,15 +43,16 @@ frontend/.next/
 frontend/.vite/
 package-lock.json
 
-# === ML artifacts & large data ===
-notebooks/
-ml/
-mlops/
-data/
-models/*.pt
-models/*.pth
-*.joblib
-ai_context.txt
+# === ML source — allow Python + JSON model artifacts needed at runtime ===
+# Blanket exclusion of ml/ has been removed — backend imports ml.inference.*
+# Exclude only what would bloat the image:
+ml/**/__pycache__/
+ml/**/*.py[cod]
+ml/models/weights/*.pt
+ml/models/weights/*.pth
+ml/models/weights/*.joblib
+ml/tests/
+
 
 # === Logs & run artifacts ===
 *.log

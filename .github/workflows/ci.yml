@@ -33,6 +33,9 @@ jobs:
         run: |
           python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=.venv,frontend/node_modules,frontend/.next
 
+      - name: Test Backend
+        run: python -m pytest backend/tests
+
       - name: Test route optimizer
         run: python -m ml.inference.route_optimizer
 
@@ -94,11 +97,8 @@ jobs:
       - name: Install NPM dependencies
         run: npm ci
 
-      - name: Lint Next.js Frontend
-        run: npm run lint
-
       - name: Typecheck Frontend
-        run: npm run typecheck
+        run: npm run check
 
-      - name: Build Next.js Frontend
+      - name: Build Vite Frontend
         run: npm run build

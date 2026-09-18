@@ -42,8 +42,6 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 
 # Copy only the application source.
 COPY app ./app
-COPY alembic.ini ./alembic.ini
-COPY migrations ./migrations
 COPY scripts ./scripts
 
 # Create a non-root user and grant ownership of the app directory.

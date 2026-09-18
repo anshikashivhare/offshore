@@ -16,7 +16,7 @@ OFFSHORE is an AI-powered decision support platform designed to help vessels nav
 ### Tech Stack
 - **Frontend:** Next.js + TypeScript + TailwindCSS
 - **Backend:** Python + FastAPI
-- **Database:** PostgreSQL + PostGIS + Alembic
+- **Database:** PostgreSQL + PostGIS
 - **ML:** PyTorch + XGBoost + scikit-learn
 - **Task Queue:** Celery + Redis
 - **Infrastructure:** Docker + Docker Compose
@@ -52,13 +52,13 @@ offshore/
 │   │   ├── trajectory_model/       # Iceberg trajectory (XGBoost + LSTM)
 │   │   └── route_optimizer/        # A* grid route optimizer
 │   │
-│   ├── migrations/                 # Alembic DB migrations
+
 │   └── tests/                      # Test suite
 │
 ├── DOCUMENTATION.md                # Single consolidated project doc
 ├── docker-compose.yml              # Production Docker config
 ├── Dockerfile
-└── alembic.ini
+
 ```
 
 ## Quick Start

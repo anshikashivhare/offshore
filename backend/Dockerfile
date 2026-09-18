@@ -1,5 +1,8 @@
 FROM python:3.11-slim AS builder
 
+LABEL org.opencontainers.image.title="SIH-2026 PS-26059 Backend" \
+      org.opencontainers.image.description="Antarctic Sea-Ice & Iceberg Navigation API"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -27,7 +30,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Runtime dependencies only. libpq is required for psycopg2/asyncpg.
+# Runtime system dependencies only (libpq for asyncpg, curl for healthcheck).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
@@ -40,13 +43,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
     && rm -rf /wheels
 
-# Copy only the application source.
+# Copy application source.
+COPY app ./app
 COPY gunicorn_config.py ./gunicorn_config.py
-COPY alembic.ini ./alembic.ini
-COPY migrations ./migrations
 COPY scripts ./scripts
 
-# Create a non-root user and grant ownership of the app directory.
+# Copy the ML inference modules so backend can import ml.inference.*
+# Model weights (.json) are excluded from .dockerignore and baked in.
+COPY ../ml ./ml
+
+# Non-root user for security.
 RUN groupadd --system appgroup \
     && useradd --system --gid appgroup --create-home --home-dir /home/appuser appuser \
     && chown -R appuser:appgroup /app \
