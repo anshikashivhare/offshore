@@ -53,7 +53,7 @@ export default function Home() {
   const [activeAlertId, setActiveAlertId] = useState(alerts[0].id);
   const [viewMode, setViewMode] = useState<"map" | "globe">("map");
   const [forecastHours, setForecastHours] = useState(16);
-  const [selectedDate, setSelectedDate] = useState(new Date("2026-09-13"));
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
@@ -61,6 +61,15 @@ export default function Home() {
   const [liveLocations, setLiveLocations] = useState(locations);
   const [liveEnvironment, setLiveEnvironment] = useState<any>(null);
   const [liveEnvError, setLiveEnvError] = useState<string | null>(null);
+  const [routeValidationError, setRouteValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (origin.lat === destination.lat && origin.lng === destination.lng) {
+      setRouteValidationError("Origin and destination cannot be the same.");
+    } else {
+      setRouteValidationError(null);
+    }
+  }, [origin, destination]);
 
   useEffect(() => {
     fetchPorts()
@@ -68,7 +77,8 @@ export default function Home() {
         if (data && data.data && data.data.length > 0) {
           const ports = data.data.map((p: any) => ({
             label: `${p.name}, ${p.country}`,
-            coordinate: { lat: p.lat, lng: p.lon }
+            coordinate: { lat: p.lat, lng: p.lon },
+            country: p.country
           }));
           // Merge static + live, filtering out dupes by label could be done, but a concat is fine for now
           setLiveLocations([...locations, ...ports]);
@@ -105,6 +115,8 @@ export default function Home() {
   const routes = liveRoutes;
 
   const handleCalculateRoute = useCallback(async () => {
+    if (routeValidationError) return;
+    
     setIsCalculating(true);
     setLiveEnvError(null);
     try {
@@ -151,7 +163,7 @@ export default function Home() {
     } finally {
       setIsCalculating(false);
     }
-  }, [selectedVesselId, origin, destination, selectedDate, forecastHours, priority]);
+  }, [selectedVesselId, origin, destination, selectedDate, forecastHours, priority, routeValidationError]);
 
   const selectedRoute = useMemo(
     () => routes.find((route) => route.id === selectedRouteId) ?? routes[0],
@@ -274,7 +286,7 @@ export default function Home() {
             }
             isCalculating={isCalculating}
             onCalculateRoute={handleCalculateRoute}
-            routeError={liveEnvError}
+            routeError={routeValidationError || liveEnvError}
           />
         </div>
 
@@ -391,13 +403,15 @@ export default function Home() {
       <footer className="bottom-status-bar" aria-label="Operational status bar">
         <div className="status-bar-left">
           <div className="status-indicator-group">
-            <span className={`live-status-dot ${liveEnvError ? "error" : "success"}`} style={{ backgroundColor: liveEnvError ? "#ef4444" : "#10b981" }} />
+            <span className={`live-status-dot ${routeValidationError || liveEnvError ? "error" : "success"}`} style={{ backgroundColor: routeValidationError || liveEnvError ? "#ef4444" : "#10b981" }} />
             <span>
-              {liveEnvError 
-                ? `STALE DATA: ${liveEnvError}` 
-                : (liveEnvironment 
-                    ? `Live Retrieval: Success (Forecast: ${liveEnvironment.waypoints[0]?.weather_status?.latest_forecast_time || "N/A"})` 
-                    : "Connecting live stream...")}
+              {routeValidationError
+                ? `VALIDATION ERROR: ${routeValidationError}`
+                : (liveEnvError 
+                    ? `STALE DATA: ${liveEnvError}` 
+                    : (liveEnvironment 
+                        ? `Live Retrieval: Success (Forecast: ${liveEnvironment.waypoints[0]?.weather_status?.latest_forecast_time || "N/A"})` 
+                        : "Connecting live stream..."))}
             </span>
           </div>
           <span className="status-v-divider">|</span>
