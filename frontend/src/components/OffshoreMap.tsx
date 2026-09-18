@@ -513,21 +513,34 @@ export default function OffshoreMap({
         </MapMarker>
 
         {/* ============ ALL AVAILABLE PORTS (except origin/dest) ============ */}
-        {locations.map((loc) => {
-          if (loc.label === originLabel || loc.label === destinationLabel) return null;
-          return (
-            <MapMarker key={loc.label} longitude={loc.coordinate.lng} latitude={loc.coordinate.lat}>
-              <MarkerContent>
-                <div className="waypoint-pin" style={{ background: "#8A9B9D" }}>
-                  <span className="waypoint-inner-dot" />
-                </div>
-              </MarkerContent>
-              <MarkerLabel>
-                <span className="waypoint-label">{loc.label.split(",")[0]}</span>
-              </MarkerLabel>
-            </MapMarker>
-          );
-        })}
+        <MapGeoJSON
+          id="global-ports-layer"
+          data={{
+            type: "FeatureCollection",
+            features: locations
+              .filter((loc) => loc.label !== originLabel && loc.label !== destinationLabel)
+              .map((loc) => ({
+                type: "Feature",
+                geometry: {
+                  type: "Point",
+                  coordinates: [loc.coordinate.lng, loc.coordinate.lat],
+                },
+                properties: {
+                  label: loc.label.split(",")[0],
+                },
+              })),
+          }}
+          pointStyle={{
+            type: "circle",
+            paint: {
+              "circle-color": "#8A9B9D",
+              "circle-radius": 3.5,
+              "circle-stroke-width": 1,
+              "circle-stroke-color": "#FFFFFF",
+            },
+          }}
+          interactive={false}
+        />
 
         {/* ============ GEOGRAPHIC LABELS (ANTARCTICA, WEDDELL SEA, ROSS SEA) ============ */}
         <MapMarker longitude={0} latitude={-82}>

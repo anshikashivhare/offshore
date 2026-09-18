@@ -13,10 +13,10 @@ import type {
 } from "./offshore-types";
 
 export const locations: AppLocation[] = [
-  { label: "Cape Town Research Port", coordinate: { lat: -33.92, lng: 18.42 } },
-  { label: "McMurdo Station", coordinate: { lat: -77.84, lng: 166.67 } },
-  { label: "Rothera Research Station", coordinate: { lat: -67.57, lng: -68.13 } },
-  { label: "Casey Station", coordinate: { lat: -66.28, lng: 110.53 } },
+  { label: "Cape Town Research Port", coordinate: { lat: -33.92, lng: 18.42 }, country: "South Africa" },
+  { label: "McMurdo Station", coordinate: { lat: -77.84, lng: 166.67 }, country: "Antarctica" },
+  { label: "Rothera Research Station", coordinate: { lat: -67.57, lng: -68.13 }, country: "Antarctica" },
+  { label: "Casey Station", coordinate: { lat: -66.28, lng: 110.53 }, country: "Antarctica" },
 ];
 
 export const vessels: Vessel[] = [

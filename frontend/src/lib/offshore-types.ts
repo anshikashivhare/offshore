@@ -95,4 +95,5 @@ export type RiskCell = {
 export type AppLocation = {
   label: string;
   coordinate: Coordinate;
+  country?: string;
 };

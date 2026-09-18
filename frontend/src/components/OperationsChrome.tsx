@@ -215,6 +215,13 @@ export function Timeline({
     return d;
   });
 
+  const now = new Date();
+  const isToday = (d: Date) => {
+    return d.getUTCFullYear() === now.getUTCFullYear() &&
+           d.getUTCMonth() === now.getUTCMonth() &&
+           d.getUTCDate() === now.getUTCDate();
+  };
+
   const fillPercent = Math.min(100, Math.max(0, (forecastHours / forecast.horizonHours) * 100));
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,11 +279,14 @@ export function Timeline({
 
         {/* Tick labels matching Image 2 */}
         <div className="time-ticks-row">
-          {tickDates.map((d, i) => (
-            <span key={i} className={`time-tick-label ${i === 1 ? "is-now" : ""}`}>
-              {i === 1 ? `${fmtShort(d)} - NOW` : fmtShort(d)}
-            </span>
-          ))}
+          {tickDates.map((d, i) => {
+            const nowMatch = isToday(d);
+            return (
+              <span key={i} className={`time-tick-label ${nowMatch ? "is-now" : ""}`}>
+                {nowMatch ? `${fmtShort(d)} · NOW` : fmtShort(d)}
+              </span>
+            );
+          })}
         </div>
       </div>
 

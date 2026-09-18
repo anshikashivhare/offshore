@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Calendar,
   ChevronDown,
@@ -10,6 +10,117 @@ import {
   Ship,
 } from "lucide-react";
 import type { AppLocation, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
+
+function SearchablePortSelect({
+  id,
+  value,
+  locations,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  locations: AppLocation[];
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!searchTerm) return locations;
+    const lower = searchTerm.toLowerCase();
+    return locations.filter((l) => l.label.toLowerCase().includes(lower));
+  }, [locations, searchTerm]);
+
+  const displayValue = useMemo(() => {
+    const loc = locations.find((l) => l.label === value);
+    if (!loc) return value;
+    return loc.country === "Antarctica" ? `${loc.label} {Antarctica}` : loc.label;
+  }, [value, locations]);
+
+  return (
+    <div className="select-wrapper searchable-select-container" ref={containerRef} style={{ position: "relative" }}>
+      <div
+        id={id}
+        className="field-select"
+        style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {displayValue}
+        </span>
+        <ChevronDown size={14} style={{ opacity: 0.5 }} />
+      </div>
+
+      {isOpen && (
+        <div
+          className="searchable-dropdown-menu"
+          style={{
+            position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50,
+            backgroundColor: "#F3F1EA", border: "1px solid #DCE5E5", borderRadius: "6px",
+            marginTop: "4px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            display: "flex", flexDirection: "column", maxHeight: "250px",
+          }}
+        >
+          <div style={{ padding: "8px", borderBottom: "1px solid #DCE5E5" }}>
+            <input
+              type="text"
+              placeholder="Search ports..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+              style={{
+                width: "100%", padding: "6px 8px", fontSize: "13px",
+                border: "1px solid #DCE5E5", borderRadius: "4px",
+                backgroundColor: "#FFFFFF", color: "#183B43",
+              }}
+            />
+          </div>
+          <div style={{ overflowY: "auto", padding: "4px 0" }}>
+            {filtered.slice(0, 100).map((loc) => {
+              const display = loc.country === "Antarctica" ? `${loc.label} {Antarctica}` : loc.label;
+              return (
+                <div
+                  key={loc.label}
+                  onClick={() => {
+                    onChange(loc.label);
+                    setIsOpen(false);
+                    setSearchTerm("");
+                  }}
+                  style={{
+                    padding: "6px 12px", fontSize: "13px", cursor: "pointer",
+                    backgroundColor: loc.label === value ? "#DCE5E5" : "transparent",
+                    color: "#183B43"
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#DCE5E5")}
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = loc.label === value ? "#DCE5E5" : "transparent")
+                  }
+                >
+                  {display}
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: "8px 12px", fontSize: "13px", color: "#8A9B9D" }}>No ports found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type MissionSidebarProps = {
   locations: AppLocation[];
@@ -103,20 +214,12 @@ export default function MissionSidebar({
                 <label htmlFor="origin-select" className="field-label">
                   Origin
                 </label>
-                <div className="select-wrapper">
-                  <select
-                    id="origin-select"
-                    className="field-select"
-                    value={origin.label}
-                    onChange={(e) => onLocationChange("origin", e.target.value)}
-                  >
-                    {locations.map((loc) => (
-                      <option key={loc.label} value={loc.label}>
-                        {loc.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchablePortSelect
+                  id="origin-select"
+                  value={origin.label}
+                  locations={locations}
+                  onChange={(val) => onLocationChange("origin", val)}
+                />
                 <div className="pick-row">
                   <button
                     type="button"
@@ -134,20 +237,12 @@ export default function MissionSidebar({
                 <label htmlFor="dest-select" className="field-label">
                   Destination
                 </label>
-                <div className="select-wrapper">
-                  <select
-                    id="dest-select"
-                    className="field-select"
-                    value={destination.label}
-                    onChange={(e) => onLocationChange("destination", e.target.value)}
-                  >
-                    {locations.map((loc) => (
-                      <option key={loc.label} value={loc.label}>
-                        {loc.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchablePortSelect
+                  id="dest-select"
+                  value={destination.label}
+                  locations={locations}
+                  onChange={(val) => onLocationChange("destination", val)}
+                />
                 <div className="pick-row">
                   <button
                     type="button"
