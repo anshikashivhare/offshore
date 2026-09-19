@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo } from "react";
+import React, { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { Compass, Minus, Plus, RotateCcw } from "lucide-react";
 import * as MapLibreGL from "maplibre-gl";
 import {
@@ -51,6 +51,13 @@ function toLngLat(c: Coordinate): [number, number] {
   return [c.lng, c.lat];
 }
 
+/** Format coordinates into scientific notation */
+function formatCoordinate(lat: number, lng: number): string {
+  const latStr = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}`;
+  const lngStr = `${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? "E" : "W"}`;
+  return `${latStr} · ${lngStr}`;
+}
+
 // Fallback center/zoom used by the Reset View button.
 // Placed midway along the Rothera → Casey southern corridor.
 const DEFAULT_CENTER: [number, number] = [21, -67];
@@ -84,31 +91,54 @@ function NauticalMapControls({ onReset }: { onReset: () => void }) {
   );
 }
 
-/** Click handler component that registers map click for pick mode */
-function MapClickHandler({
+/** Interaction handler component that registers map click for pick mode and pointer coordinates */
+function MapInteractionsHandler({
   pickMode,
   onPickCoordinate,
+  onPointerMove,
+  onPointerClick,
 }: {
   pickMode: "origin" | "destination" | null;
   onPickCoordinate: (coordinate: Coordinate) => void;
+  onPointerMove: (coordinate: Coordinate | null) => void;
+  onPointerClick: (coordinate: Coordinate) => void;
 }) {
   const { map } = useMap();
 
   useEffect(() => {
-    if (!map || !pickMode) return;
+    if (!map) return;
 
-    const handler = (e: MapLibreGL.MapMouseEvent) => {
-      onPickCoordinate({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    const clickHandler = (e: MapLibreGL.MapMouseEvent) => {
+      if (pickMode) {
+        onPickCoordinate({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      } else {
+        onPointerClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      }
     };
 
-    map.on("click", handler);
-    map.getCanvas().style.cursor = "crosshair";
+    const moveHandler = (e: MapLibreGL.MapMouseEvent) => {
+      onPointerMove({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    };
+
+    const leaveHandler = () => {
+      onPointerMove(null);
+    };
+
+    map.on("click", clickHandler);
+    map.on("mousemove", moveHandler);
+    map.on("mouseout", leaveHandler);
+    
+    if (pickMode) {
+      map.getCanvas().style.cursor = "crosshair";
+    }
 
     return () => {
-      map.off("click", handler);
+      map.off("click", clickHandler);
+      map.off("mousemove", moveHandler);
+      map.off("mouseout", leaveHandler);
       map.getCanvas().style.cursor = "";
     };
-  }, [map, pickMode, onPickCoordinate]);
+  }, [map, pickMode, onPickCoordinate, onPointerMove, onPointerClick]);
 
   return null;
 }
@@ -344,9 +374,13 @@ export default function OffshoreMap({
     [trajectories]
   );
 
-  // Polar Graticules (Latitude Parallels: 50°S, 60°S, 70°S, 80°S)
+  // Global Parallels (Latitude: -80 to 80, every 10 or 20 degrees)
   const parallels = useMemo(() => {
-    const lats = [-50, -60, -70, -80];
+    const lats = [];
+    for (let lat = -80; lat <= 80; lat += 20) {
+      if (lat !== 0) lats.push(lat); // Skip equator if desired, or keep it. Let's keep it.
+    }
+    lats.push(0);
     return lats.map((lat) => {
       const coords: [number, number][] = [];
       for (let lng = -180; lng <= 180; lng += 10) {
@@ -356,16 +390,26 @@ export default function OffshoreMap({
     });
   }, []);
 
-  // Polar Meridians (Longitude: -30, 0, 30, 60, 90, 120)
+  // Global Meridians (Longitude: -180 to 180, every 30 degrees)
   const meridians = useMemo(() => {
-    const lngs = [-30, 0, 30, 60, 90, 120];
+    const lngs = [];
+    for (let lng = -180; lng < 180; lng += 30) {
+      lngs.push(lng);
+    }
     return lngs.map((lng) => {
       const coords: [number, number][] = [
-        [lng, -45],
         [lng, -88],
+        [lng, 88],
       ];
       return { lng, coords };
     });
+  }, []);
+
+  const [pointerCoord, setPointerCoord] = useState<Coordinate | null>(null);
+  const [clickedCoord, setClickedCoord] = useState<Coordinate | null>(null);
+
+  const handlePointerClick = useCallback((coord: Coordinate) => {
+    setClickedCoord(coord);
   }, []);
 
   return (
@@ -380,7 +424,12 @@ export default function OffshoreMap({
         className="offshore-maplibre light-polar-map"
         attributionControl={false}
       >
-        <MapClickHandler pickMode={pickMode} onPickCoordinate={onPickCoordinate} />
+        <MapInteractionsHandler 
+          pickMode={pickMode} 
+          onPickCoordinate={onPickCoordinate} 
+          onPointerMove={setPointerCoord}
+          onPointerClick={handlePointerClick}
+        />
         {/* Suppress unwanted basemap labels (duplicate ANTARCTICA, RGåbøya, etc.) */}
         <MapLabelSuppressor />
         {/* Fits the viewport to the route corridor whenever origin/dest/route changes */}
@@ -388,28 +437,48 @@ export default function OffshoreMap({
 
         {/* ============ POLAR GRATICULES (PARALLELS & MERIDIANS) ============ */}
         {parallels.map(({ lat, coords }) => (
-          <MapRoute
-            key={`parallel-${lat}`}
-            id={`graticule-parallel-${lat}`}
-            coordinates={coords}
-            color="#A8C2CA"
-            width={0.8}
-            opacity={0.5}
-            dashArray={[3, 4]}
-            interactive={false}
-          />
+          <React.Fragment key={`parallel-group-${lat}`}>
+            <MapRoute
+              key={`parallel-${lat}`}
+              id={`graticule-parallel-${lat}`}
+              coordinates={coords}
+              color="#A8C2CA"
+              width={0.8}
+              opacity={0.5}
+              dashArray={[3, 4]}
+              interactive={false}
+            />
+            {/* Label at longitude 0 */}
+            <MapMarker longitude={0} latitude={lat}>
+              <MarkerContent>
+                <div style={{ color: "#7A8F92", fontSize: "10px", fontFamily: "var(--font-mono)", padding: "2px", fontWeight: 600, transform: "translateY(-10px)", pointerEvents: "none" }}>
+                  {Math.abs(lat)}° S
+                </div>
+              </MarkerContent>
+            </MapMarker>
+          </React.Fragment>
         ))}
         {meridians.map(({ lng, coords }) => (
-          <MapRoute
-            key={`meridian-${lng}`}
-            id={`graticule-meridian-${lng}`}
-            coordinates={coords}
-            color="#A8C2CA"
-            width={0.8}
-            opacity={0.4}
-            dashArray={[3, 4]}
-            interactive={false}
-          />
+          <React.Fragment key={`meridian-group-${lng}`}>
+            <MapRoute
+              key={`meridian-${lng}`}
+              id={`graticule-meridian-${lng}`}
+              coordinates={coords}
+              color="#A8C2CA"
+              width={0.8}
+              opacity={0.4}
+              dashArray={[3, 4]}
+              interactive={false}
+            />
+            {/* Label at latitude -45 (outer edge) */}
+            <MapMarker longitude={lng} latitude={-45}>
+              <MarkerContent>
+                <div style={{ color: "#7A8F92", fontSize: "10px", fontFamily: "var(--font-mono)", padding: "2px", fontWeight: 600, pointerEvents: "none" }}>
+                  {Math.abs(lng)}° {lng >= 0 ? "E" : "W"}
+                </div>
+              </MarkerContent>
+            </MapMarker>
+          </React.Fragment>
         ))}
 
         {/* ============ CANDIDATE & SELECTED ROUTES (RULE 5 & 6) ============ */}
@@ -555,24 +624,30 @@ export default function OffshoreMap({
         {/* ============ ORIGIN MARKER (ROTHERA IN IMAGE 2) ============ */}
         <MapMarker longitude={origin.lng} latitude={origin.lat}>
           <MarkerContent>
-            <div className="waypoint-pin origin-pin">
-              <span className="waypoint-inner-dot" />
+            <div className="waypoint-pin origin-pin" title="Origin">
+              O
             </div>
           </MarkerContent>
           <MarkerLabel>
-            <span className="waypoint-label">{originLabel.split(",")[0]}</span>
+            <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <span>{originLabel.split(",")[0]}</span>
+              <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(origin.lat, origin.lng)}</span>
+            </div>
           </MarkerLabel>
         </MapMarker>
 
         {/* ============ DESTINATION MARKER (CASEY IN IMAGE 2) ============ */}
         <MapMarker longitude={destination.lng} latitude={destination.lat}>
           <MarkerContent>
-            <div className="waypoint-pin destination-pin">
-              <span className="waypoint-inner-dot" />
+            <div className="waypoint-pin destination-pin" title="Destination">
+              D
             </div>
           </MarkerContent>
           <MarkerLabel>
-            <span className="waypoint-label">{destinationLabel.split(",")[0]}</span>
+            <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <span>{destinationLabel.split(",")[0]}</span>
+              <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(destination.lat, destination.lng)}</span>
+            </div>
           </MarkerLabel>
         </MapMarker>
 
@@ -618,6 +693,42 @@ export default function OffshoreMap({
         </div>
         <div className="scale-line" />
       </div>
+
+      {/* Live Coordinate Readout (Bottom-Left, above scale bar) */}
+      {(pointerCoord || clickedCoord) && (
+        <div style={{
+          position: "absolute",
+          bottom: "48px",
+          left: "16px",
+          background: "var(--deep-fjord, #1e293b)",
+          color: "#f8fafc",
+          padding: "8px 12px",
+          borderRadius: "6px",
+          fontSize: "12px",
+          fontFamily: "var(--font-mono)",
+          fontWeight: 600,
+          boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          zIndex: 10,
+          pointerEvents: "none",
+          display: "flex",
+          flexDirection: "column",
+          gap: "4px"
+        }}>
+          {pointerCoord && (
+            <div>
+              <span style={{ opacity: 0.7, marginRight: "8px", fontSize: "10px" }}>CURSOR</span>
+              {formatCoordinate(pointerCoord.lat, pointerCoord.lng)}
+            </div>
+          )}
+          {clickedCoord && (
+            <div style={{ borderTop: pointerCoord ? "1px solid rgba(255,255,255,0.1)" : "none", paddingTop: pointerCoord ? "4px" : "0" }}>
+              <span style={{ opacity: 0.7, marginRight: "8px", fontSize: "10px" }}>PINNED</span>
+              {formatCoordinate(clickedCoord.lat, clickedCoord.lng)}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

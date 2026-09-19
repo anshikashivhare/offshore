@@ -931,12 +931,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .waypoint-pin {
-  width: 12px;
-  height: 12px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
 }
 
 .waypoint-pin.origin-pin {
@@ -950,10 +953,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .waypoint-inner-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #ffffff;
+  display: none;
 }
 
 .waypoint-label {

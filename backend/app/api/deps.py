@@ -33,7 +33,7 @@ class PaginationParams:
         self,
         skip: int = Query(0, ge=0, description="Skip the first N records"),
         limit: int = Query(
-            100, ge=1, le=1000, description="Limit the number of records returned"
+            100, ge=1, le=6000, description="Limit the number of records returned"
         ),
     ):
         self.skip = skip

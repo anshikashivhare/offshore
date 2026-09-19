@@ -76,7 +76,7 @@ class AStarRoutePlanner(RoutePlanner):
         env_conditions_at: Dict[Node, dict] = {start_node: {}}
 
         iterations = 0
-        max_iterations = 20000
+        max_iterations = 200000
 
         while open_set:
             iterations += 1
@@ -85,9 +85,9 @@ class AStarRoutePlanner(RoutePlanner):
 
             _, _, current, current_time = heapq.heappop(open_set)
 
-            if (current == goal_node or current.distance_to(goal_node) < self.grid_builder.resolution):
+            if (current == goal_node or current.distance_to(goal_node) < self.grid_builder.resolution * 60 * 1.5):
                 return self._reconstruct_route(
-                    came_from, current, start_node, vessel, request, risk_grid, arrival_times, env_conditions_at
+                    came_from, current, start_node, goal_node, vessel, request, risk_grid, arrival_times, env_conditions_at
                 )
 
             neighbors = self.grid_builder.get_neighbors(current)
@@ -116,7 +116,7 @@ class AStarRoutePlanner(RoutePlanner):
                 if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
                     came_from[neighbor] = current
                     g_score[neighbor] = tentative_g_score
-                    f_score[neighbor] = tentative_g_score + self._heuristic(neighbor, goal_node) * weights.beta
+                    f_score[neighbor] = tentative_g_score + self._heuristic(neighbor, goal_node) * weights.beta * 5.0
                     
                     # Exact time propagation based on the exact effective speed
                     sog = scorer.get_effective_speed(current, neighbor, vessel, env)
@@ -134,6 +134,7 @@ class AStarRoutePlanner(RoutePlanner):
         came_from: Dict[Node, Node],
         current: Node,
         start_node: Node,
+        goal_node: Node,
         vessel: Vessel,
         request: RouteRequest,
         risk_grid: Any,
@@ -145,6 +146,17 @@ class AStarRoutePlanner(RoutePlanner):
             current = came_from[current]
             path.append(current)
         path.reverse()
+        
+        # Ensure the final point matches the exact destination coordinate
+        if path[-1] != goal_node:
+            path.append(goal_node)
+            # Estimate arrival time for the final segment
+            dist_to_goal = path[-2].distance_to(goal_node)
+            sog = vessel.cruising_speed if vessel.cruising_speed > 0 else 12.0
+            arrival_times[goal_node] = arrival_times[path[-2]] + timedelta(hours=dist_to_goal / sog)
+            env_conditions_at[goal_node] = env_conditions_at.get(path[-2], {})
+        
+        # Ensure the first point matches the exact origin coordinate (already done implicitly if start_node was exact)
         
         # Calculate final metrics
         total_distance = 0.0
@@ -162,7 +174,19 @@ class AStarRoutePlanner(RoutePlanner):
         from app.services.routing.modes import get_data_provenance
         from app.schemas.route import WaypointDetail
         
-        coords_str = ", ".join([f"{n.lon} {n.lat}" for n in path])
+        # Geometry construction (connect exact origin and destination)
+        origin_str = request.origin.replace(",", " ")
+        dest_str = request.destination.replace(",", " ")
+        
+        # Build coordinates list, swapping first and last nodes with exact endpoints
+        coords_list = [f"{n.lon} {n.lat}" for n in path]
+        if len(coords_list) > 1:
+            coords_list[0] = origin_str
+            coords_list[-1] = dest_str
+        else:
+            coords_list = [origin_str, dest_str]
+            
+        coords_str = ", ".join(coords_list)
         geometry = f"LINESTRING({coords_str})"
         
         waypoints_detail = []

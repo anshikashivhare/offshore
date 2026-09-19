@@ -12,7 +12,13 @@ import {
 import DecisionPanel from "@/components/DecisionPanel";
 import MissionSidebar from "@/components/MissionSidebar";
 import OffshoreMap from "@/components/OffshoreMap";
-import { fetchIcebergs, fetchRoutes, fetchPorts, fetchLiveRouteEnvironment, planRoute } from "@/lib/api";
+import {
+  fetchIcebergs,
+  fetchLiveRouteEnvironment,
+  fetchGlobalPorts,
+  fetchRoutes,
+  planRoute,
+} from "@/lib/api";
 import {
   AppHeader,
   ForecastBadge,
@@ -34,7 +40,7 @@ import {
   uncertainty,
   vessels,
 } from "@/lib/offshore-mock-data";
-import type { Coordinate, LayerKey, Priority } from "@/lib/offshore-types";
+import type { AppLocation, Coordinate, LayerKey, Priority } from "@/lib/offshore-types";
 
 // Mock geometry generation removed in favor of actual backend calculation
 
@@ -58,21 +64,47 @@ export default function Home() {
 
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
   const [liveRoutes, setLiveRoutes] = useState(staticRoutes);
-  const [liveLocations, setLiveLocations] = useState(locations);
+  const [liveLocations, setLiveLocations] = useState<AppLocation[]>([]);
   const [liveEnvironment, setLiveEnvironment] = useState<any>(null);
   const [liveEnvError, setLiveEnvError] = useState<string | null>(null);
   const [routeValidationError, setRouteValidationError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (origin.lat === destination.lat && origin.lng === destination.lng) {
-      setRouteValidationError("Origin and destination cannot be the same.");
-    } else {
-      setRouteValidationError(null);
-    }
+    // Dynamically generate 4 mock routes bridging the exact origin and destination
+    let wrapDx = destination.lng - origin.lng;
+    if (wrapDx > 180) wrapDx -= 360;
+    if (wrapDx < -180) wrapDx += 360;
+    const dy = destination.lat - origin.lat;
+    
+    const generateCurve = (offsetFactor: number) => {
+      const points = [];
+      const steps = 10;
+      const length = Math.sqrt(wrapDx * wrapDx + dy * dy) || 1;
+      const perpX = -dy / length;
+      const perpY = wrapDx / length;
+      
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const lng = origin.lng + wrapDx * t;
+        const lat = origin.lat + dy * t;
+        const curve = offsetFactor * (1 - Math.pow(2 * t - 1, 2));
+        points.push({ lat: lat + perpY * curve, lng: lng + perpX * curve });
+      }
+      return points;
+    };
+
+    const newRoutes: typeof staticRoutes = [
+      { id: "route-a", name: "Route A", objective: "Recommended", geometry: generateCurve(0), distanceKm: 2840, etaHours: 118, fuelLitres: 101480, riskScore: 0.31, exposure: "Low iceberg exposure", status: "Recommended for current priority", accent: "teal" },
+      { id: "route-b", name: "Route B", objective: "Safest", geometry: generateCurve(5), distanceKm: 2995, etaHours: 126, fuelLitres: 108360, riskScore: 0.22, exposure: "Lowest predicted risk", status: "Lower risk · +8 h transit", accent: "blue" },
+      { id: "route-c", name: "Route C", objective: "Fastest", geometry: generateCurve(-5), distanceKm: 2668, etaHours: 109, fuelLitres: 103120, riskScore: 0.49, exposure: "Moderate iceberg exposure", status: "Fastest · higher exposure", accent: "amber" },
+      { id: "route-d", name: "Route D", objective: "Fuel Efficient", geometry: generateCurve(2.5), distanceKm: 2784, etaHours: 116, fuelLitres: 97840, riskScore: 0.38, exposure: "Moderate sea-ice exposure", status: "Lowest estimated fuel", accent: "violet" },
+    ];
+    setLiveRoutes(newRoutes);
+    setRouteValidationError(null);
   }, [origin, destination]);
 
   useEffect(() => {
-    fetchPorts()
+    fetchGlobalPorts()
       .then((data) => {
         if (data && data.data && data.data.length > 0) {
           const ports = data.data.map((p: any) => ({
@@ -80,11 +112,12 @@ export default function Home() {
             coordinate: { lat: p.lat, lng: p.lon },
             country: p.country
           }));
-          // Merge static + live, filtering out dupes by label could be done, but a concat is fine for now
-          setLiveLocations([...locations, ...ports]);
+          // MapLibre is highly performant with thousands of points, so we can load them all
+          setLiveLocations(ports);
         }
       })
-      .catch((err) => console.error("Failed to fetch live ports:", err));
+      .catch((err) => console.error("Failed to fetch all ports:", err));
+
     fetchIcebergs()
       .then((data) => {
         if (data && data.features && data.features.length > 0) {
@@ -166,8 +199,8 @@ export default function Home() {
   }, [selectedVesselId, origin, destination, selectedDate, forecastHours, priority, routeValidationError]);
 
   const selectedRoute = useMemo(
-    () => routes.find((route) => route.id === selectedRouteId) ?? routes[0],
-    [selectedRouteId, routes]
+    () => liveRoutes.find((route) => route.id === selectedRouteId) ?? liveRoutes[0],
+    [selectedRouteId, liveRoutes]
   );
 
   useEffect(() => {
@@ -189,15 +222,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [selectedRoute, selectedDate, forecastHours]);
 
-  const handleLocationChange = (kind: "origin" | "destination", label: string) => {
-    const location = liveLocations.find((item) => item.label === label);
-    if (!location) return;
+  const handleLocationChange = (kind: "origin" | "destination", loc: AppLocation) => {
     if (kind === "origin") {
-      setOrigin(location.coordinate);
-      setOriginLabel(label);
+      setOrigin(loc.coordinate);
+      setOriginLabel(loc.label);
     } else {
-      setDestination(location.coordinate);
-      setDestinationLabel(label);
+      setDestination(loc.coordinate);
+      setDestinationLabel(loc.label);
     }
   };
 
