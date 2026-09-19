@@ -21,7 +21,7 @@ export const locations: AppLocation[] = [
 
 export const vessels: Vessel[] = [
   {
-    id: "aurora",
+    id: "3a92b8d0-5e8a-4c28-8d4e-1b7f2c69d4a1",
     name: "RV Aurora Australis",
     type: "Research icebreaker",
     cruisingSpeedKn: 12,
@@ -30,7 +30,7 @@ export const vessels: Vessel[] = [
     operationalLimit: "Wind < 45 kn · visibility > 1 nm",
   },
   {
-    id: "endurance",
+    id: "893c5286-9a2f-4e08-9df2-51a84f3ab6ba",
     name: "RV Endurance",
     type: "Polar research vessel",
     cruisingSpeedKn: 14,
@@ -76,10 +76,10 @@ export const riskCells: RiskCell[] = [
 ];
 
 const routeGeometry = {
-  recommended: [{ lat: -67.57, lng: -68.13 }, { lat: -67.0, lng: -49 }, { lat: -66.0, lng: -22 }, { lat: -64.6, lng: 4 }, { lat: -63.5, lng: 32 }, { lat: -62.4, lng: 54 }],
-  safest: [{ lat: -67.57, lng: -68.13 }, { lat: -68.3, lng: -48 }, { lat: -68.1, lng: -24 }, { lat: -67.1, lng: 2 }, { lat: -65.8, lng: 28 }, { lat: -64.8, lng: 54 }],
-  fastest: [{ lat: -67.57, lng: -68.13 }, { lat: -65.8, lng: -39 }, { lat: -64.3, lng: -10 }, { lat: -63.8, lng: 20 }, { lat: -62.4, lng: 54 }],
-  fuel: [{ lat: -67.57, lng: -68.13 }, { lat: -67.4, lng: -48 }, { lat: -66.7, lng: -18 }, { lat: -65.3, lng: 12 }, { lat: -63.7, lng: 38 }, { lat: -62.4, lng: 54 }],
+  recommended: [{ lat: -67.57, lng: -68.13 }, { lat: -67.0, lng: -49 }, { lat: -66.0, lng: -22 }, { lat: -64.6, lng: 4 }, { lat: -63.5, lng: 32 }, { lat: -62.4, lng: 54 }, { lat: -66.3, lng: 110.5 }],
+  safest: [{ lat: -67.57, lng: -68.13 }, { lat: -68.3, lng: -48 }, { lat: -68.1, lng: -24 }, { lat: -67.1, lng: 2 }, { lat: -65.8, lng: 28 }, { lat: -64.8, lng: 54 }, { lat: -66.3, lng: 110.5 }],
+  fastest: [{ lat: -67.57, lng: -68.13 }, { lat: -65.8, lng: -39 }, { lat: -64.3, lng: -10 }, { lat: -63.8, lng: 20 }, { lat: -62.4, lng: 54 }, { lat: -66.3, lng: 110.5 }],
+  fuel: [{ lat: -67.57, lng: -68.13 }, { lat: -67.4, lng: -48 }, { lat: -66.7, lng: -18 }, { lat: -65.3, lng: 12 }, { lat: -63.7, lng: 38 }, { lat: -62.4, lng: 54 }, { lat: -66.3, lng: 110.5 }],
 };
 
 export const routes: Route[] = [

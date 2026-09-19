@@ -15,30 +15,21 @@ export async function fetchIcebergs() {
 }
 
 // Add more API wrappers here as needed
-export async function fetchPorts() {
-  const allPorts = [];
-  let skip = 0;
-  const limit = 1000;
-  let hasMore = true;
+export async function fetchGlobalPorts() {
+  const res = await fetch(`/api/v1/ports/?limit=6000`);
+  if (!res.ok) throw new Error("Failed to fetch all ports");
+  return res.json();
+}
 
-  while (hasMore) {
-    const response = await fetch(`/api/v1/ports/?skip=${skip}&limit=${limit}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ports: ${response.status}`);
-    }
-    const data = await response.json();
-    if (data && data.data && data.data.length > 0) {
-      allPorts.push(...data.data);
-      skip += limit;
-      if (data.data.length < limit) {
-        hasMore = false;
-      }
-    } else {
-      hasMore = false;
-    }
+export async function searchPorts(query: string = "", skip = 0, limit = 50) {
+  const url = query
+    ? `/api/v1/ports/search?q=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`
+    : `/api/v1/ports/?skip=${skip}&limit=${limit}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ports: ${response.status}`);
   }
-
-  return { data: allPorts, total: allPorts.length };
+  return response.json();
 }
 
 export async function fetchLiveRouteEnvironment(waypoints: { lat: number, lon: number, eta?: string }[]) {

@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Query, Depends
+from typing import List
 from pydantic import BaseModel
 from app.api.dependencies.cache import cache_response, clear_cache_for_prefix
 
@@ -46,9 +47,20 @@ except Exception as exc:
 
 
 @router.get("/", response_model=Pagination[Port])
-def get_ports(pagination: deps.PaginationParams = Depends()):
-    """Return a paginated list of all global ports."""
-    return Pagination.from_list(PORTS_DATA, pagination.skip, pagination.limit)
+def get_ports(
+    pagination: deps.PaginationParams = Depends(),
+    bbox: deps.BBoxParams = Depends()
+):
+    """Return a paginated list of ports, optionally filtered by bounding box."""
+    results = PORTS_DATA
+    bbox_tuple = bbox.as_tuple()
+    if bbox_tuple:
+        min_lat, min_lon, max_lat, max_lon = bbox_tuple
+        results = [
+            p for p in results
+            if min_lat <= p["lat"] <= max_lat and min_lon <= p["lon"] <= max_lon
+        ]
+    return Pagination.from_list(results, pagination.skip, pagination.limit)
 
 
 @router.get("/search", response_model=Pagination[Port])

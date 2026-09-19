@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Calendar,
   ChevronDown,
@@ -10,6 +10,7 @@ import {
   Ship,
 } from "lucide-react";
 import type { AppLocation, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
+import { searchPorts } from "@/lib/api";
 
 function SearchablePortSelect({
   id,
@@ -20,11 +21,14 @@ function SearchablePortSelect({
   id: string;
   value: string;
   locations: AppLocation[];
-  onChange: (value: string) => void;
+  onChange: (loc: AppLocation) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<AppLocation[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -36,11 +40,44 @@ function SearchablePortSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!searchTerm) return locations;
-    const lower = searchTerm.toLowerCase();
-    return locations.filter((l) => l.label.toLowerCase().includes(lower));
-  }, [locations, searchTerm]);
+  // Debounced backend search
+  const doSearch = useCallback((term: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!term.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await searchPorts(term, 0, 100);
+        if (data && data.data) {
+          setSearchResults(
+            data.data.map((p: any) => ({
+              label: `${p.name}, ${p.country}`,
+              coordinate: { lat: p.lat, lng: p.lon },
+              country: p.country,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Port search failed:", err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+  }, []);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value;
+    setSearchTerm(term);
+    doSearch(term);
+  };
+
+  // Show backend results when searching, otherwise show local locations
+  const displayList = searchTerm.trim() ? searchResults : locations;
 
   const displayValue = useMemo(() => {
     const loc = locations.find((l) => l.label === value);
@@ -75,9 +112,9 @@ function SearchablePortSelect({
           <div style={{ padding: "8px", borderBottom: "1px solid #DCE5E5" }}>
             <input
               type="text"
-              placeholder="Search ports..."
+              placeholder="Search all 5,400+ ports..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               onClick={(e) => e.stopPropagation()}
               autoFocus
               style={{
@@ -88,15 +125,19 @@ function SearchablePortSelect({
             />
           </div>
           <div style={{ overflowY: "auto", padding: "4px 0" }}>
-            {filtered.slice(0, 100).map((loc) => {
+            {isSearching && (
+              <div style={{ padding: "8px 12px", fontSize: "13px", color: "#8A9B9D" }}>Searching...</div>
+            )}
+            {!isSearching && displayList.slice(0, 100).map((loc) => {
               const display = loc.country === "Antarctica" ? `${loc.label} {Antarctica}` : loc.label;
               return (
                 <div
                   key={loc.label}
                   onClick={() => {
-                    onChange(loc.label);
+                    onChange(loc);
                     setIsOpen(false);
                     setSearchTerm("");
+                    setSearchResults([]);
                   }}
                   style={{
                     padding: "6px 12px", fontSize: "13px", cursor: "pointer",
@@ -112,7 +153,7 @@ function SearchablePortSelect({
                 </div>
               );
             })}
-            {filtered.length === 0 && (
+            {!isSearching && displayList.length === 0 && searchTerm.trim() && (
               <div style={{ padding: "8px 12px", fontSize: "13px", color: "#8A9B9D" }}>No ports found</div>
             )}
           </div>
@@ -133,7 +174,7 @@ type MissionSidebarProps = {
   pickMode: "origin" | "destination" | null;
   onVesselChange: (id: string) => void;
   onPriorityChange: (priority: Priority) => void;
-  onLocationChange: (kind: "origin" | "destination", label: string) => void;
+  onLocationChange: (kind: "origin" | "destination", loc: AppLocation) => void;
   onPickMode: (mode: "origin" | "destination" | null) => void;
   onToggleLayer: (key: LayerKey) => void;
   isCalculating?: boolean;
@@ -218,7 +259,7 @@ export default function MissionSidebar({
                   id="origin-select"
                   value={origin.label}
                   locations={locations}
-                  onChange={(val) => onLocationChange("origin", val)}
+                  onChange={(loc) => onLocationChange("origin", loc)}
                 />
                 <div className="pick-row">
                   <button
@@ -241,7 +282,7 @@ export default function MissionSidebar({
                   id="dest-select"
                   value={destination.label}
                   locations={locations}
-                  onChange={(val) => onLocationChange("destination", val)}
+                  onChange={(loc) => onLocationChange("destination", loc)}
                 />
                 <div className="pick-row">
                   <button
