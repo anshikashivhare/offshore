@@ -1,7 +1,7 @@
 MODEL BENCHMARK REPORT
 ======================
 
-Timestamp: 2026-09-16T21:34:51.683324
+Timestamp: 2026-09-24T05:20:19.308493
 
 --------------------------------
 TRAJECTORY PREDICTION
@@ -30,45 +30,45 @@ Model: persistence
 
 Model: xgboost
   Overall Metrics:
-    mae: 0.00326
-    rmse: 0.00414
-    mean_position_error_km: 0.40115
-    median_position_error_km: 0.37731
-    p95_position_error_km: 0.78413
+    mae: 0.00330
+    rmse: 0.00411
+    mean_position_error_km: 0.43072
+    median_position_error_km: 0.38690
+    p95_position_error_km: 0.88548
   Hard Cases:
     strong_wind:
-      mae: 0.00334
-      rmse: 0.00437
-      mean_position_error_km: 0.42724
-      median_position_error_km: 0.39635
-      p95_position_error_km: 0.78295
+      mae: 0.00300
+      rmse: 0.00381
+      mean_position_error_km: 0.41318
+      median_position_error_km: 0.39112
+      p95_position_error_km: 0.88819
     strong_current:
-      mae: 0.00381
-      rmse: 0.00477
-      mean_position_error_km: 0.45205
-      median_position_error_km: 0.47545
-      p95_position_error_km: 0.81623
+      mae: 0.00376
+      rmse: 0.00463
+      mean_position_error_km: 0.50194
+      median_position_error_km: 0.48161
+      p95_position_error_km: 0.91984
 
 Model: lstm
   Overall Metrics:
-    mae: 0.00535
-    rmse: 0.00659
-    mean_position_error_km: 0.58218
-    median_position_error_km: 0.53087
-    p95_position_error_km: 1.08479
+    mae: 0.00534
+    rmse: 0.00652
+    mean_position_error_km: 0.57970
+    median_position_error_km: 0.56505
+    p95_position_error_km: 1.06019
   Hard Cases:
     strong_wind:
-      mae: 0.00531
-      rmse: 0.00623
-      mean_position_error_km: 0.55211
-      median_position_error_km: 0.44580
-      p95_position_error_km: 0.89904
+      mae: 0.00546
+      rmse: 0.00635
+      mean_position_error_km: 0.57354
+      median_position_error_km: 0.53215
+      p95_position_error_km: 0.95449
     strong_current:
-      mae: 0.00622
-      rmse: 0.00722
-      mean_position_error_km: 0.71003
-      median_position_error_km: 0.73491
-      p95_position_error_km: 1.15843
+      mae: 0.00618
+      rmse: 0.00724
+      mean_position_error_km: 0.69386
+      median_position_error_km: 0.65194
+      p95_position_error_km: 1.06145
 
 --------------------------------
 SEA_ICE PREDICTION
@@ -85,19 +85,19 @@ Model: persistence
 
 Model: xgboost
   Overall Metrics:
-    mae: 0.02302
-    rmse: 0.03346
+    mae: 0.03066
+    rmse: 0.04180
   Hard Cases:
     low_concentration:
-      mae: 0.04453
-      rmse: 0.05333
+      mae: 0.05894
+      rmse: 0.06613
 
 Model: convlstm
   Overall Metrics:
-    mae: 0.24012
-    rmse: 0.24694
+    mae: 0.29031
+    rmse: 0.29651
   Hard Cases:
     low_concentration:
-      mae: 0.29963
-      rmse: 0.30105
+      mae: 0.35269
+      rmse: 0.35408
 

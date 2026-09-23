@@ -65,7 +65,7 @@ Execute in order:
 - Renders layers in `OffshoreMap` using MapLibre with a Polar projection.
 
 ## Part 11 — Evaluation and benchmarks
-- `ml/benchmarks/run_benchmark.py` covers ML evaluations.
+- `scripts/ml_benchmark.py` covers ML evaluations.
 - Baseline persistence models are used for sea-ice and trajectory benchmarking.
 - We do not use a single "Accuracy Percentage" because these are continuous regression problems (distance/concentration errors).
 

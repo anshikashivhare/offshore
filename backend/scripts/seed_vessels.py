@@ -28,20 +28,26 @@ async def seed_vessels():
         vessels_data = json.load(f)
 
     async with AsyncSessionLocal() as session:
+        import uuid
         for v_data in vessels_data:
+            v_id_obj = uuid.UUID(v_data["vessel_id"])
             # Check if exists
             result = await session.execute(
-                select(Vessel).filter_by(vessel_id=v_data["vessel_id"])
+                select(Vessel).filter_by(vessel_id=v_id_obj)
             )
             existing = result.scalar_one_or_none()
 
             if existing:
                 print(f"Updating vessel: {v_data['vessel_name']}")
                 for key, value in v_data.items():
+                    if key == "vessel_id":
+                        continue
                     setattr(existing, key, value)
             else:
                 print(f"Inserting vessel: {v_data['vessel_name']}")
-                new_vessel = Vessel(**v_data)
+                v_data_copy = dict(v_data)
+                v_data_copy["vessel_id"] = v_id_obj
+                new_vessel = Vessel(**v_data_copy)
                 session.add(new_vessel)
         
         await session.commit()

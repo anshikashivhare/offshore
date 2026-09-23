@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-16T21:34:51.683324",
+  "timestamp": "2026-09-24T05:20:19.308493",
   "results": {
     "trajectory": {
       "persistence": {
@@ -27,48 +27,48 @@
       },
       "xgboost": {
         "overall": {
-          "mae": 0.0032591236449075515,
-          "rmse": 0.0041421082697337686,
-          "mean_position_error_km": 0.4011529976259291,
-          "median_position_error_km": 0.37731232686630456,
-          "p95_position_error_km": 0.7841326383169368
+          "mae": 0.0032987069658470063,
+          "rmse": 0.004112070649326693,
+          "mean_position_error_km": 0.4307166939132088,
+          "median_position_error_km": 0.38690231581289336,
+          "p95_position_error_km": 0.8854790419945808
         },
         "strong_wind": {
-          "mae": 0.00334016724941646,
-          "rmse": 0.004365407273204082,
-          "mean_position_error_km": 0.4272400113266096,
-          "median_position_error_km": 0.3963525546878887,
-          "p95_position_error_km": 0.7829480566492282
+          "mae": 0.00300106467677739,
+          "rmse": 0.003810825569089493,
+          "mean_position_error_km": 0.4131770403563972,
+          "median_position_error_km": 0.39111587598919695,
+          "p95_position_error_km": 0.8881946609622435
         },
         "strong_current": {
-          "mae": 0.0038091351387865677,
-          "rmse": 0.004773653932363326,
-          "mean_position_error_km": 0.4520496561009428,
-          "median_position_error_km": 0.4754516741713118,
-          "p95_position_error_km": 0.8162324835841802
+          "mae": 0.003762805864540333,
+          "rmse": 0.004629263527545754,
+          "mean_position_error_km": 0.5019359036435033,
+          "median_position_error_km": 0.4816051591913863,
+          "p95_position_error_km": 0.9198424054150816
         }
       },
       "lstm": {
         "overall": {
-          "mae": 0.005350817157907122,
-          "rmse": 0.00658510438877147,
-          "mean_position_error_km": 0.5821807660172426,
-          "median_position_error_km": 0.5308652422665346,
-          "p95_position_error_km": 1.084787537360619
+          "mae": 0.0053380948528891125,
+          "rmse": 0.006524521987694608,
+          "mean_position_error_km": 0.5796980031549149,
+          "median_position_error_km": 0.5650505715955025,
+          "p95_position_error_km": 1.060191087270376
         },
         "strong_wind": {
-          "mae": 0.005313608706839006,
-          "rmse": 0.006233507754399675,
-          "mean_position_error_km": 0.5521050098261996,
-          "median_position_error_km": 0.44580308754672193,
-          "p95_position_error_km": 0.899040946487251
+          "mae": 0.005462992659751809,
+          "rmse": 0.006354937098426804,
+          "mean_position_error_km": 0.5735406255239439,
+          "median_position_error_km": 0.5321504708785609,
+          "p95_position_error_km": 0.9544895146083041
         },
         "strong_current": {
-          "mae": 0.006220684037409577,
-          "rmse": 0.007216974281997985,
-          "mean_position_error_km": 0.7100264238709151,
-          "median_position_error_km": 0.7349061127754564,
-          "p95_position_error_km": 1.158431987848834
+          "mae": 0.006181270462304892,
+          "rmse": 0.007235658712433081,
+          "mean_position_error_km": 0.6938620202206268,
+          "median_position_error_km": 0.6519377366375196,
+          "p95_position_error_km": 1.061453012805528
         }
       }
     },
@@ -85,22 +85,22 @@
       },
       "xgboost": {
         "overall": {
-          "mae": 0.023019814643980466,
-          "rmse": 0.03346114349837578
+          "mae": 0.03065611924893282,
+          "rmse": 0.04179917383805485
         },
         "low_concentration": {
-          "mae": 0.044526981538453546,
-          "rmse": 0.05332724450651423
+          "mae": 0.05893716886468824,
+          "rmse": 0.06612993851553065
         }
       },
       "convlstm": {
         "overall": {
-          "mae": 0.24012483725634587,
-          "rmse": 0.24694195814333508
+          "mae": 0.2903078261177783,
+          "rmse": 0.29651193439124857
         },
         "low_concentration": {
-          "mae": 0.29962974787668034,
-          "rmse": 0.3010522610215931
+          "mae": 0.35269158593251165,
+          "rmse": 0.35408227682242344
         }
       }
     }

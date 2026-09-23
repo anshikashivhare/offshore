@@ -20,7 +20,6 @@ tests/
 .pytest_cache/
 .coverage
 htmlcov/
-test_output.log
 
 # === Version control ===
 .git/
@@ -56,11 +55,6 @@ ml/tests/
 
 # === Logs & run artifacts ===
 *.log
-run_all.log
-run_all.sh
-run_tests.sh
-run_benchmark.py
-update_task.py
 
 # === Docs ===
 docs/
