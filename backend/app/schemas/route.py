@@ -28,8 +28,10 @@ class RouteProperties(BaseModel):
     risk_score: float
     objective_type: ObjectiveType
     algorithm_version: Optional[str] = None
+    risk_data_status: Optional[str] = "unknown"
+    ml_prediction_status: Optional[str] = "unavailable"
+    warnings: Optional[List[str]] = []
     waypoints: Optional[List[WaypointDetail]] = None
-    
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -57,6 +59,8 @@ class OptimizationWeights(BaseModel):
     gamma: float = 0.34  # Risk
 
 
+from app.schemas.vessel import VesselCreate
+
 class RouteRequest(BaseModel):
     origin: str  # e.g. "lon,lat"
     destination: str
@@ -64,6 +68,7 @@ class RouteRequest(BaseModel):
     departure_time: datetime
     objective_type: ObjectiveType = ObjectiveType.SAFEST
     weights: Optional[OptimizationWeights] = None
+    custom_vessel_config: Optional[VesselCreate] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -91,8 +96,10 @@ class RouteCreate(BaseModel):
     risk_score: float
     objective_type: ObjectiveType
     algorithm_version: Optional[str] = None
+    risk_data_status: Optional[str] = "unknown"
+    ml_prediction_status: Optional[str] = "unavailable"
+    warnings: Optional[List[str]] = []
     waypoints: Optional[List[WaypointDetail]] = None
-
 
 class RouteBase(RouteCreate):
     pass

@@ -10,13 +10,18 @@ class VesselConstraintChecker:
         Check if a given node is navigable by the vessel based on its constraints.
         For example, a high risk cell may be blocked for vessels without sufficient ice_capability.
         """
-        if isinstance(risk_grid, dict):
+        if isinstance(risk_grid, dict) and risk_grid:
             key = (round(node.lat, 1), round(node.lon, 1))
-            risk_entry = risk_grid.get(key, 0.0)
+            if key not in risk_grid:
+                return True
+            risk_entry = risk_grid.get(key)
             if isinstance(risk_entry, dict):
-                risk_val = max(risk_entry.values()) if risk_entry else 0.0
+                risk_val = max(risk_entry.values()) if risk_entry else None
             else:
-                risk_val = float(risk_entry)
+                risk_val = float(risk_entry) if risk_entry is not None else None
+
+            if risk_val is None:
+                return True
 
             # Simple thresholding logic:
             # If composite risk is > 0.75, it's considered AVOID for all unless highly capable.

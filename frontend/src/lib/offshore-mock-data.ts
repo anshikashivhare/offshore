@@ -19,26 +19,8 @@ export const locations: AppLocation[] = [
   { label: "Casey Station", coordinate: { lat: -66.28, lng: 110.53 }, country: "Antarctica" },
 ];
 
-export const vessels: Vessel[] = [
-  {
-    id: "3a92b8d0-5e8a-4c28-8d4e-1b7f2c69d4a1",
-    name: "RV Aurora Australis",
-    type: "Research icebreaker",
-    cruisingSpeedKn: 12,
-    fuelBurnLph: 860,
-    iceClass: "PC4 / 1.2 m first-year ice",
-    operationalLimit: "Wind < 45 kn · visibility > 1 nm",
-  },
-  {
-    id: "893c5286-9a2f-4e08-9df2-51a84f3ab6ba",
-    name: "RV Endurance",
-    type: "Polar research vessel",
-    cruisingSpeedKn: 14,
-    fuelBurnLph: 940,
-    iceClass: "PC3 / 1.5 m first-year ice",
-    operationalLimit: "Wind < 50 kn · visibility > 0.8 nm",
-  },
-];
+// Vessels have been migrated to the PostgreSQL backend and are accessible via the API.
+// The hardcoded vessels list is intentionally removed to enforce API usage.
 
 export const icebergs: Iceberg[] = [
   { id: "IB-102", position: { lat: -63.8, lng: 11.8 }, sizeKm: 2.8, timestamp: "13 Sep · 08:40 UTC", confidence: 94, drift: "ESE · 0.7 kn", risk: "moderate" },

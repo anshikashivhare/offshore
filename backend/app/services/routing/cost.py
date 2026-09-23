@@ -33,17 +33,17 @@ class CostCalculator:
     def get_risk_at(self, node: Node, risk_grid: Any) -> float:
         """
         Extract the composite risk value from the risk grid for a given coordinate.
-        Mock implementation:
-        We will look up risk_grid dict if available, else default to 0.0
+        Returns None if risk data is unavailable for this coordinate.
         """
-        if isinstance(risk_grid, dict):
-            # risk_grid could be a dict of (lat, lon) rounded to 1 dec -> risk
+        if isinstance(risk_grid, dict) and risk_grid:
             key = (round(node.lat, 1), round(node.lon, 1))
-            risk_entry = risk_grid.get(key, 0.0)
+            if key not in risk_grid:
+                return None
+            risk_entry = risk_grid.get(key)
             if isinstance(risk_entry, dict):
                 return max(risk_entry.values()) if risk_entry else 0.0
             return float(risk_entry)
-        return 0.0
+        return None
 
 
 import math

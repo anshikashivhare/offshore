@@ -104,8 +104,15 @@ class AStarRoutePlanner(RoutePlanner):
                 env = global_forecast_grid.get_conditions(neighbor.lat, neighbor.lon, rough_eta)
                 risk = self.cost_calculator.get_risk_at(neighbor, risk_grid)
                 
+                # If risk data is completely missing and this is a safety-first route, block it.
+                if risk is None and request.objective_type == ObjectiveType.SAFEST:
+                    raise ValueError("Safety First objective requires verified risk data. Missing ML predictions.")
+                
+                # Default to 0.0 only for the cost calculation math (not representing actual risk)
+                effective_risk = risk if risk is not None else 0.0
+
                 edge_cost = scorer.calculate_edge_cost_4d(
-                    current, neighbor, vessel, risk, env
+                    current, neighbor, vessel, effective_risk, env
                 )
                 
                 if edge_cost == float('inf'):
@@ -165,7 +172,8 @@ class AStarRoutePlanner(RoutePlanner):
         for i in range(len(path) - 1):
             dist = path[i].distance_to(path[i + 1])
             total_distance += dist
-            total_risk += self.cost_calculator.get_risk_at(path[i + 1], risk_grid) * dist
+            cell_risk = self.cost_calculator.get_risk_at(path[i + 1], risk_grid)
+            total_risk += (cell_risk if cell_risk is not None else 0.0) * dist
 
         total_time_hours = (arrival_times[path[-1]] - request.departure_time).total_seconds() / 3600.0
         total_fuel = total_time_hours * vessel.fuel_consumption
@@ -205,6 +213,11 @@ class AStarRoutePlanner(RoutePlanner):
                 )
             )
 
+        missing_risk = any(v is None for k,v in risk_grid.items()) if isinstance(risk_grid, dict) and risk_grid else True
+        risk_status = "unavailable" if missing_risk else "available"
+        ml_status = "unavailable" if missing_risk else "available"
+        warnings = ["Risk data is unavailable or incomplete. Assuming 0.0 risk for path math. DO NOT navigate blindly."] if missing_risk else []
+
         return RouteCreate(
             origin=request.origin,
             destination=request.destination,
@@ -217,5 +230,8 @@ class AStarRoutePlanner(RoutePlanner):
             risk_score=total_risk,
             objective_type=request.objective_type,
             algorithm_version="AStar-4D-TimeAware-v1.0",
+            risk_data_status=risk_status,
+            ml_prediction_status=ml_status,
+            warnings=warnings,
             waypoints=waypoints_detail
         )

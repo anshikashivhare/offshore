@@ -14,6 +14,15 @@ export async function fetchIcebergs() {
   return response.json();
 }
 
+export async function fetchVessels(country?: string) {
+  const url = country ? `/api/v1/vessels/?country=${encodeURIComponent(country)}` : `/api/v1/vessels/`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch vessels: ${response.status}`);
+  }
+  return response.json();
+}
+
 // Add more API wrappers here as needed
 export async function fetchGlobalPorts() {
   const res = await fetch(`/api/v1/ports/?limit=6000`);

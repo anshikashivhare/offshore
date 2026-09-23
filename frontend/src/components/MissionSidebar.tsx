@@ -180,6 +180,8 @@ type MissionSidebarProps = {
   isCalculating?: boolean;
   onCalculateRoute?: () => void;
   routeError?: string | null;
+  customVesselConfig?: Vessel | null;
+  onCustomVesselConfigChange: (config: Vessel | null) => void;
 };
 
 const layerRows: Array<{ key: LayerKey; label: string; color: string }> = [
@@ -211,12 +213,14 @@ export default function MissionSidebar({
   isCalculating,
   onCalculateRoute,
   routeError,
+  customVesselConfig,
+  onCustomVesselConfigChange,
 }: MissionSidebarProps) {
   const [openMissionSetup, setOpenMissionSetup] = useState(true);
   const [openVesselProfile, setOpenVesselProfile] = useState(false);
   const [openMapLayers, setOpenMapLayers] = useState(false);
 
-  const currentVessel = vessels.find((item) => item.id === selectedVesselId) ?? vessels[0];
+  const currentVessel = vessels.find((item) => item.vessel_id === selectedVesselId) ?? vessels[0];
 
   return (
     <aside className="mission-config-panel" aria-label="Mission Configuration">
@@ -394,29 +398,84 @@ export default function MissionSidebar({
                     value={selectedVesselId}
                     onChange={(e) => onVesselChange(e.target.value)}
                   >
-                    {vessels.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
+                    {vessels.length === 0 ? (
+                      <option value="" disabled>
+                        No vessels available
                       </option>
-                    ))}
+                    ) : (
+                      vessels.map((v) => (
+                        <option key={v.vessel_id} value={v.vessel_id}>
+                          {v.vessel_name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
 
-              <div className="vessel-specs-strip">
-                <div className="vessel-spec-cell">
-                  <span className="spec-tag">ICE CLASS</span>
-                  <span className="spec-val">{currentVessel.iceClass}</span>
+              {currentVessel && (
+                <div className="vessel-specs-strip">
+                  <div className="vessel-spec-cell">
+                    <span className="spec-tag">ICE CLASS</span>
+                    <span className="spec-val">{currentVessel.ice_capability || "N/A"}</span>
+                  </div>
+                  <div className="vessel-spec-cell">
+                    <span className="spec-tag">CRUISING</span>
+                    <span className="spec-val">{customVesselConfig ? customVesselConfig.cruising_speed : currentVessel.cruising_speed} kn</span>
+                  </div>
+                  <div className="vessel-spec-cell">
+                    <span className="spec-tag">BURN RATE</span>
+                    <span className="spec-val">{(customVesselConfig ? customVesselConfig.fuel_consumption : currentVessel.fuel_consumption).toLocaleString()} t/d</span>
+                  </div>
                 </div>
-                <div className="vessel-spec-cell">
-                  <span className="spec-tag">CRUISING</span>
-                  <span className="spec-val">{currentVessel.cruisingSpeedKn} kn</span>
+              )}
+
+              {currentVessel && (
+                <div className="field-group" style={{ marginTop: "12px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={!!customVesselConfig}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          onCustomVesselConfigChange({ ...currentVessel });
+                        } else {
+                          onCustomVesselConfigChange(null);
+                        }
+                      }}
+                    />
+                    Enable Custom Overrides
+                  </label>
+                  
+                  {customVesselConfig && (
+                    <div style={{ marginTop: "8px", padding: "10px", backgroundColor: "#fff8e6", border: "1px solid #f59e0b", borderRadius: "4px" }}>
+                      <div style={{ color: "#d97706", fontSize: "11px", fontWeight: "bold", marginBottom: "8px" }}>
+                        ⚠️ {currentVessel.vessel_name} — simulated configuration
+                      </div>
+                      <div className="split-fields-row">
+                        <div className="field-group flex-1">
+                          <label className="field-label" style={{ fontSize: "11px" }}>Speed (kn)</label>
+                          <input 
+                            type="number" 
+                            className="field-input" 
+                            value={customVesselConfig.cruising_speed} 
+                            onChange={(e) => onCustomVesselConfigChange({ ...customVesselConfig, cruising_speed: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div className="field-group flex-1">
+                          <label className="field-label" style={{ fontSize: "11px" }}>Fuel (t/d)</label>
+                          <input 
+                            type="number" 
+                            className="field-input" 
+                            value={customVesselConfig.fuel_consumption} 
+                            onChange={(e) => onCustomVesselConfigChange({ ...customVesselConfig, fuel_consumption: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="vessel-spec-cell">
-                  <span className="spec-tag">BURN RATE</span>
-                  <span className="spec-val">{currentVessel.fuelBurnLph.toLocaleString()} L/h</span>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </section>

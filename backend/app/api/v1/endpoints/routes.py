@@ -97,25 +97,31 @@ async def plan_route(
     """Plan a route using A* over the latest persisted risk surface."""
     from app.config.config import settings
 
-    try:
-        vessel = await vessel_repo.get(db, request.vessel_id)
-    except Exception as exc:
-        if not getattr(settings, "DEMO_MODE", False):
-            raise HTTPException(status_code=503, detail="Database unavailable")
-        vessel = None
+    # Use custom configuration if provided
+    if request.custom_vessel_config:
+        vessel = Vessel(**request.custom_vessel_config.model_dump())
+        vessel.vessel_id = request.vessel_id # Preserve the ID
+    else:
+        try:
+            vessel = await vessel_repo.get(db, request.vessel_id)
+        except Exception as exc:
+            if not getattr(settings, "DEMO_MODE", False):
+                raise HTTPException(status_code=503, detail="Database unavailable")
+            vessel = None
 
-    if vessel is None:
-        if getattr(settings, "DEMO_MODE", False):
-            vessel = Vessel(
-                vessel_id=request.vessel_id,
-                vessel_name="Demo Explorer",
-                vessel_type="Research",
-                ice_capability="PC3",
-                cruising_speed=12.0,
-                fuel_consumption=2000.0,
-            )
-        else:
-            raise HTTPException(status_code=404, detail="Vessel not found")
+        if vessel is None:
+            # Only use Demo Explorer if specifically requested or if it's the only way for the system to boot without DB.
+            if getattr(settings, "DEMO_MODE", False) and str(request.vessel_id) == "00000000-0000-0000-0000-000000000000":
+                vessel = Vessel(
+                    vessel_id=request.vessel_id,
+                    vessel_name="Demo Explorer",
+                    vessel_type="Research",
+                    ice_capability="PC3",
+                    cruising_speed=12.0,
+                    fuel_consumption=2000.0,
+                )
+            else:
+                raise HTTPException(status_code=404, detail="Vessel not found")
 
     risk_grid = await _build_risk_grid(db, request)
     try:
@@ -126,7 +132,7 @@ async def plan_route(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    db_route_data = route_create.model_dump(exclude={"waypoints"})
+    db_route_data = route_create.model_dump(exclude={"waypoints", "risk_data_status", "ml_prediction_status", "warnings"})
     db_route = Route(**db_route_data)
     # Bypass DB persistence for demo mode (since Postgres is unavailable)
     # db.add(db_route)
@@ -151,6 +157,9 @@ async def plan_route(
         risk_score=db_route.risk_score,
         objective_type=db_route.objective_type,
         algorithm_version=db_route.algorithm_version,
+        risk_data_status=route_create.risk_data_status,
+        ml_prediction_status=route_create.ml_prediction_status,
+        warnings=route_create.warnings,
         waypoints=route_create.waypoints
     )
     return GeoJSONFeature[RouteProperties](
@@ -196,9 +205,31 @@ async def compare_routes(
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """Compare routes across all objectives."""
-    vessel = await vessel_repo.get(db, request.vessel_id)
-    if vessel is None:
-        raise HTTPException(status_code=404, detail="Vessel not found")
+    if request.custom_vessel_config:
+        vessel = Vessel(**request.custom_vessel_config.model_dump())
+        vessel.vessel_id = request.vessel_id
+    else:
+        try:
+            vessel = await vessel_repo.get(db, request.vessel_id)
+        except Exception:
+            from app.config.config import settings
+            if not getattr(settings, "DEMO_MODE", False):
+                raise HTTPException(status_code=503, detail="Database unavailable")
+            vessel = None
+            
+        if vessel is None:
+            from app.config.config import settings
+            if getattr(settings, "DEMO_MODE", False) and str(request.vessel_id) == "00000000-0000-0000-0000-000000000000":
+                vessel = Vessel(
+                    vessel_id=request.vessel_id,
+                    vessel_name="Demo Explorer",
+                    vessel_type="Research",
+                    ice_capability="PC3",
+                    cruising_speed=12.0,
+                    fuel_consumption=2000.0,
+                )
+            else:
+                raise HTTPException(status_code=404, detail="Vessel not found")
 
     risk_grid = await _build_risk_grid(db, request)
     try:

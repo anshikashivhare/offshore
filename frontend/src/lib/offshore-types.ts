@@ -56,16 +56,34 @@ export type Route = {
   exposure: string;
   status: string;
   accent: string;
+  risk_data_status?: string;
+  ml_prediction_status?: string;
+  warnings?: string[];
 };
 
 export type Vessel = {
-  id: string;
-  name: string;
-  type: string;
-  cruisingSpeedKn: number;
-  fuelBurnLph: number;
-  iceClass: string;
-  operationalLimit: string;
+  vessel_id: string;
+  vessel_name: string;
+  imo_number?: string;
+  mmsi?: string;
+  flag_country?: string;
+  vessel_type: string;
+  max_speed?: number;
+  cruising_speed: number;
+  ice_capability?: string;
+  icebreaking_capability?: string;
+  polar_operating_capability?: string;
+  length_m?: number;
+  beam_m?: number;
+  draft_m?: number;
+  fuel_type?: string;
+  fuel_consumption: number;
+  passenger_capacity?: number;
+  cargo_capacity?: string;
+  data_source?: string;
+  last_updated_timestamp?: string;
+  verification_status?: string;
+  operational_limits?: any;
 };
 
 export type Alert = {

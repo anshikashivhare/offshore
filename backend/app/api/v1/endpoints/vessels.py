@@ -10,17 +10,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
+from typing import Any, List, Optional
+from app.config.config import settings
 
 @router.get("/", response_model=Pagination[VesselResponse])
 async def read_vessels(
+    country: Optional[str] = None,
+    name: Optional[str] = None,
     db: AsyncSession = Depends(deps.get_db),
     pagination: deps.PaginationParams = Depends(),
 ) -> Any:
-    """List vessels with pagination."""
-    items = await vessel_repo.get_multi(
-        db, skip=pagination.skip, limit=pagination.limit
-    )
-    total = await vessel_repo.count(db)
+    """List vessels with pagination and filtering."""
+    
+    try:
+        db_items = await vessel_repo.get_filtered(
+            db, skip=pagination.skip, limit=pagination.limit, name=name, country=country
+        )
+        items = [VesselResponse.model_validate(v) for v in db_items]
+        total = await vessel_repo.count_filtered(db, name=name, country=country)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable"
+        ) from exc
+
     return Pagination[VesselResponse].from_qs(
         items=items,
         total=total,

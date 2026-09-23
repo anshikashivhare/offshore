@@ -114,4 +114,8 @@ class DijkstraShortestPlanner(RoutePlanner):
             risk_score=0.0,
             objective_type=request.objective_type,
             algorithm_version="DijkstraShortest-v1.0",
+            risk_data_status="not_applicable",
+            ml_prediction_status="not_applicable",
+            warnings=["Dijkstra planner calculates distance-only routes. Environmental and ML risk data are ignored."],
+            waypoints=None
         )

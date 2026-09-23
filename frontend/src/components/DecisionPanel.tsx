@@ -77,12 +77,12 @@ export default function DecisionPanel({
                 <div className="metric-col">
                   <span
                     className={`metric-num ${
-                      isRust ? "num-rust" : isSelected ? "num-green" : "num-neutral"
+                      route.risk_data_status === "unavailable" ? "num-neutral" : isRust ? "num-rust" : isSelected ? "num-green" : "num-neutral"
                     }`}
                   >
-                    {Math.round(route.riskScore * 100)}
+                    {route.risk_data_status === "unavailable" ? "Unknown" : Math.round(route.riskScore * 100)}
                   </span>
-                  <span className="metric-dim">/100</span>
+                  <span className="metric-dim">{route.risk_data_status === "unavailable" ? "" : "/100"}</span>
                 </div>
               </div>
 
@@ -117,12 +117,27 @@ export default function DecisionPanel({
               <ShieldAlert size={12} /> ROUTE ALERTS
             </span>
             <span className="alerts-kicker-badge">
-              {alerts.filter((a) => a.severity === "high").length} HIGH
+              {alerts.filter((a) => a.severity === "high").length + (selectedRoute.warnings?.length || 0)} HIGH
             </span>
           </div>
 
           <div className="alerts-cards">
-            {alerts.slice(0, 2).map((alert) => (
+            {selectedRoute.warnings?.map((warning, idx) => (
+              <button
+                key={`warning-${idx}`}
+                type="button"
+                className="alert-micro-card alert-high"
+              >
+                <span className="alert-micro-icon">
+                  <AlertTriangle size={13} className="icon-rust" />
+                </span>
+                <div className="alert-micro-text">
+                  <strong className="alert-micro-title">Missing Data Warning</strong>
+                  <span className="alert-micro-meta">{warning}</span>
+                </div>
+              </button>
+            ))}
+            {alerts.slice(0, Math.max(0, 2 - (selectedRoute.warnings?.length || 0))).map((alert) => (
               <button
                 key={alert.id}
                 type="button"

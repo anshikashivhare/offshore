@@ -22,4 +22,28 @@ class CRUDVessel(CRUDBase[Vessel, VesselCreate, VesselBase]):
         return result.scalars().first()
 
 
+    async def get_filtered(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100, name: Optional[str] = None, country: Optional[str] = None
+    ) -> list[Vessel]:
+        stmt = select(Vessel)
+        if name:
+            stmt = stmt.where(Vessel.vessel_name.ilike(f"%{name}%"))
+        if country:
+            stmt = stmt.where(Vessel.flag_country.ilike(f"%{country}%"))
+        stmt = stmt.offset(skip).limit(limit)
+        result = await db.execute(stmt)
+        return result.scalars().all()
+        
+    async def count_filtered(
+        self, db: AsyncSession, *, name: Optional[str] = None, country: Optional[str] = None
+    ) -> int:
+        from sqlalchemy import func
+        stmt = select(func.count(Vessel.vessel_id))
+        if name:
+            stmt = stmt.where(Vessel.vessel_name.ilike(f"%{name}%"))
+        if country:
+            stmt = stmt.where(Vessel.flag_country.ilike(f"%{country}%"))
+        result = await db.execute(stmt)
+        return result.scalar_one()
+
 vessel = CRUDVessel(Vessel)

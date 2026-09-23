@@ -18,6 +18,7 @@ import {
   fetchGlobalPorts,
   fetchRoutes,
   planRoute,
+  fetchVessels,
 } from "@/lib/api";
 import {
   AppHeader,
@@ -38,9 +39,8 @@ import {
   tracks,
   trajectories,
   uncertainty,
-  vessels,
 } from "@/lib/offshore-mock-data";
-import type { AppLocation, Coordinate, LayerKey, Priority } from "@/lib/offshore-types";
+import type { AppLocation, Coordinate, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
 
 // Mock geometry generation removed in favor of actual backend calculation
 
@@ -48,7 +48,7 @@ export default function Home() {
   const [layers, setLayers] = useState(defaultLayers);
   const [selectedRouteId, setSelectedRouteId] = useState(staticRoutes[0].id);
   const [selectedIcebergId, setSelectedIcebergId] = useState<string | null>("IB-221");
-  const [selectedVesselId, setSelectedVesselId] = useState(vessels[0].id);
+  const [selectedVesselId, setSelectedVesselId] = useState<string>("");
   const [priority, setPriority] = useState<Priority>("Safety First");
   const [origin, setOrigin] = useState<Coordinate>(locations[2].coordinate);
   const [destination, setDestination] = useState<Coordinate>(locations[3].coordinate);
@@ -65,6 +65,8 @@ export default function Home() {
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
   const [liveRoutes, setLiveRoutes] = useState(staticRoutes);
   const [liveLocations, setLiveLocations] = useState<AppLocation[]>([]);
+  const [liveVessels, setLiveVessels] = useState<Vessel[]>([]);
+  const [customVesselConfig, setCustomVesselConfig] = useState<Vessel | null>(null);
   const [liveEnvironment, setLiveEnvironment] = useState<any>(null);
   const [liveEnvError, setLiveEnvError] = useState<string | null>(null);
   const [routeValidationError, setRouteValidationError] = useState<string | null>(null);
@@ -140,6 +142,39 @@ export default function Home() {
         if (data && data.length > 0) setLiveRoutes(data);
       })
       .catch((err) => console.error("Failed to fetch live routes:", err));
+
+    fetchVessels()
+      .then((data) => {
+        if (data && data.items && data.items.length > 0) {
+          setLiveVessels(data.items);
+          setSelectedVesselId(data.items[0].vessel_id);
+        } else {
+          // If successful but empty, it might be an empty catalog.
+          const fallback = [{
+            vessel_id: "00000000-0000-0000-0000-000000000000",
+            vessel_name: "Demo Explorer (Database Offline)",
+            vessel_type: "Research",
+            ice_capability: "PC3",
+            cruising_speed: 12.0,
+            fuel_consumption: 2000.0,
+          }];
+          setLiveVessels(fallback);
+          setSelectedVesselId(fallback[0].vessel_id);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch vessels (Database likely offline):", err);
+        const fallback = [{
+          vessel_id: "00000000-0000-0000-0000-000000000000",
+          vessel_name: "Demo Explorer (Database Offline)",
+          vessel_type: "Research",
+          ice_capability: "PC3",
+          cruising_speed: 12.0,
+          fuel_consumption: 2000.0,
+        }];
+        setLiveVessels(fallback);
+        setSelectedVesselId(fallback[0].vessel_id);
+      });
   }, []);
 
   const [isCalculating, setIsCalculating] = useState(false);
@@ -158,7 +193,10 @@ export default function Home() {
         origin: `${origin.lng},${origin.lat}`,
         destination: `${destination.lng},${destination.lat}`,
         departure_time: new Date(selectedDate.getTime() + forecastHours * 60 * 60 * 1000).toISOString(),
-        objective_type: priority === "Time Efficient" || priority === "Fuel Efficient" ? "shortest" : "safest"
+        objective_type: priority === "Time Efficient" ? "fastest" 
+                        : priority === "Fuel Efficient" ? "fuel_efficient" 
+                        : "safest",
+        custom_vessel_config: customVesselConfig
       };
       
       const feature = await planRoute(requestPayload);
@@ -185,7 +223,10 @@ export default function Home() {
         status: "Calculated",
         accent: "#2563eb",
         geometry: feature.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] })),
-        data_provenance: feature.properties.waypoints?.map((w: any) => w.data_provenance) || []
+        data_provenance: feature.properties.waypoints?.map((w: any) => w.data_provenance) || [],
+        risk_data_status: feature.properties.risk_data_status,
+        ml_prediction_status: feature.properties.ml_prediction_status,
+        warnings: feature.properties.warnings
       };
 
       setLiveRoutes([mappedRoute]);
@@ -193,6 +234,8 @@ export default function Home() {
     } catch (err: any) {
       console.error(err);
       setLiveEnvError(err.message || "Route calculation failed");
+      setLiveRoutes([]);
+      setSelectedRouteId("");
     } finally {
       setIsCalculating(false);
     }
@@ -301,7 +344,7 @@ export default function Home() {
         <div className={`mission-config-wrapper ${mobileSidebar ? "open" : ""}`}>
           <MissionSidebar
             locations={liveLocations}
-            vessels={vessels}
+            vessels={liveVessels}
             selectedVesselId={selectedVesselId}
             origin={{ label: originLabel, coordinate: origin }}
             destination={{ label: destinationLabel, coordinate: destination }}
@@ -318,6 +361,8 @@ export default function Home() {
             isCalculating={isCalculating}
             onCalculateRoute={handleCalculateRoute}
             routeError={routeValidationError || liveEnvError}
+            customVesselConfig={customVesselConfig}
+            onCustomVesselConfigChange={setCustomVesselConfig}
           />
         </div>
 
@@ -446,7 +491,9 @@ export default function Home() {
             </span>
           </div>
           <span className="status-v-divider">|</span>
-          <span>ML Prediction: Active (XGBoost Route Risk)</span>
+          <span className={selectedRoute.ml_prediction_status === "unavailable" ? "text-red-500" : ""}>
+            ML Prediction: {selectedRoute.ml_prediction_status === "unavailable" ? "Unavailable" : "Active (XGBoost)"}
+          </span>
           <span className="status-v-divider">|</span>
           <span>Map projection: {viewMode === "globe" ? "Polar Orthographic" : "Antarctic Polar Stereographic"}</span>
         </div>
