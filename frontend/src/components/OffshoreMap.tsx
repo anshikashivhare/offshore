@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useMemo, useState } from "react";
-import { Compass, Minus, Plus, RotateCcw } from "lucide-react";
+import { Compass, Minus, Plus, RotateCcw, Globe2, Crosshair, Info, ChevronDown, ChevronUp } from "lucide-react";
 import * as MapLibreGL from "maplibre-gl";
 import {
   Map,
@@ -22,6 +22,21 @@ import type {
   Route,
   UncertaintyRegion,
 } from "@/lib/offshore-types";
+import {
+  GEBCO_SOURCE_ID,
+  GEBCO_LAYER_ID,
+  getGebcoSourceConfig,
+  getGebcoLayerConfig,
+} from "@/services/map/gebco";
+import {
+  SEA_ICE_SOURCE_ID,
+  SEA_ICE_LAYER_ID,
+  getSeaIceSourceConfig,
+  getSeaIceLayerConfig,
+  getSeaIceTileUrl,
+  type SeaIceDateMode,
+  resolveSeaIceDate,
+} from "@/services/map/nasaGibs";
 
 type OffshoreMapProps = {
   layers: Record<LayerKey, boolean>;
@@ -40,6 +55,9 @@ type OffshoreMapProps = {
   locations?: AppLocation[];
   pickMode: "origin" | "destination" | null;
   viewMode: "map" | "globe";
+  seaIceOpacity: number;
+  seaIceDateMode: SeaIceDateMode;
+  seaIceCustomDate?: string;
   onSelectRoute: (id: string) => void;
   onSelectIceberg: (id: string) => void;
   onPickCoordinate: (coordinate: Coordinate) => void;
@@ -58,18 +76,241 @@ function formatCoordinate(lat: number, lng: number): string {
   return `${latStr} · ${lngStr}`;
 }
 
-// Fallback center/zoom used by the Reset View button.
-// Placed midway along the Rothera → Casey southern corridor.
-const DEFAULT_CENTER: [number, number] = [21, -67];
-const DEFAULT_ZOOM = 2.2;
+// Global initial view (world-level)
+const DEFAULT_CENTER: [number, number] = [0, 0];
+const DEFAULT_ZOOM = 1.8;
 
-/** Custom Light Map Controls matching Image 2 top-left controls */
+// Antarctica focus
+const ANTARCTICA_CENTER: [number, number] = [0, -72];
+const ANTARCTICA_ZOOM = 3.0;
+
+/**
+ * Dark-ocean base style used instead of Carto — GEBCO tiles paint over it.
+ */
+const oceanBaseStyle: MapLibreGL.StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [
+    {
+      id: "background",
+      type: "background",
+      paint: { "background-color": "#0a1628" },
+    },
+  ],
+};
+
+// ─── GEBCO RASTER LAYER ───────────────────────────────────────────────
+function GebcoLayer({ visible }: { visible: boolean }) {
+  const { map, isLoaded } = useMap();
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+
+    const sourceId = GEBCO_SOURCE_ID;
+    const layerId = GEBCO_LAYER_ID;
+
+    try {
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, getGebcoSourceConfig());
+      }
+
+      if (!map.getLayer(layerId)) {
+        // Insert at the very bottom — above the background only
+        const layers = map.getStyle().layers || [];
+        const firstNonBgLayer = layers.find((l) => l.id !== "background");
+        map.addLayer(getGebcoLayerConfig(), firstNonBgLayer?.id);
+      }
+
+      setStatus("loaded");
+
+      // Listen for tile errors
+      const handleError = (e: any) => {
+        if (e.sourceId === sourceId) setStatus("error");
+      };
+      map.on("error", handleError);
+
+      return () => {
+        map.off("error", handleError);
+        try {
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+        } catch {
+          /* ignore */
+        }
+      };
+    } catch {
+      setStatus("error");
+    }
+  }, [map, isLoaded]);
+
+  // Visibility toggle (no source re-creation)
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    try {
+      if (map.getLayer(GEBCO_LAYER_ID)) {
+        map.setLayoutProperty(GEBCO_LAYER_ID, "visibility", visible ? "visible" : "none");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [map, isLoaded, visible]);
+
+  return (
+    <>
+      {status === "error" && (
+        <div className="map-layer-status-msg" aria-live="polite">
+          GEBCO layer unavailable
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── SEA ICE CONCENTRATION RASTER LAYER ───────────────────────────────
+function SeaIceLayer({
+  visible,
+  opacity,
+  dateMode,
+  customDate,
+}: {
+  visible: boolean;
+  opacity: number;
+  dateMode: SeaIceDateMode;
+  customDate?: string;
+}) {
+  const { map, isLoaded } = useMap();
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const currentDateRef = useRef<string>("");
+
+  const resolvedDate = useMemo(
+    () => resolveSeaIceDate(dateMode, customDate),
+    [dateMode, customDate],
+  );
+
+  // Add source + layer on mount
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+
+    const sourceId = SEA_ICE_SOURCE_ID;
+    const layerId = SEA_ICE_LAYER_ID;
+
+    try {
+      if (!map.getSource(sourceId)) {
+        map.addSource(sourceId, getSeaIceSourceConfig(resolvedDate));
+        currentDateRef.current = resolvedDate;
+      }
+
+      if (!map.getLayer(layerId)) {
+        // Insert above GEBCO but below all vector layers
+        // Find the first non-raster, non-background layer to insert before
+        const layers = map.getStyle().layers || [];
+        let insertBefore: string | undefined;
+        for (const l of layers) {
+          if (l.id !== "background" && l.id !== GEBCO_LAYER_ID) {
+            insertBefore = l.id;
+            break;
+          }
+        }
+        map.addLayer(getSeaIceLayerConfig(opacity), insertBefore);
+      }
+
+      setStatus("loaded");
+
+      const handleError = (e: any) => {
+        if (e.sourceId === sourceId) setStatus("error");
+      };
+      map.on("error", handleError);
+
+      return () => {
+        map.off("error", handleError);
+        try {
+          if (map.getLayer(layerId)) map.removeLayer(layerId);
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+        } catch {
+          /* ignore */
+        }
+      };
+    } catch {
+      setStatus("error");
+    }
+  }, [map, isLoaded]);
+
+  // Date change — update source tiles without re-creating
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    if (currentDateRef.current === resolvedDate) return;
+
+    try {
+      const source = map.getSource(SEA_ICE_SOURCE_ID);
+      if (source && "setTiles" in source) {
+        (source as any).setTiles([getSeaIceTileUrl(resolvedDate)]);
+        currentDateRef.current = resolvedDate;
+        setStatus("loaded");
+      }
+    } catch {
+      setStatus("error");
+    }
+  }, [map, isLoaded, resolvedDate]);
+
+  // Opacity change — paint property only
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    try {
+      if (map.getLayer(SEA_ICE_LAYER_ID)) {
+        map.setPaintProperty(SEA_ICE_LAYER_ID, "raster-opacity", opacity);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [map, isLoaded, opacity]);
+
+  // Visibility toggle
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    try {
+      if (map.getLayer(SEA_ICE_LAYER_ID)) {
+        map.setLayoutProperty(SEA_ICE_LAYER_ID, "visibility", visible ? "visible" : "none");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [map, isLoaded, visible]);
+
+  return (
+    <>
+      {status === "error" && visible && (
+        <div className="map-layer-status-msg" aria-live="polite">
+          Sea-ice data temporarily unavailable
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── MAP CONTROLS ─────────────────────────────────────────────────────
 function NauticalMapControls({ onReset }: { onReset: () => void }) {
   const { map } = useMap();
 
   const handleZoomIn = () => map?.zoomIn({ duration: 300 });
   const handleZoomOut = () => map?.zoomOut({ duration: 300 });
   const handleResetNorth = () => map?.resetNorth({ duration: 500 });
+
+  const handleFocusAntarctica = () =>
+    map?.flyTo({
+      center: ANTARCTICA_CENTER,
+      zoom: ANTARCTICA_ZOOM,
+      duration: 2000,
+    });
+
+  const handleResetGlobal = () =>
+    map?.flyTo({
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      bearing: 0,
+      pitch: 0,
+      duration: 1500,
+    });
 
   return (
     <div className="nautical-map-controls" aria-label="Map Navigation Controls">
@@ -84,14 +325,30 @@ function NauticalMapControls({ onReset }: { onReset: () => void }) {
           <polygon points="12 2 19 21 12 17 5 21 12 2" fill="currentColor" />
         </svg>
       </button>
-      <button onClick={onReset} aria-label="Reset View" title="Reset to Antarctic Passage">
+      <button
+        onClick={handleFocusAntarctica}
+        aria-label="Focus Antarctica"
+        title="Focus Antarctica"
+        className="btn-focus-antarctica"
+      >
+        <Crosshair size={13} />
+      </button>
+      <button
+        onClick={handleResetGlobal}
+        aria-label="Reset Global View"
+        title="Reset Global View"
+        className="btn-reset-global"
+      >
+        <Globe2 size={13} />
+      </button>
+      <button onClick={onReset} aria-label="Reset View" title="Reset to default view">
         <RotateCcw size={14} />
       </button>
     </div>
   );
 }
 
-/** Interaction handler component that registers map click for pick mode and pointer coordinates */
+// ─── MAP INTERACTION HANDLER ──────────────────────────────────────────
 function MapInteractionsHandler({
   pickMode,
   onPickCoordinate,
@@ -127,7 +384,7 @@ function MapInteractionsHandler({
     map.on("click", clickHandler);
     map.on("mousemove", moveHandler);
     map.on("mouseout", leaveHandler);
-    
+
     if (pickMode) {
       map.getCanvas().style.cursor = "crosshair";
     }
@@ -143,6 +400,7 @@ function MapInteractionsHandler({
   return null;
 }
 
+// ─── LABEL SUPPRESSOR ─────────────────────────────────────────────────
 /**
  * Hides basemap symbol layers that are unwanted in the Antarctic polar view:
  *  - place_continent: the basemap's own continent label (duplicate of our custom ANTARCTICA marker)
@@ -150,9 +408,7 @@ function MapInteractionsHandler({
  * Re-applies on every style reload so it survives theme switches and projection changes.
  */
 const SUPPRESSED_BASEMAP_LAYERS = [
-  // Continent label — we render our own ANTARCTICA marker; hiding this removes the duplicate
   "place_continent",
-  // Small-settlement and city layers irrelevant to the Antarctic polar view
   "place_hamlet",
   "place_suburbs",
   "place_villages",
@@ -193,15 +449,8 @@ function MapLabelSuppressor() {
   return null;
 }
 
-/**
- * Fits the viewport to the bounding box of the supplied route coordinates 
- * whenever they change (e.g., origin/dest changes, or new route calculated).
- */
-function DynamicViewFitter({
-  coords,
-}: {
-  coords: [number, number][];
-}) {
+// ─── DYNAMIC VIEW FITTER ──────────────────────────────────────────────
+function DynamicViewFitter({ coords }: { coords: [number, number][] }) {
   const { map, isLoaded } = useMap();
 
   useEffect(() => {
@@ -222,14 +471,15 @@ function DynamicViewFitter({
       {
         padding: { top: 80, bottom: 80, left: 60, right: 80 },
         maxZoom: 3.5,
-        duration: 1000, 
-      }
+        duration: 1000,
+      },
     );
   }, [map, isLoaded, coords]);
 
   return null;
 }
 
+// ─── PORTS LAYER ──────────────────────────────────────────────────────
 function PortsLayer({
   locations,
   originLabel,
@@ -293,6 +543,107 @@ function PortsLayer({
   return null;
 }
 
+// ─── COMPACT LEGEND ───────────────────────────────────────────────────
+function SeaIceLegend() {
+  const [collapsed, setCollapsed] = useState(true);
+
+  return (
+    <div className="sea-ice-legend" aria-label="Sea Ice Concentration Legend">
+      <button
+        className="sea-ice-legend-toggle"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? "Expand sea ice legend" : "Collapse sea ice legend"}
+        title="Sea Ice Concentration Legend"
+      >
+        <span className="sea-ice-legend-title">SEA ICE</span>
+        {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+      </button>
+      {!collapsed && (
+        <div className="sea-ice-legend-body">
+          <div className="sea-ice-legend-bar">
+            <div className="sea-ice-gradient" />
+            <div className="sea-ice-legend-labels">
+              <span>0%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── COMPACT ATTRIBUTION ──────────────────────────────────────────────
+function DataAttribution({
+  seaIceDate,
+}: {
+  seaIceDate: string;
+}) {
+  const [showDetail, setShowDetail] = useState(false);
+
+  return (
+    <div className="map-data-attribution" aria-label="Data source attribution">
+      <button
+        className="attribution-toggle"
+        onClick={() => setShowDetail(!showDetail)}
+        aria-label="Data sources"
+        title="Data sources"
+      >
+        <Info size={12} />
+        <span className="attribution-label">Sources</span>
+      </button>
+      {showDetail && (
+        <div className="attribution-detail">
+          <div className="attribution-row">
+            <span className="attribution-source">GEBCO</span>
+            <span className="attribution-desc">GEBCO 2026 Grid</span>
+          </div>
+          <div className="attribution-row">
+            <span className="attribution-source">NASA GIBS</span>
+            <span className="attribution-desc">Sea Ice · {seaIceDate}</span>
+          </div>
+          <div className="attribution-row">
+            <span className="attribution-source">OFFSHORE</span>
+            <span className="attribution-desc">Operational data</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DATA STATUS INDICATOR ────────────────────────────────────────────
+function DataStatusIndicator({
+  seaIceDate,
+  gebcoVisible,
+  seaIceVisible,
+}: {
+  seaIceDate: string;
+  gebcoVisible: boolean;
+  seaIceVisible: boolean;
+}) {
+  return (
+    <div className="map-data-status" aria-label="Layer data status">
+      {seaIceVisible && (
+        <div className="data-status-row">
+          <span className="data-status-dot" />
+          <span className="data-status-text">SEA ICE · {seaIceDate}</span>
+        </div>
+      )}
+      {gebcoVisible && (
+        <div className="data-status-row">
+          <span className="data-status-dot" />
+          <span className="data-status-text">GEBCO 2026 Grid</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────
 export default function OffshoreMap({
   layers,
   icebergs,
@@ -310,6 +661,9 @@ export default function OffshoreMap({
   locations = [],
   pickMode,
   viewMode,
+  seaIceOpacity,
+  seaIceDateMode,
+  seaIceCustomDate,
   onSelectRoute,
   onSelectIceberg,
   onPickCoordinate,
@@ -319,7 +673,7 @@ export default function OffshoreMap({
 
   const projection = useMemo(
     () => (viewMode === "globe" ? { type: "globe" as const } : { type: "mercator" as const }),
-    [viewMode]
+    [viewMode],
   );
 
   const handleReset = useCallback(() => {
@@ -348,7 +702,6 @@ export default function OffshoreMap({
       Math.abs(destinationApproach.lat - destination.lat) > 0.0001);
 
   // Coords for viewport fit: origin + destination + selected route geometry.
-  // Re-calculates (and therefore re-fits) when these inputs change.
   const fitCoords = useMemo(() => {
     const pts: [number, number][] = [
       [origin.lng, origin.lat],
@@ -365,7 +718,7 @@ export default function OffshoreMap({
         route,
         coords: route.geometry.map(toLngLat),
       })),
-    [routes]
+    [routes],
   );
 
   // Convert tracks to route coordinates
@@ -375,7 +728,7 @@ export default function OffshoreMap({
         id: track.icebergId,
         coords: track.history.map(toLngLat),
       })),
-    [tracks]
+    [tracks],
   );
 
   // Convert trajectories to route coordinates
@@ -385,14 +738,14 @@ export default function OffshoreMap({
         id: traj.icebergId,
         coords: traj.prediction.map(toLngLat),
       })),
-    [trajectories]
+    [trajectories],
   );
 
-  // Global Parallels (Latitude: -80 to 80, every 10 or 20 degrees)
+  // Global Parallels (Latitude: -80 to 80, every 20 degrees)
   const parallels = useMemo(() => {
     const lats = [];
     for (let lat = -80; lat <= 80; lat += 20) {
-      if (lat !== 0) lats.push(lat); // Skip equator if desired, or keep it. Let's keep it.
+      if (lat !== 0) lats.push(lat);
     }
     lats.push(0);
     return lats.map((lat) => {
@@ -426,28 +779,43 @@ export default function OffshoreMap({
     setClickedCoord(coord);
   }, []);
 
+  // Resolved sea-ice date for display
+  const resolvedSeaIceDate = useMemo(
+    () => resolveSeaIceDate(seaIceDateMode, seaIceCustomDate),
+    [seaIceDateMode, seaIceCustomDate],
+  );
+
   return (
     <div className={`map-stage ${pickMode ? "is-picking" : ""}`}>
-      {/* All sources and overlays use WGS84 / GeoJSON [longitude, latitude]. */}
+      {/* Dark-ocean base style so GEBCO tiles paint the bathymetry */}
       <Map
         ref={mapRef}
-        theme="light"
+        styles={{ light: oceanBaseStyle, dark: oceanBaseStyle }}
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
         projection={projection}
-        className="offshore-maplibre light-polar-map"
+        className="offshore-maplibre gebco-polar-map"
         attributionControl={false}
       >
-        <MapInteractionsHandler 
-          pickMode={pickMode} 
-          onPickCoordinate={onPickCoordinate} 
+        <MapInteractionsHandler
+          pickMode={pickMode}
+          onPickCoordinate={onPickCoordinate}
           onPointerMove={setPointerCoord}
           onPointerClick={handlePointerClick}
         />
-        {/* Suppress unwanted basemap labels (duplicate ANTARCTICA, RGåbøya, etc.) */}
         <MapLabelSuppressor />
-        {/* Fits the viewport to the route corridor whenever origin/dest/route changes */}
         <DynamicViewFitter coords={fitCoords} />
+
+        {/* ============ LAYER 1: GEBCO BATHYMETRY BASEMAP ============ */}
+        <GebcoLayer visible={layers.gebco !== false} />
+
+        {/* ============ LAYER 2: SEA ICE CONCENTRATION OVERLAY ============ */}
+        <SeaIceLayer
+          visible={layers.seaIceConcentration !== false}
+          opacity={seaIceOpacity}
+          dateMode={seaIceDateMode}
+          customDate={seaIceCustomDate}
+        />
 
         {/* ============ POLAR GRATICULES (PARALLELS & MERIDIANS) ============ */}
         {parallels.map(({ lat, coords }) => (
@@ -495,7 +863,7 @@ export default function OffshoreMap({
           </React.Fragment>
         ))}
 
-        {/* ============ CANDIDATE & SELECTED ROUTES (RULE 5 & 6) ============ */}
+        {/* ============ CANDIDATE & SELECTED ROUTES ============ */}
         {layers.routes &&
           routeCoordArrays.map(({ route, coords }) => {
             const isSelected = route.id === selectedRouteId;
@@ -560,7 +928,7 @@ export default function OffshoreMap({
             />
           ))}
 
-        {/* ============ PREDICTED RISK ZONES (HATCHED AREAS IN IMAGE 2) ============ */}
+        {/* ============ PREDICTED RISK ZONES ============ */}
         {layers.risk && (
           <>
             {/* Weddell Sea Risk Zone */}
@@ -604,7 +972,7 @@ export default function OffshoreMap({
           </>
         )}
 
-        {/* ============ ICEBERGS (TRIANGLE NAUTICAL MARKERS IN IMAGE 2) ============ */}
+        {/* ============ ICEBERGS ============ */}
         {layers.icebergs &&
           icebergs.map((iceberg) => {
             const isActive = iceberg.id === selectedIcebergId;
@@ -635,7 +1003,7 @@ export default function OffshoreMap({
             );
           })}
 
-        {/* ============ ORIGIN MARKER (ROTHERA IN IMAGE 2) ============ */}
+        {/* ============ ORIGIN MARKER ============ */}
         <MapMarker longitude={origin.lng} latitude={origin.lat}>
           <MarkerContent>
             <div className="waypoint-pin origin-pin" title="Origin">
@@ -650,7 +1018,7 @@ export default function OffshoreMap({
           </MarkerLabel>
         </MapMarker>
 
-        {/* The destination always identifies the selected port location. */}
+        {/* Destination marker */}
         <MapMarker longitude={destination.lng} latitude={destination.lat}>
           <MarkerContent>
             <div className="waypoint-pin destination-pin" title="Destination port">
@@ -684,10 +1052,10 @@ export default function OffshoreMap({
           </MapMarker>
         )}
 
-        {/* ============ ALL AVAILABLE PORTS (except origin/dest) ============ */}
+        {/* ============ PORT LAYER ============ */}
+        <PortsLayer locations={locations} originLabel={originLabel} destinationLabel={destinationLabel} />
 
-
-        {/* ============ GEOGRAPHIC LABELS (ANTARCTICA, WEDDELL SEA, ROSS SEA) ============ */}
+        {/* ============ GEOGRAPHIC LABELS ============ */}
         <MapMarker longitude={0} latitude={-82}>
           <MarkerContent>
             <span className="geo-label-continent">ANTARCTICA</span>
@@ -709,14 +1077,24 @@ export default function OffshoreMap({
           </MarkerContent>
         </MapMarker>
 
-        {/* ============ PORT LAYER ============ */}
-        <PortsLayer locations={locations} originLabel={originLabel} destinationLabel={destinationLabel} />
-
         {/* ============ NAUTICAL MAP CONTROLS (TOP-LEFT) ============ */}
         <NauticalMapControls onReset={handleReset} />
       </Map>
 
-      {/* Nautical Scale Bar (Bottom-Left in Image 2) */}
+      {/* Sea Ice Legend (Bottom-Right, compact) */}
+      {layers.seaIceConcentration !== false && <SeaIceLegend />}
+
+      {/* Data Attribution (Bottom-Right, below legend) */}
+      <DataAttribution seaIceDate={resolvedSeaIceDate} />
+
+      {/* Data Status (Top-Right, compact) */}
+      <DataStatusIndicator
+        seaIceDate={resolvedSeaIceDate}
+        gebcoVisible={layers.gebco !== false}
+        seaIceVisible={layers.seaIceConcentration !== false}
+      />
+
+      {/* Nautical Scale Bar (Bottom-Left) */}
       <div className="nautical-scale-bar" aria-label="Nautical scale">
         <div className="scale-marks">
           <span>0</span>

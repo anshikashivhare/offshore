@@ -1927,3 +1927,314 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   }
 }
 
+/* =========================================================================
+   GEBCO + SEA-ICE MAP ENHANCEMENTS
+   ========================================================================= */
+
+/* --- Layer Group Titles --- */
+.layer-group {
+  margin-bottom: 10px;
+}
+.layer-group:last-child {
+  margin-bottom: 0;
+}
+.layer-group-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--graphite-muted);
+  padding: 6px 0 4px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+/* --- Sea Ice Controls --- */
+.sea-ice-controls {
+  padding: 8px 0 4px;
+}
+.sea-ice-opacity-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.sea-ice-opacity-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--graphite);
+}
+.sea-ice-opacity-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-sea-green);
+  font-family: var(--font-mono);
+}
+.sea-ice-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sea-ice-slider-hint {
+  font-size: 9px;
+  color: var(--graphite-muted);
+  white-space: nowrap;
+  min-width: 24px;
+}
+.sea-ice-opacity-slider {
+  flex: 1;
+  height: 4px;
+  accent-color: #67b8d6;
+  cursor: pointer;
+}
+.sea-ice-date-control {
+  margin-top: 8px;
+}
+.sea-ice-date-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--graphite-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+.sea-ice-date-select {
+  font-size: 12px !important;
+  padding: 4px 8px !important;
+}
+.sea-ice-custom-date {
+  margin-top: 4px;
+  font-size: 12px !important;
+  padding: 4px 8px !important;
+}
+
+/* --- Sea Ice Legend (floating, bottom-right) --- */
+.sea-ice-legend {
+  position: absolute;
+  bottom: 48px;
+  right: 12px;
+  background: rgba(10, 22, 40, 0.88);
+  border: 1px solid rgba(103, 184, 214, 0.2);
+  border-radius: 6px;
+  z-index: 10;
+  backdrop-filter: blur(6px);
+  min-width: 120px;
+}
+.sea-ice-legend-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+}
+.sea-ice-legend-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.sea-ice-legend-body {
+  padding: 4px 10px 8px;
+}
+.sea-ice-legend-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sea-ice-gradient {
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(173, 216, 230, 0.3) 25%,
+    rgba(135, 206, 235, 0.5) 50%,
+    rgba(200, 230, 240, 0.75) 75%,
+    rgba(255, 255, 255, 0.95) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.sea-ice-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-mono);
+}
+
+/* --- Data Attribution (floating, bottom-right, below legend) --- */
+.map-data-attribution {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  z-index: 10;
+}
+.attribution-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(10, 22, 40, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  transition: color 0.2s;
+}
+.attribution-toggle:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+.attribution-label {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+.attribution-detail {
+  position: absolute;
+  bottom: 28px;
+  right: 0;
+  background: rgba(10, 22, 40, 0.92);
+  border: 1px solid rgba(103, 184, 214, 0.2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-width: 180px;
+  backdrop-filter: blur(6px);
+}
+.attribution-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  font-size: 10px;
+}
+.attribution-source {
+  color: rgba(103, 184, 214, 0.8);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+.attribution-desc {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 9px;
+}
+
+/* --- Data Status Indicator (top-right) --- */
+.map-data-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.data-status-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(10, 22, 40, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+.data-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+.data-status-text {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-mono);
+}
+
+/* --- Layer Status Messages (loading/error) --- */
+.map-layer-status-msg {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  background: rgba(10, 22, 40, 0.85);
+  color: rgba(255, 200, 100, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 200, 100, 0.2);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+/* --- Focus/Reset buttons in NauticalMapControls --- */
+.nautical-map-controls .btn-focus-antarctica,
+.nautical-map-controls .btn-reset-global {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+/* --- GEBCO-style map appearance --- */
+.gebco-polar-map {
+  background: #0a1628 !important;
+}
+
+/* Geo labels adjustments for dark basemap */
+.gebco-polar-map .geo-label-continent {
+  color: rgba(255, 255, 255, 0.35) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.gebco-polar-map .geo-label-sea {
+  color: rgba(173, 216, 230, 0.35) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.gebco-polar-map .geo-label-ocean {
+  color: rgba(173, 216, 230, 0.3) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Waypoint pins on dark basemap */
+.gebco-polar-map .waypoint-pin {
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+}
+.gebco-polar-map .waypoint-label {
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* Coordinate readout styling — ensure it works on dark map */
+.gebco-polar-map + .nautical-scale-bar .scale-marks span {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* --- Mobile / Small Screen Adjustments --- */
+@media (max-width: 768px) {
+  .sea-ice-legend {
+    bottom: 40px;
+    right: 8px;
+    min-width: 100px;
+  }
+  .map-data-attribution {
+    bottom: 4px;
+    right: 8px;
+  }
+  .map-data-status {
+    top: 8px;
+    right: 8px;
+  }
+  .layer-group-title {
+    font-size: 8px;
+  }
+}
+
+

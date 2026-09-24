@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { AppLocation, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
 import { searchPorts } from "@/lib/api";
+import type { SeaIceDateMode } from "@/services/map/nasaGibs";
 
 function SearchablePortSelect({
   id,
@@ -193,18 +194,35 @@ type MissionSidebarProps = {
   routeError?: string | null;
   customVesselConfig?: Vessel | null;
   onCustomVesselConfigChange: (config: Vessel | null) => void;
+  seaIceOpacity: number;
+  onSeaIceOpacityChange: (opacity: number) => void;
+  seaIceDateMode: SeaIceDateMode;
+  onSeaIceDateModeChange: (mode: SeaIceDateMode) => void;
+  seaIceCustomDate?: string;
+  onSeaIceCustomDateChange: (date: string | undefined) => void;
 };
 
-const layerRows: Array<{ key: LayerKey; label: string; color: string }> = [
-  { key: "seaIce", label: "Sea-ice concentration", color: "#527C78" },
+// Layer groups for organized panel
+const baseMapLayers: Array<{ key: LayerKey; label: string; color: string }> = [
+  { key: "gebco", label: "GEBCO Bathymetry", color: "#1a4a6e" },
+];
+
+const environmentLayers: Array<{ key: LayerKey; label: string; color: string }> = [
+  { key: "seaIceConcentration", label: "Sea Ice Concentration", color: "#67b8d6" },
+  { key: "seaIce", label: "Sea-ice analysis", color: "#527C78" },
   { key: "forecast", label: "Forecast model · 72h", color: "#6C8E91" },
-  { key: "icebergs", label: "Iceberg detections", color: "#C66B45" },
+  { key: "oceanCurrents", label: "Ocean Currents", color: "#3B7A9E" },
+  { key: "weather", label: "Weather", color: "#8A9B9D" },
+];
+
+const navigationLayers: Array<{ key: LayerKey; label: string; color: string }> = [
+  { key: "vessel", label: "Vessels", color: "#183B43" },
+  { key: "icebergs", label: "Icebergs", color: "#C66B45" },
   { key: "tracks", label: "Historical tracks", color: "#596A6D" },
-  { key: "trajectories", label: "Predicted trajectories", color: "#3B5F66" },
+  { key: "trajectories", label: "Iceberg Trajectories", color: "#3B5F66" },
   { key: "uncertainty", label: "Uncertainty boundary", color: "#8A9B9D" },
-  { key: "risk", label: "Dynamic risk surface", color: "#C66B45" },
-  { key: "routes", label: "Candidate routes", color: "#527C78" },
-  { key: "vessel", label: "Vessel position", color: "#183B43" },
+  { key: "risk", label: "Risk Zones", color: "#C66B45" },
+  { key: "routes", label: "Routes", color: "#527C78" },
 ];
 
 export default function MissionSidebar({
@@ -226,6 +244,12 @@ export default function MissionSidebar({
   routeError,
   customVesselConfig,
   onCustomVesselConfigChange,
+  seaIceOpacity,
+  onSeaIceOpacityChange,
+  seaIceDateMode,
+  onSeaIceDateModeChange,
+  seaIceCustomDate,
+  onSeaIceCustomDateChange,
 }: MissionSidebarProps) {
   const [openMissionSetup, setOpenMissionSetup] = useState(true);
   const [openVesselProfile, setOpenVesselProfile] = useState(false);
@@ -511,22 +535,128 @@ export default function MissionSidebar({
 
           {openMapLayers && (
             <div className="section-content">
-              <div className="layer-options-list">
-                {layerRows.map((row) => (
-                  <label key={row.key} className="layer-row-item">
-                    <span
-                      className="layer-row-swatch"
-                      style={{ backgroundColor: row.color }}
-                    />
-                    <span className="layer-row-title">{row.label}</span>
-                    <input
-                      type="checkbox"
-                      className="layer-checkbox"
-                      checked={layers[row.key]}
-                      onChange={() => onToggleLayer(row.key)}
-                    />
-                  </label>
-                ))}
+              {/* BASE MAP */}
+              <div className="layer-group">
+                <div className="layer-group-title">BASE MAP</div>
+                <div className="layer-options-list">
+                  {baseMapLayers.map((row) => (
+                    <label key={row.key} className="layer-row-item">
+                      <span className="layer-row-swatch" style={{ backgroundColor: row.color }} />
+                      <span className="layer-row-title">{row.label}</span>
+                      <input
+                        type="checkbox"
+                        className="layer-checkbox"
+                        checked={layers[row.key] ?? false}
+                        onChange={() => onToggleLayer(row.key)}
+                        aria-label={`Toggle ${row.label}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* ENVIRONMENT */}
+              <div className="layer-group">
+                <div className="layer-group-title">ENVIRONMENT</div>
+                <div className="layer-options-list">
+                  {environmentLayers.map((row) => (
+                    <label key={row.key} className="layer-row-item">
+                      <span className="layer-row-swatch" style={{ backgroundColor: row.color }} />
+                      <span className="layer-row-title">{row.label}</span>
+                      <input
+                        type="checkbox"
+                        className="layer-checkbox"
+                        checked={layers[row.key] ?? false}
+                        onChange={() => onToggleLayer(row.key)}
+                        aria-label={`Toggle ${row.label}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                {/* Sea Ice Opacity Slider */}
+                {layers.seaIceConcentration && (
+                  <div className="sea-ice-controls">
+                    <div className="sea-ice-opacity-row">
+                      <label
+                        htmlFor="sea-ice-opacity"
+                        className="sea-ice-opacity-label"
+                      >
+                        Sea Ice Opacity
+                      </label>
+                      <span className="sea-ice-opacity-value">{Math.round(seaIceOpacity * 100)}%</span>
+                    </div>
+                    <div className="sea-ice-slider-row">
+                      <span className="sea-ice-slider-hint">Less</span>
+                      <input
+                        id="sea-ice-opacity"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={Math.round(seaIceOpacity * 100)}
+                        onChange={(e) => onSeaIceOpacityChange(parseInt(e.target.value) / 100)}
+                        className="sea-ice-opacity-slider"
+                        aria-label="Change Sea Ice Opacity"
+                        title="Sea Ice Concentration Opacity"
+                      />
+                      <span className="sea-ice-slider-hint">More</span>
+                    </div>
+
+                    {/* Sea Ice Date Control */}
+                    <div className="sea-ice-date-control">
+                      <label className="sea-ice-date-label">SEA ICE DATE</label>
+                      <div className="select-wrapper">
+                        <select
+                          className="field-select sea-ice-date-select"
+                          value={seaIceDateMode}
+                          onChange={(e) => {
+                            const mode = e.target.value as SeaIceDateMode;
+                            onSeaIceDateModeChange(mode);
+                            if (mode !== "custom") {
+                              onSeaIceCustomDateChange(undefined);
+                            }
+                          }}
+                          aria-label="Select sea ice date"
+                          title="Sea Ice Date Selection"
+                        >
+                          <option value="latest">Latest Available</option>
+                          <option value="yesterday">Yesterday</option>
+                          <option value="custom">Custom Date</option>
+                        </select>
+                      </div>
+                      {seaIceDateMode === "custom" && (
+                        <input
+                          type="date"
+                          className="field-input sea-ice-custom-date"
+                          value={seaIceCustomDate || ""}
+                          onChange={(e) => onSeaIceCustomDateChange(e.target.value || undefined)}
+                          aria-label="Custom sea ice date"
+                          title="Custom Sea Ice Date"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* NAVIGATION */}
+              <div className="layer-group">
+                <div className="layer-group-title">NAVIGATION</div>
+                <div className="layer-options-list">
+                  {navigationLayers.map((row) => (
+                    <label key={row.key} className="layer-row-item">
+                      <span className="layer-row-swatch" style={{ backgroundColor: row.color }} />
+                      <span className="layer-row-title">{row.label}</span>
+                      <input
+                        type="checkbox"
+                        className="layer-checkbox"
+                        checked={layers[row.key] ?? false}
+                        onChange={() => onToggleLayer(row.key)}
+                        aria-label={`Toggle ${row.label}`}
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           )}

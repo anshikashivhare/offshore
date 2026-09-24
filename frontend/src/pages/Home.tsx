@@ -41,6 +41,7 @@ import {
   uncertainty,
 } from "@/lib/offshore-mock-data";
 import type { AppLocation, Coordinate, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
+import { SEA_ICE_DEFAULT_OPACITY, type SeaIceDateMode } from "@/services/map/nasaGibs";
 
 // Mock geometry generation removed in favor of actual backend calculation
 
@@ -63,6 +64,11 @@ export default function Home() {
   const [forecastHours, setForecastHours] = useState(16);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sea-ice overlay controls
+  const [seaIceOpacity, setSeaIceOpacity] = useState(SEA_ICE_DEFAULT_OPACITY);
+  const [seaIceDateMode, setSeaIceDateMode] = useState<SeaIceDateMode>("latest");
+  const [seaIceCustomDate, setSeaIceCustomDate] = useState<string | undefined>(undefined);
 
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
   const [liveRoutes, setLiveRoutes] = useState<typeof staticRoutes>([]);
@@ -330,6 +336,12 @@ export default function Home() {
             routeError={routeValidationError || liveEnvError}
             customVesselConfig={customVesselConfig}
             onCustomVesselConfigChange={setCustomVesselConfig}
+            seaIceOpacity={seaIceOpacity}
+            onSeaIceOpacityChange={setSeaIceOpacity}
+            seaIceDateMode={seaIceDateMode}
+            onSeaIceDateModeChange={setSeaIceDateMode}
+            seaIceCustomDate={seaIceCustomDate}
+            onSeaIceCustomDateChange={setSeaIceCustomDate}
           />
         </div>
 
@@ -406,6 +418,9 @@ export default function Home() {
               locations={liveLocations}
               pickMode={pickMode}
               viewMode={viewMode}
+              seaIceOpacity={seaIceOpacity}
+              seaIceDateMode={seaIceDateMode}
+              seaIceCustomDate={seaIceCustomDate}
               onSelectRoute={setSelectedRouteId}
               onSelectIceberg={setSelectedIcebergId}
               onPickCoordinate={handlePickCoordinate}

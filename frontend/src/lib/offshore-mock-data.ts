@@ -80,7 +80,9 @@ export const alerts: Alert[] = [
 export const forecastMeta: ForecastMeta = { asOf: "13 Sep 2026 · 09:00 UTC", horizonHours: 72, confidence: "Moderate", status: "Available" };
 
 export const defaultLayers: Record<LayerKey, boolean> = {
+  gebco: true,
   seaIce: true,
+  seaIceConcentration: true,
   forecast: true,
   icebergs: true,
   tracks: true,
@@ -89,5 +91,7 @@ export const defaultLayers: Record<LayerKey, boolean> = {
   risk: true,
   routes: true,
   vessel: true,
+  oceanCurrents: false,
+  weather: false,
 };
 

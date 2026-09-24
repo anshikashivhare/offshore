@@ -4,7 +4,9 @@ export type Coordinate = {
 };
 
 export type LayerKey =
+  | "gebco"
   | "seaIce"
+  | "seaIceConcentration"
   | "forecast"
   | "icebergs"
   | "tracks"
@@ -12,7 +14,9 @@ export type LayerKey =
   | "uncertainty"
   | "risk"
   | "routes"
-  | "vessel";
+  | "vessel"
+  | "oceanCurrents"
+  | "weather";
 
 export type Priority = "Safety First" | "Balanced" | "Fuel Efficient" | "Time Efficient";
 
