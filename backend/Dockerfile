@@ -47,6 +47,7 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.t
 COPY app ./app
 COPY gunicorn_config.py ./gunicorn_config.py
 COPY scripts ./scripts
+COPY data ./data
 
 # Copy the ML inference modules so backend can import ml.inference.*
 # Model weights (.json) are excluded from .dockerignore and baked in.

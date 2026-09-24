@@ -9,7 +9,7 @@ import type { Alert, Route } from "@/lib/offshore-types";
 
 type DecisionPanelProps = {
   routes: Route[];
-  selectedRoute: Route;
+  selectedRoute: Route | undefined;
   alerts: Alert[];
   onSelectRoute: (id: string) => void;
   onFocusAlert: (alert: Alert) => void;
@@ -33,7 +33,7 @@ export default function DecisionPanel({
       {/* Candidate Route Cards matching Image 2 */}
       <div className="route-cards-stack">
         {routes.map((route) => {
-          const isSelected = route.id === selectedRoute.id;
+          const isSelected = route.id === selectedRoute?.id;
           const isRust = route.riskScore >= 0.45 || route.objective === "Fastest";
           const isSafest = route.objective === "Safest";
           const isFuel = route.objective === "Fuel Efficient";
@@ -77,12 +77,12 @@ export default function DecisionPanel({
                 <div className="metric-col">
                   <span
                     className={`metric-num ${
-                      route.risk_data_status === "unavailable" ? "num-neutral" : isRust ? "num-rust" : isSelected ? "num-green" : "num-neutral"
+                      (route.risk_data_status === "unavailable" || route.risk_data_status === "demo_unverified") ? "num-neutral" : isRust ? "num-rust" : isSelected ? "num-green" : "num-neutral"
                     }`}
                   >
-                    {route.risk_data_status === "unavailable" ? "Unknown" : Math.round(route.riskScore * 100)}
+                    {(route.risk_data_status === "unavailable" || route.risk_data_status === "demo_unverified") ? "Unknown" : Math.round(route.riskScore * 100)}
                   </span>
-                  <span className="metric-dim">{route.risk_data_status === "unavailable" ? "" : "/100"}</span>
+                  <span className="metric-dim">{(route.risk_data_status === "unavailable" || route.risk_data_status === "demo_unverified") ? "" : "/100"}</span>
                 </div>
               </div>
 
@@ -105,8 +105,11 @@ export default function DecisionPanel({
             <span className="badge-calc">ESTIMATE</span>
           </div>
           <p className="summary-desc">
-            <strong>{selectedRoute.name}</strong> keeps estimated iceberg encounters below allowable
-            risk bounds with an optimal speed curve.
+            {selectedRoute ? (
+              <><strong>{selectedRoute.name}</strong> keeps estimated iceberg encounters below allowable risk bounds with an optimal speed curve.</>
+            ) : (
+              <>Waiting for route calculation to begin...</>
+            )}
           </p>
         </div>
 
@@ -117,12 +120,12 @@ export default function DecisionPanel({
               <ShieldAlert size={12} /> ROUTE ALERTS
             </span>
             <span className="alerts-kicker-badge">
-              {alerts.filter((a) => a.severity === "high").length + (selectedRoute.warnings?.length || 0)} HIGH
+              {alerts.filter((a) => a.severity === "high").length + (selectedRoute?.warnings?.length || 0)} HIGH
             </span>
           </div>
 
           <div className="alerts-cards">
-            {selectedRoute.warnings?.map((warning, idx) => (
+            {selectedRoute?.warnings?.map((warning, idx) => (
               <button
                 key={`warning-${idx}`}
                 type="button"
@@ -137,7 +140,7 @@ export default function DecisionPanel({
                 </div>
               </button>
             ))}
-            {alerts.slice(0, Math.max(0, 2 - (selectedRoute.warnings?.length || 0))).map((alert) => (
+            {alerts.slice(0, Math.max(0, 2 - (selectedRoute?.warnings?.length || 0))).map((alert) => (
               <button
                 key={alert.id}
                 type="button"

@@ -128,7 +128,18 @@ function SearchablePortSelect({
             {isSearching && (
               <div style={{ padding: "8px 12px", fontSize: "13px", color: "#8A9B9D" }}>Searching...</div>
             )}
-            {!isSearching && displayList.slice(0, 100).map((loc) => {
+            {!isSearching && !searchTerm.trim() && (
+              <div style={{ padding: "4px 12px 8px 12px", fontSize: "11px", color: "#8A9B9D", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                Showing 50 of {locations.length.toLocaleString()} ports — type to search
+              </div>
+            )}
+            {!isSearching && searchTerm.trim() && displayList.length > 0 && (
+              <div style={{ padding: "4px 12px 8px 12px", fontSize: "11px", color: "#8A9B9D", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                {displayList.length} results for '{searchTerm}'
+              </div>
+            )}
+            
+            {!isSearching && (searchTerm.trim() ? displayList : displayList.slice(0, 50)).map((loc) => {
               const display = loc.country === "Antarctica" ? `${loc.label} {Antarctica}` : loc.label;
               return (
                 <div

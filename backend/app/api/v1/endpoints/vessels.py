@@ -29,10 +29,40 @@ async def read_vessels(
         items = [VesselResponse.model_validate(v) for v in db_items]
         total = await vessel_repo.count_filtered(db, name=name, country=country)
     except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database unavailable"
-        ) from exc
+        if getattr(settings, "DEMO_MODE", False):
+            import json
+            from pathlib import Path
+            try:
+                vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
+                with vessels_path.open("r", encoding="utf-8") as f:
+                    all_vessels = json.load(f)
+                
+                # Apply simple filters
+                if name:
+                    all_vessels = [v for v in all_vessels if name.lower() in v["vessel_name"].lower()]
+                if country:
+                    all_vessels = [v for v in all_vessels if country.lower() in v["flag_country"].lower()]
+                    
+                total = len(all_vessels)
+                items = [VesselResponse.model_validate(v) for v in all_vessels[pagination.skip : pagination.skip + pagination.limit]]
+                
+                return Pagination[VesselResponse].from_qs(
+                    items=items,
+                    total=total,
+                    skip=pagination.skip,
+                    limit=pagination.limit,
+                    model_cls=VesselResponse,
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Database unavailable and fallback failed: {e}"
+                ) from exc
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database unavailable"
+            ) from exc
 
     return Pagination[VesselResponse].from_qs(
         items=items,
@@ -66,12 +96,44 @@ async def read_vessel(
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """Fetch a single vessel by id."""
-    obj = await vessel_repo.get(db, vessel_id)
-    if obj is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Vessel not found"
-        )
-    return VesselResponse.model_validate(obj)
+    try:
+        obj = await vessel_repo.get(db, vessel_id)
+        if obj is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Vessel not found"
+            )
+        return VesselResponse.model_validate(obj)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        if getattr(settings, "DEMO_MODE", False):
+            import json
+            from pathlib import Path
+            try:
+                vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
+                with vessels_path.open("r", encoding="utf-8") as f:
+                    all_vessels = json.load(f)
+                
+                v_id_str = str(vessel_id)
+                for v in all_vessels:
+                    if str(v.get("vessel_id")) == v_id_str:
+                        return VesselResponse.model_validate(v)
+                
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Vessel not found"
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Database unavailable and fallback failed: {e}"
+                ) from exc
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database unavailable"
+            ) from exc
 
 
 @router.put("/{vessel_id}", response_model=VesselResponse)

@@ -46,7 +46,7 @@ async def test_astar_basic_path_finding(planner, vessel):
     )
     
     # Empty risk grid
-    route = await planner.plan_route(req, vessel, {})
+    route = await planner.plan_route(req, vessel, {}, demo_mode=True)
     assert route.distance > 0
     assert route.estimated_fuel > 0
 
@@ -66,7 +66,7 @@ async def test_astar_blocked_cell_routing(planner, vessel):
         (0.0, 2.0): 1.0
     }
     
-    route = await planner.plan_route(req, vessel, risk_grid)
+    route = await planner.plan_route(req, vessel, risk_grid, demo_mode=True)
     # The route must have gone around, so distance > straight line
     assert route.distance > 0
 
@@ -93,7 +93,7 @@ async def test_astar_no_feasible_route(planner, vessel):
     }
     
     with pytest.raises(ValueError, match="No feasible route exists"):
-        await planner.plan_route(req, vessel, risk_grid)
+        await planner.plan_route(req, vessel, risk_grid, demo_mode=True)
 
 @pytest.mark.asyncio
 async def test_vessel_constraints(planner, no_ice_vessel):
