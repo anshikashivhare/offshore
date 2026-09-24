@@ -36,6 +36,11 @@ async def run_route(name, coords):
             else:
                 print(f"  FAILED: {name} - HTTP {resp.status_code}")
                 print(f"    {resp.text}")
+        if hasattr(resp_data, "waypoints") or "waypoints" in resp_data:
+            waypoints = resp_data.get("waypoints", []) if isinstance(resp_data, dict) else getattr(resp_data, "waypoints", [])
+            print(f"    first 5 waypoints: {waypoints[:5]}")
+            print(f"    middle waypoint: {waypoints[len(waypoints)//2] if waypoints else 'None'}")
+            print(f"    last 5 waypoints: {waypoints[-5:]}")
     except Exception as e:
         print(f"  ERROR: {name} - {e}")
 

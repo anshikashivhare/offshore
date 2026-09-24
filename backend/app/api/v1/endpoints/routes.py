@@ -148,13 +148,13 @@ async def plan_route(
     origin_node = Node(lat=origin_lat, lon=origin_lon)
     dest_node = Node(lat=dest_lat, lon=dest_lon)
 
-    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=0.1)
+    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=2.0)
     if snapped_origin is None:
-        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 0.1° search radius.")
+        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 2.0° search radius.")
 
-    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=0.1)
+    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=2.0)
     if snapped_dest is None:
-        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 0.1° search radius.")
+        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 2.0° search radius.")
 
     # Track whether snapping was applied
     origin_snapped = (snapped_origin.lat != origin_lat or snapped_origin.lon != origin_lon)

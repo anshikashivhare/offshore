@@ -163,7 +163,7 @@ class AStarRoutePlanner(RoutePlanner):
         # Prefer a goal-directed search so a global exploratory voyage does
         # not exhaust the interactive budget by surveying an entire ocean.
         # Production keeps the near-admissible weight for risk-aware routing.
-        heuristic_weight = 8.0 if demo_mode else 1.05
+        heuristic_weight = 2.0 if demo_mode else 1.05
 
         closed_set = set()
 
