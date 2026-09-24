@@ -133,3 +133,38 @@ class RouteScorer:
             + self.weights.gamma * (risk_score * distance)
         )
         return cost
+
+    def decompose_edge_cost(
+        self, current: Node, neighbor: Node, vessel: Vessel, risk_score: float, env_conditions: dict
+    ) -> dict:
+        """Calculate and return all sub-components of the edge cost."""
+        sog = self.get_effective_speed(current, neighbor, vessel, env_conditions)
+        if sog <= 0:
+            return {}
+        distance = current.distance_to(neighbor)
+        time_hours = distance / sog
+        fuel = time_hours * vessel.fuel_consumption
+        
+        # Recalculate penalties
+        w_vel = env_conditions.get("wind_speed_10m") or 0.0
+        w_dir = env_conditions.get("wind_direction_10m") or 0.0
+        wave_h = env_conditions.get("wave_height") or 0.0
+        
+        import math
+        dy = neighbor.lat - current.lat
+        dx = neighbor.lon - current.lon
+        heading_rad = math.atan2(dx, dy)
+        heading_deg = (math.degrees(heading_rad) + 360) % 360
+        wind_angle_diff = math.radians(w_dir - heading_deg)
+        headwind_comp = w_vel * math.cos(wind_angle_diff)
+        
+        wind_penalty = abs(headwind_comp) * 0.05 if headwind_comp < 0 else 0.0
+        wave_penalty = wave_h * 0.5 if wave_h > 1.0 else 0.0
+        
+        return {
+            "time_cost": self.weights.beta * time_hours,
+            "fuel_cost": self.weights.alpha * fuel,
+            "risk_cost": self.weights.gamma * (risk_score * distance),
+            "wind_penalty": wind_penalty * time_hours, # rough integration
+            "wave_penalty": wave_penalty * time_hours
+        }

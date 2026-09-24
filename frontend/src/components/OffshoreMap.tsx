@@ -1004,37 +1004,6 @@ export default function OffshoreMap({
             );
           })}
 
-<<<<<<< HEAD
-        {/* ============ ORIGIN MARKER ============ */}
-        <MapMarker longitude={origin.lng} latitude={origin.lat}>
-          <MarkerContent>
-            <div className="waypoint-pin origin-pin" title="Origin">
-              O
-            </div>
-          </MarkerContent>
-          <MarkerLabel>
-            <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <span>{originLabel.split(",")[0]}</span>
-              <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(origin.lat, origin.lng)}</span>
-            </div>
-          </MarkerLabel>
-        </MapMarker>
-
-        {/* Destination marker */}
-        <MapMarker longitude={destination.lng} latitude={destination.lat}>
-          <MarkerContent>
-            <div className="waypoint-pin destination-pin" title="Destination port">
-              D
-            </div>
-          </MarkerContent>
-          <MarkerLabel>
-            <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <span>{destinationLabel.split(",")[0]}</span>
-              <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(destination.lat, destination.lng)}</span>
-            </div>
-          </MarkerLabel>
-        </MapMarker>
-=======
         {/* ============ ORIGIN MARKER (ROTHERA IN IMAGE 2) ============ */}
         {origin && (
           <MapMarker longitude={origin.lng} latitude={origin.lat}>
@@ -1068,7 +1037,6 @@ export default function OffshoreMap({
             </MarkerLabel>
           </MapMarker>
         )}
->>>>>>> 6ff4ffcba5881f6932330c5ec2c99d49ac9bba8f
 
         {hasSeparateDestinationApproach && (
           <MapMarker longitude={destinationApproach.lng} latitude={destinationApproach.lat}>

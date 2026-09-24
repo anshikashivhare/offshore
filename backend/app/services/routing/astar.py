@@ -1,4 +1,5 @@
 import heapq
+import asyncio
 from datetime import timedelta, datetime
 from typing import Any, Dict, List, Optional
 
@@ -37,22 +38,7 @@ class AStarRoutePlanner(RoutePlanner):
         return a.distance_to(b)
 
     def _grid_for_voyage(self, start: Node, goal: Node) -> GridBuilder:
-        """Use a coarser geographic search grid for ocean-spanning voyages.
-
-        The base 0.5° grid remains appropriate around Antarctic ice and coast
-        lines.  Searching the same grid across thousands of nautical miles
-        creates far more nodes than the interactive request budget allows.
-        This only changes the routing resolution; all nodes remain WGS84
-        latitude/longitude and every edge is land-checked.
-        """
-        if self.grid_builder.resolution != 0.5:
-            return self.grid_builder
-
-        distance_nm = start.distance_to(goal)
-        if distance_nm >= 4_000:
-            return GridBuilder(resolution=2.0)
-        if distance_nm >= 2_000:
-            return GridBuilder(resolution=1.0)
+        """Use a coarser geographic search grid for ocean-spanning voyages."""
         return self.grid_builder
 
     def _refine_final_approach(self, path: List[Node], goal: Node) -> List[Node]:
@@ -114,16 +100,14 @@ class AStarRoutePlanner(RoutePlanner):
         goal_node = Node(lat=dest_coords[1], lon=dest_coords[0])
         grid_builder = self._grid_for_voyage(start_node, goal_node)
         
-        # Keep port snapping at the fine base resolution.  A coarse ocean grid
-        # is efficient for the voyage itself, but can round a coastal port
-        # onto land and miss nearby water inside a two-degree search radius.
-        snapped_start = self.grid_builder.snap_to_water(start_node, max_radius_degrees=2.0)
-        snapped_goal = self.grid_builder.snap_to_water(goal_node, max_radius_degrees=2.0)
+        # Restrict snapping radius to 0.1 degrees (~6 NM) to prevent dangerously large jumps
+        snapped_start = self.grid_builder.snap_to_water(start_node, max_radius_degrees=0.1)
+        snapped_goal = self.grid_builder.snap_to_water(goal_node, max_radius_degrees=0.1)
         
         if not snapped_start:
-            raise ValueError("Origin port is on land and no navigable water found within 2.0° search radius.")
+            raise ValueError("Origin port is not a valid maritime access point (no navigable water within 0.1°).")
         if not snapped_goal:
-            raise ValueError("Destination port is on land and no navigable water found within 2.0° search radius.")
+            raise ValueError("Destination port is not a valid maritime access point (no navigable water within 0.1°).")
             
         start_node = snapped_start
         goal_node = snapped_goal
@@ -156,12 +140,21 @@ class AStarRoutePlanner(RoutePlanner):
         env_conditions_at: Dict[Node, dict] = {start_node: {}}
 
         iterations = 0
-        # A longer voyage uses fewer degrees per node on a coarser grid, but
-        # still needs to search around continents.  The former fixed limit of
-        # 1,500 nodes was only suitable for local Antarctic passages.
-        max_iterations = 8_000 if grid_builder.resolution > self.grid_builder.resolution else 1_500
+        max_iterations = 50_000
         
-        missing_risk = any(v is None for k,v in risk_grid.items()) if isinstance(risk_grid, dict) and risk_grid else True
+        if hasattr(risk_grid, 'cells'):
+            risk_data = risk_grid
+            cells = risk_grid.cells
+        else:
+            from app.schemas.route import RiskGridData
+            cells = risk_grid
+            risk_data = RiskGridData(cells=cells, status="KNOWN" if cells else "UNAVAILABLE", ml_status="UNAVAILABLE", warnings=[])
+            
+        missing_risk = risk_data.status == "UNAVAILABLE"
+        if missing_risk and request.objective_type.value == "safest":
+            raise ValueError("INSUFFICIENT_RISK_DATA: Safety First route requires valid risk data. The route cannot be risk-validated.")
+            
+        risk_grid = cells
 
         # Precompute minimum possible cost per NM for admissible heuristic
         sog_max = vessel.cruising_speed if vessel.cruising_speed > 0 else 12.0
@@ -176,7 +169,11 @@ class AStarRoutePlanner(RoutePlanner):
 
         while open_set:
             iterations += 1
+            if iterations % 200 == 0:
+                await asyncio.sleep(0)
+                
             if iterations > max_iterations:
+                print(f"FAILED AT ITER {iterations}: current={current.lat},{current.lon} goal={goal_node.lat},{goal_node.lon}")
                 raise ValueError("No navigable water route found within the configured search limits.")
 
             _, _, current, current_time = heapq.heappop(open_set)
@@ -187,7 +184,7 @@ class AStarRoutePlanner(RoutePlanner):
 
             if (current == goal_node or current.distance_to(goal_node) < grid_builder.resolution * 60 * 1.5):
                 return self._reconstruct_route(
-                    came_from, current, start_node, goal_node, vessel, request, risk_grid, arrival_times, env_conditions_at, demo_mode, missing_risk
+                    came_from, current, start_node, goal_node, vessel, request, risk_grid, arrival_times, env_conditions_at, demo_mode, risk_data
                 )
 
             neighbors = grid_builder.get_neighbors(current)
@@ -242,6 +239,7 @@ class AStarRoutePlanner(RoutePlanner):
 
                         heapq.heappush(open_set, (f_score[neighbor], id(neighbor), neighbor, exact_eta))
 
+        print(f"OPEN_SET EXHAUSTED AFTER {iterations} ITERATIONS")
         raise ValueError("No navigable water route found within the configured search limits.")
 
     def _reconstruct_route(
@@ -256,7 +254,7 @@ class AStarRoutePlanner(RoutePlanner):
         arrival_times: Dict[Node, datetime],
         env_conditions_at: Dict[Node, dict],
         demo_mode: bool,
-        missing_risk: bool
+        risk_data: Any
     ) -> RouteCreate:
         path = [current]
         while current in came_from:
@@ -296,15 +294,38 @@ class AStarRoutePlanner(RoutePlanner):
         total_distance = 0.0
         total_risk = 0.0
         
+        from app.schemas.route import CostDecomposition
+        cost_decomp = CostDecomposition()
+        
+        weights = self._get_weights_for_objective(request.objective_type, request.weights)
+        scorer = RouteScorer(weights, self.cost_calculator)
+        
         for i in range(len(path) - 1):
-            dist = path[i].distance_to(path[i + 1])
+            curr = path[i]
+            nxt = path[i+1]
+            dist = curr.distance_to(nxt)
             total_distance += dist
-            cell_risk = self.cost_calculator.get_risk_at(path[i + 1], risk_grid)
+            cell_risk = self.cost_calculator.get_risk_at(nxt, risk_grid)
             # Ensure we don't present missing risk as 0.0 in the final score if it's missing in demo mode
             if cell_risk is None and demo_mode:
-                total_risk += 0.5 * dist
+                effective_risk = 0.5
             else:
-                total_risk += (cell_risk if cell_risk is not None else 0.0) * dist
+                effective_risk = (cell_risk if cell_risk is not None else 0.0)
+                
+            total_risk += effective_risk * dist
+            
+            env = env_conditions_at.get(nxt, {})
+            edge_decomp = scorer.decompose_edge_cost(curr, nxt, vessel, effective_risk, env)
+            cost_decomp.time_cost += edge_decomp.get("time_cost", 0.0)
+            cost_decomp.fuel_cost += edge_decomp.get("fuel_cost", 0.0)
+            cost_decomp.risk_cost += edge_decomp.get("risk_cost", 0.0)
+            cost_decomp.wind_penalty += edge_decomp.get("wind_penalty", 0.0)
+            cost_decomp.wave_penalty += edge_decomp.get("wave_penalty", 0.0)
+            
+        cost_decomp.total_cost = (
+            cost_decomp.time_cost + cost_decomp.fuel_cost + cost_decomp.risk_cost 
+            + cost_decomp.wind_penalty + cost_decomp.wave_penalty
+        )
 
         total_time_hours = (arrival_times[path[-1]] - request.departure_time).total_seconds() / 3600.0
         total_fuel = total_time_hours * vessel.fuel_consumption
@@ -339,19 +360,16 @@ class AStarRoutePlanner(RoutePlanner):
                 )
             )
 
-        if missing_risk:
+        if risk_data.status == "UNAVAILABLE":
+            risk_status = "unavailable"
+            ml_status = risk_data.ml_status
+            warnings = risk_data.warnings + ["Risk data is unavailable. Route is not risk-validated."]
             if demo_mode:
                 risk_status = "demo_unverified"
-                ml_status = "unavailable"
-                warnings = ["DEMO ROUTE — Risk data unavailable. This route has NOT been verified against real-time environmental hazards. Do not use for actual navigation."]
-            else:
-                risk_status = "unavailable"
-                ml_status = "unavailable"
-                warnings = ["Risk data is unavailable or incomplete. Assuming 0.0 risk for path math. DO NOT navigate blindly."]
         else:
-            risk_status = "available"
-            ml_status = "available"
-            warnings = []
+            risk_status = risk_data.status
+            ml_status = risk_data.ml_status
+            warnings = risk_data.warnings
 
         return RouteCreate(
             origin=request.origin,
@@ -370,5 +388,6 @@ class AStarRoutePlanner(RoutePlanner):
             risk_data_status=risk_status,
             ml_prediction_status=ml_status,
             warnings=warnings,
-            waypoints=waypoints_detail
+            waypoints=waypoints_detail,
+            cost_decomposition=cost_decomp
         )

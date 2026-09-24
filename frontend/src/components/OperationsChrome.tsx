@@ -157,13 +157,15 @@ export function KpiStrip({ forecast, route, liveEnv }: { forecast: ForecastMeta,
       {/* Metric 3: Route risk score */}
       <div className="overview-metric-cell">
         <div className="metric-icon-plain">
-          <ShieldAlert size={16} className={route ? "icon-amber" : "icon-slate"} />
+          <ShieldAlert size={16} className={route && route.risk_data_status !== "unavailable" ? "icon-amber" : "icon-slate"} />
         </div>
         <div className="metric-text-group">
-          <span className="metric-large-num">{route ? riskScore.toFixed(2) : "--"}</span>
+          <span className="metric-large-num">{route ? (route.risk_data_status === "unavailable" ? "N/A" : riskScore.toFixed(2)) : "--"}</span>
           <span className="metric-sub-label">route risk score</span>
         </div>
-        <span className={`metric-status-badge ${route ? "badge-amber" : "badge-slate"}`}>{route ? "ACTIVE" : "PENDING"}</span>
+        <span className={`metric-status-badge ${route ? (route.risk_data_status === "unavailable" ? "badge-slate" : "badge-amber") : "badge-slate"}`}>
+          {route ? (route.risk_data_status === "unavailable" ? "UNAVAILABLE" : "ACTIVE") : "PENDING"}
+        </span>
       </div>
 
       {/* Metric 4: Data confidence */}

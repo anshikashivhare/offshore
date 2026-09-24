@@ -4,7 +4,12 @@ from app.models.vessel import Vessel
 from app.services.routing.grid import Node
 
 
+from app.services.environment.bathymetry import BathymetryService
+
 class VesselConstraintChecker:
+    def __init__(self):
+        self.bathymetry = BathymetryService()
+        
     def is_navigable(self, node: Node, vessel: Vessel, risk_grid: Any) -> bool:
         """
         Check if a given node is navigable by the vessel based on its constraints.
@@ -29,8 +34,14 @@ class VesselConstraintChecker:
             if risk_val >= 0.9:
                 return False
 
-            # If vessel has no ice capability, it shouldn't enter risk >= 0.5
             if not vessel.ice_capability and risk_val >= 0.5:
+                return False
+
+        # Bathymetry constraint (Draft vs Depth)
+        if getattr(vessel, 'draft_m', None):
+            depth = self.bathymetry.get_depth_at(node.lat, node.lon)
+            # Require at least 2m under keel clearance
+            if depth < (vessel.draft_m + 2.0):
                 return False
 
         return True

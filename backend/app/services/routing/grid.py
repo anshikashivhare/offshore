@@ -1,5 +1,5 @@
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from global_land_mask import globe
 
 class Node:
@@ -33,8 +33,16 @@ class GridBuilder:
     def get_neighbors(self, current: Node) -> List[Node]:
         """Generate 8-way neighbors for a given grid node"""
         neighbors = []
-        for dlat in [-self.resolution, 0, self.resolution]:
-            for dlon in [-self.resolution, 0, self.resolution]:
+        # Multi-resolution: coarse near equator, fine near Antarctica
+        if current.lat > -50.0:
+            step = 2.0
+        elif current.lat > -60.0:
+            step = 1.0
+        else:
+            step = self.resolution
+
+        for dlat in [-step, 0, step]:
+            for dlon in [-step, 0, step]:
                 if dlat == 0 and dlon == 0:
                     continue
                 new_lat = current.lat + dlat
@@ -72,14 +80,38 @@ class GridBuilder:
                 # ``snap_to_water`` can move a port that starts on land out to
                 # its nearest water cell; all of the proposed edge and its
                 # destination remain land-checked.
+                # Geodesic interpolation
+                # A simple approximation for small distances (< 10 degrees)
+                # We can just interpolate linearly in lat/lon, BUT we must be careful at high latitudes.
+                # Actually, geographiclib is best, but we can just use linear for now and flag it?
+                # The prompt asks for geodesic interpolation.
                 for i in range(1, samples + 1):
                     t = i / float(samples)
-                    test_lat = current.lat + t * dlat
-                    test_lon = current.lon + t * dlon_shortest
                     
+                    # Haversine-based intermediate point (approximate geodesic)
+                    lat1 = math.radians(current.lat)
+                    lon1 = math.radians(current.lon)
+                    lat2 = math.radians(current.lat + dlat)
+                    lon2 = math.radians(current.lon + dlon_shortest)
+                    
+                    dist_rad = math.sqrt( (lat2-lat1)**2 + (math.cos((lat1+lat2)/2)*(lon2-lon1))**2 )
+                    
+                    if dist_rad < 1e-6:
+                        test_lat = current.lat
+                        test_lon = current.lon
+                    else:
+                        A = math.sin((1 - t) * dist_rad) / math.sin(dist_rad)
+                        B = math.sin(t * dist_rad) / math.sin(dist_rad)
+                        x = A * math.cos(lat1) * math.cos(lon1) + B * math.cos(lat2) * math.cos(lon2)
+                        y = A * math.cos(lat1) * math.sin(lon1) + B * math.cos(lat2) * math.sin(lon2)
+                        z = A * math.sin(lat1) + B * math.sin(lat2)
+                        
+                        test_lat = math.degrees(math.atan2(z, math.sqrt(x*x + y*y)))
+                        test_lon = math.degrees(math.atan2(y, x))
+                        
                     if test_lon > 180:
                         test_lon -= 360
-                    elif test_lon < -180:
+                    elif test_lon <= -180:
                         test_lon += 360
                         
                     if globe.is_land(test_lat, test_lon):
@@ -92,7 +124,7 @@ class GridBuilder:
                 neighbors.append(Node(new_lat, new_lon))
         return neighbors
 
-    def snap_to_water(self, node: Node, max_radius_degrees: float = 2.0) -> Node | None:
+    def snap_to_water(self, node: Node, max_radius_degrees: float = 2.0) -> Optional[Node]:
         """Find nearest navigable water node using BFS on the routing grid."""
         
         # Align origin to grid to ensure all waypoints are strictly grid nodes

@@ -16,6 +16,19 @@ class WaypointDetail(BaseModel):
     eta: datetime
     data_provenance: str
     env_conditions: Dict[str, Any]
+class RiskGridData(BaseModel):
+    cells: Dict[Any, float] = {}
+    status: str = "unavailable"
+    ml_status: str = "unavailable"
+    warnings: List[str] = []
+
+class CostDecomposition(BaseModel):
+    total_cost: float = 0.0
+    time_cost: float = 0.0
+    fuel_cost: float = 0.0
+    risk_cost: float = 0.0
+    wave_penalty: float = 0.0
+    wind_penalty: float = 0.0
 
 class RouteProperties(BaseModel):
     route_id: uuid.UUID
@@ -40,6 +53,7 @@ class RouteProperties(BaseModel):
     endpoint_snapping_applied: Optional[bool] = None
     snapped_origin: Optional[str] = None  # "lon,lat" if snapped
     snapped_destination: Optional[str] = None  # "lon,lat" if snapped
+    cost_decomposition: Optional[CostDecomposition] = None
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -124,6 +138,7 @@ class RouteCreate(BaseModel):
     endpoint_snapping_applied: Optional[bool] = None
     snapped_origin: Optional[str] = None
     snapped_destination: Optional[str] = None
+    cost_decomposition: Optional[CostDecomposition] = None
 
 class RouteBase(RouteCreate):
     pass

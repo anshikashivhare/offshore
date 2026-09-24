@@ -37,6 +37,20 @@ class DijkstraShortestPlanner(RoutePlanner):
         vessel: Vessel,
         risk_grid: Optional[Dict] = None,
     ) -> RouteCreate:
+        if hasattr(risk_grid, 'cells'):
+            risk_data = risk_grid
+            cells = risk_grid.cells
+        else:
+            from app.schemas.route import RiskGridData
+            cells = risk_grid
+            risk_data = RiskGridData(cells=cells or {}, status="KNOWN" if cells else "UNAVAILABLE", ml_status="UNAVAILABLE", warnings=[])
+            
+        missing_risk = risk_data.status == "UNAVAILABLE"
+        if missing_risk and request.objective_type.value == "safest":
+            raise ValueError("INSUFFICIENT_RISK_DATA: Safety First route requires valid risk data.")
+        
+        risk_grid = cells
+
         try:
             origin_lon, origin_lat = _parse_lonlat(request.origin)
             dest_lon, dest_lat = _parse_lonlat(request.destination)
@@ -139,8 +153,8 @@ class DijkstraShortestPlanner(RoutePlanner):
             risk_exposure=risk_exposure,
             objective_type=request.objective_type,
             algorithm_version="DijkstraShortest-v1.0",
-            risk_data_status="available" if risk_grid else "not_applicable",
-            ml_prediction_status="unavailable",
-            warnings=["Dijkstra planner minimizes distance only. Environmental hazards were ignored during generation, but risk metrics are evaluated for comparison."],
+            risk_data_status="unavailable" if missing_risk else risk_data.status,
+            ml_prediction_status=risk_data.ml_status,
+            warnings=(risk_data.warnings + ["Dijkstra planner minimizes distance only. Environmental hazards were ignored during generation, but risk metrics are evaluated for comparison."]) if missing_risk else ["Dijkstra planner minimizes distance only. Environmental hazards were ignored during generation, but risk metrics are evaluated for comparison."],
             waypoints=None
         )

@@ -81,10 +81,11 @@ class RouteComparisonService:
         return " ".join(parts)
 
     def _extract_uncertainty(self, risk_grid: Any) -> str:
-        if not risk_grid:
+        grid = risk_grid.cells if hasattr(risk_grid, 'cells') else risk_grid
+        if not grid:
             return "Risk surface unavailable. Recommendation based on geometric distance only."
         confidences: List[float] = []
-        for v in risk_grid.values():
+        for v in grid.values():
             if isinstance(v, dict):
                 conf = v.get("confidence") or v.get("confidence_score")
                 if isinstance(conf, (int, float)):
@@ -106,13 +107,14 @@ class RouteComparisonService:
 
     def _get_warnings(self, risk_grid: Any) -> List[str]:
         warnings: List[str] = []
-        if not risk_grid:
+        grid = risk_grid.cells if hasattr(risk_grid, 'cells') else risk_grid
+        if not grid:
             warnings.append(
                 "Risk surface empty; route based on geometric shortest path."
             )
             return warnings
         high = 0
-        for v in risk_grid.values():
+        for v in grid.values():
             if isinstance(v, (int, float)) and v >= 0.7:
                 high += 1
             elif isinstance(v, dict):
@@ -212,10 +214,14 @@ class RouteComparisonService:
                 raise ValueError(f"Route calculation failed: {errors[0]}")
             raise ValueError("No feasible routes could be generated for comparison.")
 
-        if base_request.objective_type in routes_generated:
-            recommended = routes_generated[base_request.objective_type]
-        else:
+        if base_request.objective_type not in routes_generated:
+            target_error = next((e for obj, r, e in results if obj == base_request.objective_type and e), None)
+            if target_error:
+                raise ValueError(target_error)
+            
             recommended = next(iter(routes_generated.values()))
+        else:
+            recommended = routes_generated[base_request.objective_type]
 
         shortest_route = routes_generated.get(ObjectiveType.SHORTEST, recommended)
 

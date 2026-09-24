@@ -9,7 +9,7 @@ from app.models.vessel import Vessel
 from app.repositories.route import route as route_repo
 from app.repositories.vessel import vessel as vessel_repo
 from app.schemas.common import GeoJSONFeature
-from app.schemas.route import (RouteComparisonResponse, RouteProperties,
+from app.schemas.route import (RouteComparisonResponse, RouteProperties, RiskGridData,
                                RouteRequest, RouteResponse)
 from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.comparison import RouteComparisonService
@@ -28,23 +28,26 @@ comparison_service = RouteComparisonService(
 )
 
 
-async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any, float]:
+async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridData:
     """Fetch the most recent RiskCell rows that intersect the route bbox and
     expose them as a dict keyed by rounded (lat, lon) centroid coordinates.
 
     The A* and Dijkstra planners both consume a dict-of-float risk grid.
     """
-    # FIX: imports moved to module level — no longer re-imported per request/per row.
     from app.config.config import settings
 
     if getattr(settings, "DEMO_MODE", False):
-        return {}
+        try:
+            # Check if DB is up before assuming we can't do anything
+            await db.execute(select(1))
+        except Exception:
+            return RiskGridData(cells={}, status="UNAVAILABLE", ml_status="AVAILABLE", warnings=["Risk data could not be loaded because the configured PostgreSQL database is unavailable."])
 
     try:
         origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
         dest_lon, dest_lat = (float(x) for x in request.destination.split(","))
     except (ValueError, AttributeError):
-        return {}
+        return RiskGridData(cells={}, status="UNAVAILABLE", ml_status="UNAVAILABLE", warnings=["Invalid origin/destination for risk bounding box."])
     margin = 2.0
     min_lon = min(origin_lon, dest_lon) - margin
     max_lon = max(origin_lon, dest_lon) + margin
@@ -61,11 +64,14 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
     try:
         rows = (await db.execute(stmt)).scalars().all()
     except Exception as exc:
-        if not getattr(settings, "DEMO_MODE", False):
-            raise HTTPException(status_code=503, detail="Database unavailable")
-        return {}
+        msg = "Risk data could not be loaded because the configured PostgreSQL database is unavailable."
+        return RiskGridData(cells={}, status="UNAVAILABLE", ml_status="AVAILABLE", warnings=[msg])
+        
     grid: Dict[Any, float] = {}
+    ml_used = False
     for cell in rows:
+        if cell.data_source == "ml_forecast":
+            ml_used = True
         try:
             geom = to_geojson_geometry(cell.geometry)
         except Exception:
@@ -86,7 +92,11 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> Dict[Any,
         prev = grid.get(key, 0.0)
         if cell.composite_risk > prev:
             grid[key] = float(cell.composite_risk)
-    return grid
+            
+    ml_status = "AVAILABLE" if ml_used else "UNAVAILABLE"
+    status = "KNOWN"
+    warnings = [] if grid else ["No risk cells found for this region."]
+    return RiskGridData(cells=grid, status=status, ml_status=ml_status, warnings=warnings)
 
 
 @router.post("/plan", response_model=RouteResponse, status_code=status.HTTP_201_CREATED)
@@ -138,13 +148,13 @@ async def plan_route(
     origin_node = Node(lat=origin_lat, lon=origin_lon)
     dest_node = Node(lat=dest_lat, lon=dest_lon)
 
-    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=2.0)
+    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=0.1)
     if snapped_origin is None:
-        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 2.0° search radius.")
+        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 0.1° search radius.")
 
-    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=2.0)
+    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=0.1)
     if snapped_dest is None:
-        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 2.0° search radius.")
+        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 0.1° search radius.")
 
     # Track whether snapping was applied
     origin_snapped = (snapped_origin.lat != origin_lat or snapped_origin.lon != origin_lon)
@@ -197,7 +207,7 @@ async def plan_route(
         route_create.snapped_origin = f"{snapped_origin.lon},{snapped_origin.lat}"
         route_create.snapped_destination = f"{snapped_dest.lon},{snapped_dest.lat}"
 
-    db_route_data = route_create.model_dump(exclude={"waypoints", "risk_data_status", "ml_prediction_status", "warnings", "land_avoidance_validated", "endpoint_snapping_applied", "snapped_origin", "snapped_destination"})
+    db_route_data = route_create.model_dump(exclude={"waypoints", "risk_data_status", "ml_prediction_status", "warnings", "land_avoidance_validated", "endpoint_snapping_applied", "snapped_origin", "snapped_destination", "cost_decomposition"})
     db_route = Route(**db_route_data)
     # Bypass DB persistence for demo mode (since Postgres is unavailable)
     # db.add(db_route)
@@ -231,7 +241,8 @@ async def plan_route(
         land_avoidance_validated=route_create.land_avoidance_validated,
         endpoint_snapping_applied=route_create.endpoint_snapping_applied,
         snapped_origin=route_create.snapped_origin,
-        snapped_destination=route_create.snapped_destination
+        snapped_destination=route_create.snapped_destination,
+        cost_decomposition=route_create.cost_decomposition
     )
     return GeoJSONFeature[RouteProperties](
         type="Feature", geometry=geometry, properties=properties

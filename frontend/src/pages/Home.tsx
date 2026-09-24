@@ -205,8 +205,10 @@ export default function Home() {
           etaHours: travelTimeHours,
           fuelLitres: feature.properties.estimated_fuel || 0,
           estimatedDays: etaDays,
-          riskScore: feature.properties.risk_score || 0,
-          exposure: feature.properties.risk_exposure != null ? `Risk Exposure: ${feature.properties.risk_exposure.toFixed(2)}` : `${Math.round(etaDays)} days`,
+          riskScore: feature.properties.risk_data_status === "unavailable" ? "N/A" : (feature.properties.risk_score || 0),
+          exposure: feature.properties.risk_data_status === "unavailable" 
+            ? "Risk Data: Unavailable" 
+            : (feature.properties.risk_exposure != null ? `Risk Exposure: ${feature.properties.risk_exposure.toFixed(2)}` : `${Math.round(etaDays)} days`),
           status: isRecommended ? "Recommended" : "Alternative",
           accent: isRecommended ? "#2563eb" : "#64748b",
           geometry: feature.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] })),
