@@ -16,7 +16,7 @@ _SLOW_RESOURCE_SEGMENTS = ("/routes", "/risk", "/predict")
 
 def request_timeout_seconds(path: str) -> float:
     """Choose the deadline from the mounted API path, not an assumed root path."""
-    return 60.0 if any(segment in path for segment in _SLOW_RESOURCE_SEGMENTS) else 15.0
+    return 300.0 if any(segment in path for segment in _SLOW_RESOURCE_SEGMENTS) else 15.0
 
 
 class RequestContextMiddleware:

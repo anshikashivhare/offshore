@@ -309,6 +309,10 @@ class AStarRoutePlanner(RoutePlanner):
         total_time_hours = (arrival_times[path[-1]] - request.departure_time).total_seconds() / 3600.0
         total_fuel = total_time_hours * vessel.fuel_consumption
         eta = arrival_times[path[-1]]
+        
+        risk_exposure = total_risk
+        risk_score = total_risk / total_distance if total_distance > 0 else 0.0
+
          # Geometry construction
         from app.services.routing.modes import get_data_provenance
         from app.schemas.route import WaypointDetail
@@ -356,9 +360,11 @@ class AStarRoutePlanner(RoutePlanner):
             departure_time=request.departure_time,
             geometry=geometry,
             distance=total_distance,
+            travel_time=total_time_hours,
             eta=eta,
             estimated_fuel=total_fuel,
-            risk_score=total_risk,
+            risk_score=risk_score,
+            risk_exposure=risk_exposure,
             objective_type=request.objective_type,
             algorithm_version="AStar-4D-TimeAware-v1.0",
             risk_data_status=risk_status,

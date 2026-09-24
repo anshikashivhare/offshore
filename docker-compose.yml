@@ -40,8 +40,8 @@ services:
 
   api:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: offshore_api
     restart: unless-stopped
     env_file:
@@ -74,8 +74,8 @@ services:
 
   worker:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: offshore_worker
     restart: unless-stopped
     env_file:
@@ -95,7 +95,7 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
-    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "-B", "--loglevel=info", "--concurrency=2"]
     security_opt:
       - no-new-privileges:true
     volumes:

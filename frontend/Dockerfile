@@ -2,7 +2,7 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 FROM node:20-alpine AS builder
 WORKDIR /app
@@ -21,7 +21,8 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/vite.config.ts ./vite.config.ts
 
 USER nextjs
 EXPOSE 3000

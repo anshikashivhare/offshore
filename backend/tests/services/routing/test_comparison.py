@@ -45,21 +45,21 @@ def comparison_service():
 def test_generate_explanation_lower_risk(comparison_service):
     shortest = RouteProperties(
         route_id=uuid.uuid4(), vessel_id=uuid.uuid4(), origin="0,0", destination="1,1",
-        departure_time=datetime.now(timezone.utc), distance=100.0, eta=datetime.now(timezone.utc),
-        estimated_fuel=500.0, risk_score=0.8, objective_type=ObjectiveType.SHORTEST
+        departure_time=datetime.now(timezone.utc), distance=100.0, travel_time=10.0, eta=datetime.now(timezone.utc),
+        estimated_fuel=500.0, risk_score=0.8, risk_exposure=8.0, objective_type=ObjectiveType.SHORTEST
     )
     
     safest = RouteProperties(
         route_id=uuid.uuid4(), vessel_id=uuid.uuid4(), origin="0,0", destination="1,1",
-        departure_time=datetime.now(timezone.utc), distance=150.0, eta=datetime.now(timezone.utc),
-        estimated_fuel=700.0, risk_score=0.1, objective_type=ObjectiveType.SAFEST
+        departure_time=datetime.now(timezone.utc), distance=150.0, travel_time=15.0, eta=datetime.now(timezone.utc),
+        estimated_fuel=700.0, risk_score=0.1, risk_exposure=1.0, objective_type=ObjectiveType.SAFEST
     )
     
     explanation = comparison_service._generate_explanation(safest, shortest, ObjectiveType.SAFEST)
     
     assert "SAFEST" in explanation
     assert "significantly reduces risk exposure" in explanation
-    assert "by 0.70" in explanation
+    assert "by 7.00" in explanation
     assert "requires 200.0 additional units of fuel" in explanation
 
 @pytest.mark.asyncio

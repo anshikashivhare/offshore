@@ -27,22 +27,22 @@ class RiskAggregationStrategy(ABC):
     @abstractmethod
     def aggregate(
         self, results: Dict[str, "object"], weights: Dict[str, float]
-    ) -> float: ...
+    ) -> Optional[float]: ...
 
 
 class WeightedSumStrategy(RiskAggregationStrategy):
     def aggregate(
         self, results: Dict[str, "object"], weights: Dict[str, float]
-    ) -> float:
+    ) -> Optional[float]:
         total_risk = 0.0
         total_weight = 0.0
         for key, weight in weights.items():
-            if key in results and not results[key].is_missing:
+            if key in results and not results[key].is_missing and results[key].risk_value is not None:
                 total_risk += results[key].risk_value * weight
                 total_weight += weight
         if total_weight > 0:
             return total_risk / total_weight
-        return 0.0
+        return None
 
 
 class RiskEngine:
@@ -96,12 +96,15 @@ class RiskEngine:
             if weight < 0:
                 raise ValueError(f"Weight for {key} cannot be negative")
 
-    def _categorize_risk(self, composite_risk: float) -> RiskCategory:
-        if composite_risk < 0.25:
+    def _categorize_risk(self, composite_risk: Optional[float]) -> RiskCategory:
+        from app.config.config import settings
+        if composite_risk is None:
             return RiskCategory.LOW
-        if composite_risk < 0.5:
+        if composite_risk < settings.RISK_THRESHOLD_MODERATE:
+            return RiskCategory.LOW
+        if composite_risk < settings.RISK_THRESHOLD_HIGH:
             return RiskCategory.MODERATE
-        if composite_risk < 0.75:
+        if composite_risk < settings.RISK_THRESHOLD_AVOID:
             return RiskCategory.HIGH
         return RiskCategory.AVOID
 
@@ -210,8 +213,8 @@ class _StubBase:
         from app.services.risk.calculators import RiskComponentResult
 
         return RiskComponentResult(
-            risk_value=0.5,
-            confidence=0.5,
+            risk_value=None,
+            confidence=0.0,
             is_missing=True,
             metadata={"source": "stub_no_db"},
         )

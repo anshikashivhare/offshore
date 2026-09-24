@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "start": "NODE_ENV=production node dist/index.js",
+    "start": "npx serve -s dist/public -l 3000",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
     "format": "prettier --write ."

@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class RiskComponentResult(BaseModel):
-    risk_value: float
+    risk_value: Optional[float]
     confidence: float
     is_missing: bool
     metadata: Dict[str, Any] = {}
@@ -37,13 +37,9 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _nearby_query(
-    model, lat: float, lon: float, *, envelope_deg: float = 3.0, limit: int = 20
+    model, lat: float, lon: float, timestamp: Any = None, *, envelope_deg: float = 3.0, limit: int = 20
 ):
-    """Return a SQLAlchemy select for nearby rows of ``model``.
-
-    Falls back to returning all rows (limited) when the geometry column has
-    been monkey-patched to a non-spatial type (e.g., SQLite tests).
-    """
+    """Return a SQLAlchemy select for nearby rows of ``model``."""
     geom = getattr(model, "geometry", None)
     if geom is not None:
         st_intersects = getattr(geom, "ST_Intersects", None)
@@ -58,6 +54,8 @@ def _nearby_query(
             stmt = select(model).where(st_intersects(envelope))
             ts = getattr(model, "timestamp", None)
             if ts is not None:
+                if timestamp is not None:
+                    stmt = stmt.where(ts <= timestamp)
                 stmt = stmt.order_by(ts.desc())
             return stmt.limit(limit)
     return select(model).limit(limit)
@@ -93,11 +91,11 @@ class IceRiskCalculator(RiskCalculator):
     async def calculate(
         self, lat: float, lon: float, timestamp: Any
     ) -> RiskComponentResult:
-        stmt = _nearby_query(SeaIceObservation, lat, lon)
+        stmt = _nearby_query(SeaIceObservation, lat, lon, timestamp)
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.0,
                 is_missing=True,
                 metadata={"source": "sea_ice_obs", "nearest_km": None},
@@ -115,9 +113,9 @@ class IceRiskCalculator(RiskCalculator):
                 best_d = d
         if best is None or best_d > self.influence_radius_km:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.2 if best is not None else 0.0,
-                is_missing=best is None,
+                is_missing=best is None or best_d > self.influence_radius_km,
                 metadata={
                     "source": "sea_ice_obs",
                     "nearest_km": None if best is None else round(best_d, 1),
@@ -154,11 +152,11 @@ class IcebergRiskCalculator(RiskCalculator):
     async def calculate(
         self, lat: float, lon: float, timestamp: Any
     ) -> RiskComponentResult:
-        stmt = _nearby_query(IcebergDetection, lat, lon)
+        stmt = _nearby_query(IcebergDetection, lat, lon, timestamp)
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.0,
                 is_missing=True,
                 metadata={"source": "iceberg_detection", "nearest_km": None},
@@ -177,9 +175,9 @@ class IcebergRiskCalculator(RiskCalculator):
             contributions.append(decay * conf)
         if not contributions:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.1,
-                is_missing=False,
+                is_missing=True,
                 metadata={
                     "source": "iceberg_detection",
                     "nearest_km": "outside_radius",
@@ -213,11 +211,11 @@ class WeatherRiskCalculator(RiskCalculator):
     async def calculate(
         self, lat: float, lon: float, timestamp: Any
     ) -> RiskComponentResult:
-        stmt = _nearby_query(WeatherObservation, lat, lon)
+        stmt = _nearby_query(WeatherObservation, lat, lon, timestamp)
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.0,
                 is_missing=True,
                 metadata={"source": "weather_obs"},
@@ -235,7 +233,7 @@ class WeatherRiskCalculator(RiskCalculator):
                 best_d = d
         if best is None or best_d > self.search_radius_km:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.0,
                 is_missing=True,
                 metadata={
@@ -275,11 +273,11 @@ class CurrentRiskCalculator(RiskCalculator):
     async def calculate(
         self, lat: float, lon: float, timestamp: Any
     ) -> RiskComponentResult:
-        stmt = _nearby_query(OceanObservation, lat, lon)
+        stmt = _nearby_query(OceanObservation, lat, lon, timestamp)
         rows = (await self.db.execute(stmt)).scalars().all()
         if not rows:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.0,
                 is_missing=True,
                 metadata={"source": "ocean_obs"},
@@ -297,7 +295,7 @@ class CurrentRiskCalculator(RiskCalculator):
                 best_d = d
         if best is None or best_d > self.search_radius_km:
             return RiskComponentResult(
-                risk_value=0.0,
+                risk_value=None,
                 confidence=0.0,
                 is_missing=True,
                 metadata={"source": "ocean_obs"},

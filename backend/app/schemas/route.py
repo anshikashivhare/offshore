@@ -24,15 +24,22 @@ class RouteProperties(BaseModel):
     destination: str
     departure_time: datetime
     distance: float
+    travel_time: float
     eta: datetime
     estimated_fuel: float
     risk_score: float
+    risk_exposure: float
     objective_type: ObjectiveType
     algorithm_version: Optional[str] = None
     risk_data_status: Optional[str] = "unknown"
     ml_prediction_status: Optional[str] = "unavailable"
     warnings: Optional[List[str]] = []
     waypoints: Optional[List[WaypointDetail]] = None
+    # Land avoidance validation metadata
+    land_avoidance_validated: Optional[bool] = None
+    endpoint_snapping_applied: Optional[bool] = None
+    snapped_origin: Optional[str] = None  # "lon,lat" if snapped
+    snapped_destination: Optional[str] = None  # "lon,lat" if snapped
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -43,9 +50,11 @@ class RouteProperties(BaseModel):
                 "destination": "-55.5,-60.1",
                 "departure_time": "2026-09-03T12:00:00Z",
                 "distance": 350.5,
+                "travel_time": 30.5,
                 "eta": "2026-09-04T18:30:00Z",
                 "estimated_fuel": 12.5,
                 "risk_score": 0.15,
+                "risk_exposure": 52.57,
                 "objective_type": "safest",
                 "algorithm_version": "AStar-4D-TimeAware-v1.0",
                 "waypoints": []
@@ -99,15 +108,22 @@ class RouteCreate(BaseModel):
     departure_time: datetime
     geometry: str
     distance: float
+    travel_time: float
     eta: datetime
     estimated_fuel: float
     risk_score: float
+    risk_exposure: float
     objective_type: ObjectiveType
     algorithm_version: Optional[str] = None
     risk_data_status: Optional[str] = "unknown"
     ml_prediction_status: Optional[str] = "unavailable"
     warnings: Optional[List[str]] = []
     waypoints: Optional[List[WaypointDetail]] = None
+    # Land avoidance validation metadata
+    land_avoidance_validated: Optional[bool] = None
+    endpoint_snapping_applied: Optional[bool] = None
+    snapped_origin: Optional[str] = None
+    snapped_destination: Optional[str] = None
 
 class RouteBase(RouteCreate):
     pass
@@ -134,7 +150,7 @@ class RouteComparisonResponse(BaseModel):
     recommended_route: RouteResponse
     alternatives: List[RouteAlternative]
     optimization_weights: OptimizationWeights
-    contributing_risk_factors: dict
+    risk_factors: dict
     explanation: str
     uncertainty: str
     warnings: List[str]
@@ -155,16 +171,18 @@ class RouteComparisonResponse(BaseModel):
                         "destination": "-55.5,-60.1",
                         "departure_time": "2026-09-03T12:00:00Z",
                         "distance": 350.5,
+                        "travel_time": 30.5,
                         "eta": "2026-09-04T18:30:00Z",
                         "estimated_fuel": 12.5,
                         "risk_score": 0.15,
+                        "risk_exposure": 52.57,
                         "objective_type": "safest",
                         "algorithm_version": "v2.0",
                     },
                 },
                 "alternatives": [],
                 "optimization_weights": {"alpha": 0.33, "beta": 0.33, "gamma": 0.34},
-                "contributing_risk_factors": {"iceberg_risk": 0.8, "weather_risk": 0.2},
+                "risk_factors": {"iceberg_risk": 0.8, "weather_risk": 0.2},
                 "explanation": "Route B was recommended because predicted iceberg exposure is lower...",
                 "uncertainty": "Moderate uncertainty in iceberg prediction",
                 "warnings": ["High wind speed predicted near destination"],

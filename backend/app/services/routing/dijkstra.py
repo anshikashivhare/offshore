@@ -99,9 +99,21 @@ class DijkstraShortestPlanner(RoutePlanner):
             path.append(origin_node)
         path.reverse()
 
-        distance_nm = sum(
-            path[i].distance_to(path[i + 1]) for i in range(len(path) - 1)
-        )
+        distance_nm = 0.0
+        total_risk = 0.0
+        
+        from app.services.routing.cost import CostCalculator
+        cost_calc = CostCalculator()
+        
+        for i in range(len(path) - 1):
+            dist = path[i].distance_to(path[i + 1])
+            distance_nm += dist
+            
+            cell_risk = cost_calc.get_risk_at(path[i + 1], risk_grid)
+            total_risk += (cell_risk if cell_risk is not None else 0.0) * dist
+
+        risk_exposure = total_risk
+        risk_score = total_risk / distance_nm if distance_nm > 0 else 0.0
 
         if vessel.cruising_speed and vessel.cruising_speed > 0:
             hours = distance_nm / vessel.cruising_speed
@@ -120,13 +132,15 @@ class DijkstraShortestPlanner(RoutePlanner):
             departure_time=request.departure_time,
             geometry=wkt,
             distance=distance_nm,
+            travel_time=hours,
             eta=eta,
             estimated_fuel=fuel,
-            risk_score=0.0,
+            risk_score=risk_score,
+            risk_exposure=risk_exposure,
             objective_type=request.objective_type,
             algorithm_version="DijkstraShortest-v1.0",
-            risk_data_status="not_applicable",
-            ml_prediction_status="not_applicable",
-            warnings=["Dijkstra planner calculates distance-only routes. Environmental and ML risk data are ignored."],
+            risk_data_status="available" if risk_grid else "not_applicable",
+            ml_prediction_status="unavailable",
+            warnings=["Dijkstra planner minimizes distance only. Environmental hazards were ignored during generation, but risk metrics are evaluated for comparison."],
             waypoints=None
         )
