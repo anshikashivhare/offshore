@@ -1,5 +1,7 @@
 import math
+import numpy as np
 from typing import Dict, List, Tuple
+from functools import lru_cache
 from global_land_mask import globe
 
 class Node:
@@ -25,6 +27,77 @@ class Node:
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return R * c
 
+@lru_cache(maxsize=100000)
+def _get_valid_neighbors(lat: float, lon: float, resolution: float) -> Tuple[Tuple[float, float], ...]:
+    valid_neighbors = []
+    
+    all_test_lats = []
+    all_test_lons = []
+    neighbor_sample_counts = []
+    neighbor_coords = []
+    
+    for dlat in [-resolution, 0, resolution]:
+        for dlon in [-resolution, 0, resolution]:
+            if dlat == 0 and dlon == 0:
+                continue
+            
+            new_lat = lat + dlat
+            new_lon = lon + dlon
+            
+            # wrap longitude for the node itself
+            if new_lon > 180.0:
+                new_lon -= 360.0
+            elif new_lon <= -180.0:
+                new_lon += 360.0
+
+            # Boundary checks for valid coordinates
+            if new_lat < -90 or new_lat > 90:
+                continue
+                
+            # Calculate shortest longitude difference considering the antimeridian
+            dlon_shortest = new_lon - lon
+            if dlon_shortest > 180:
+                dlon_shortest -= 360
+            elif dlon_shortest < -180:
+                dlon_shortest += 360
+                
+            dist_deg = math.sqrt(dlat**2 + dlon_shortest**2)
+            samples = max(5, int(math.ceil(dist_deg / 0.05)))
+            
+            neighbor_sample_counts.append(samples)
+            neighbor_coords.append((new_lat, new_lon))
+            
+            for i in range(1, samples + 1):
+                t = i / float(samples)
+                test_lat = lat + t * dlat
+                test_lon = lon + t * dlon_shortest
+                
+                if test_lon > 180:
+                    test_lon -= 360
+                elif test_lon < -180:
+                    test_lon += 360
+                    
+                all_test_lats.append(test_lat)
+                all_test_lons.append(test_lon)
+                
+    if not all_test_lats:
+        return ()
+        
+    lats_np = np.array(all_test_lats)
+    lons_np = np.array(all_test_lons)
+    
+    # Vectorized land check for all neighbors at once
+    land_mask = globe.is_land(lats_np, lons_np)
+    
+    idx = 0
+    for i, samples in enumerate(neighbor_sample_counts):
+        segment_mask = land_mask[idx:idx+samples]
+        if not np.any(segment_mask):
+            valid_neighbors.append(neighbor_coords[i])
+        idx += samples
+        
+    return tuple(valid_neighbors)
+
 
 class GridBuilder:
     def __init__(self, resolution: float = 0.5):
@@ -32,65 +105,8 @@ class GridBuilder:
 
     def get_neighbors(self, current: Node) -> List[Node]:
         """Generate 8-way neighbors for a given grid node"""
-        neighbors = []
-        for dlat in [-self.resolution, 0, self.resolution]:
-            for dlon in [-self.resolution, 0, self.resolution]:
-                if dlat == 0 and dlon == 0:
-                    continue
-                new_lat = current.lat + dlat
-                new_lon = current.lon + dlon
-                
-                # wrap longitude for the node itself
-                if new_lon > 180.0:
-                    new_lon -= 360.0
-                elif new_lon <= -180.0:
-                    new_lon += 360.0
-
-                # Boundary checks for valid coordinates
-                if new_lat < -90 or new_lat > 90:
-                    continue
-                # wrap longitude
-                # Calculate shortest longitude difference considering the antimeridian
-                dlon_shortest = new_lon - current.lon
-                if dlon_shortest > 180:
-                    dlon_shortest -= 360
-                elif dlon_shortest < -180:
-                    dlon_shortest += 360
-                    
-                # Land avoidance (Robust segment sampling)
-                is_safe = True
-                
-                # Check every edge at approximately 0.05° (~5 km), including
-                # coarse global edges.  This prevents a route segment from
-                # cutting through a narrow coast between otherwise-water grid
-                # nodes.
-                dist_deg = math.sqrt(dlat**2 + dlon_shortest**2)
-                samples = max(5, int(math.ceil(dist_deg / 0.05)))
-                
-                # The current node has already been accepted as water during
-                # route search.  Start at the first point along the edge so
-                # ``snap_to_water`` can move a port that starts on land out to
-                # its nearest water cell; all of the proposed edge and its
-                # destination remain land-checked.
-                for i in range(1, samples + 1):
-                    t = i / float(samples)
-                    test_lat = current.lat + t * dlat
-                    test_lon = current.lon + t * dlon_shortest
-                    
-                    if test_lon > 180:
-                        test_lon -= 360
-                    elif test_lon < -180:
-                        test_lon += 360
-                        
-                    if globe.is_land(test_lat, test_lon):
-                        is_safe = False
-                        break
-                        
-                if not is_safe:
-                    continue
-
-                neighbors.append(Node(new_lat, new_lon))
-        return neighbors
+        coords = _get_valid_neighbors(current.lat, current.lon, self.resolution)
+        return [Node(lat, lon) for lat, lon in coords]
 
     def snap_to_water(self, node: Node, max_radius_degrees: float = 2.0) -> Node | None:
         """Find nearest navigable water node using BFS on the routing grid."""
@@ -113,11 +129,6 @@ class GridBuilder:
         max_iterations = 5000
         iterations = 0
         
-        # We need a stable BFS. The queue gives us roughly distance order, 
-        # but to be truly deterministic and find the absolute closest, we might
-        # need to check a full "ring" before returning. 
-        # For simplicity and performance, we'll collect all valid water nodes 
-        # within max_radius and pick the one with the minimum distance.
         valid_nodes = []
 
         while queue and iterations < max_iterations:
@@ -133,7 +144,6 @@ class GridBuilder:
                         queue.append((neighbor, dist_deg))
                         
                         # get_neighbors already ensures it's navigable water (not land)
-                        # So any neighbor returned is a valid water node
                         valid_nodes.append(neighbor)
 
         if not valid_nodes:

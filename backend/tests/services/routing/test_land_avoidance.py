@@ -1,12 +1,12 @@
 import pytest
 from app.services.routing.grid import GridBuilder, Node
 
+import numpy as np
+
 class MockGlobe:
     def is_land(self, lat, lon):
-        # Create a tiny "island" at exactly -60.5 lat, -60.5 lon
-        if abs(lat - (-60.5)) < 0.15 and abs(lon - (-60.5)) < 0.15:
-            return True
-        return False
+        # Handle numpy arrays or scalars
+        return (np.abs(lat - (-60.5)) < 0.15) & (np.abs(lon - (-60.5)) < 0.15)
 
 def test_segment_land_avoidance():
     # Monkeypatch the globe in grid.py
@@ -21,6 +21,7 @@ def test_segment_land_avoidance():
         # The midpoint is -60.5, -60.5, which is exactly the island. 
         # A midpoint check WOULD catch this.
         current = Node(lat=-60.0, lon=-60.0)
+        app.services.routing.grid._get_valid_neighbors.cache_clear()
         neighbors = builder.get_neighbors(current)
         
         # Ensure (-61, -61) is NOT in neighbors
@@ -30,11 +31,10 @@ def test_segment_land_avoidance():
         class MockGlobeShifted:
             def is_land(self, lat, lon):
                 # Island at -60.2, -60.2 (20% along the path)
-                if abs(lat - (-60.2)) < 0.15 and abs(lon - (-60.2)) < 0.15:
-                    return True
-                return False
+                return (np.abs(lat - (-60.2)) < 0.15) & (np.abs(lon - (-60.2)) < 0.15)
                 
         app.services.routing.grid.globe = MockGlobeShifted()
+        app.services.routing.grid._get_valid_neighbors.cache_clear()
         
         neighbors = builder.get_neighbors(current)
         
