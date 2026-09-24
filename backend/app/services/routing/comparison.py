@@ -37,9 +37,20 @@ class RouteComparisonService:
         objective: ObjectiveType,
     ) -> str:
         dist_diff = recommended.distance - shortest.distance
-        time_diff = (recommended.eta - shortest.eta).total_seconds() / 3600.0
+        
+        # Use travel_time if available, else fallback to eta diff
+        if recommended.travel_time is not None and shortest.travel_time is not None:
+            time_diff = recommended.travel_time - shortest.travel_time
+        else:
+            time_diff = (recommended.eta - shortest.eta).total_seconds() / 3600.0
+            
         fuel_diff = recommended.estimated_fuel - shortest.estimated_fuel
-        risk_diff = recommended.risk_score - shortest.risk_score
+        
+        # Use risk_exposure if available, else fallback to risk_score
+        if recommended.risk_exposure is not None and shortest.risk_exposure is not None:
+            risk_diff = recommended.risk_exposure - shortest.risk_exposure
+        else:
+            risk_diff = recommended.risk_score - shortest.risk_score
 
         parts = [
             f"This route was recommended because the objective is {objective.value.upper()}."
@@ -122,11 +133,17 @@ class RouteComparisonService:
             destination=route_create.destination,
             departure_time=route_create.departure_time,
             distance=route_create.distance,
+            travel_time=route_create.travel_time,
             eta=route_create.eta,
             estimated_fuel=route_create.estimated_fuel,
             risk_score=route_create.risk_score,
+            risk_exposure=route_create.risk_exposure,
             objective_type=route_create.objective_type,
             algorithm_version=route_create.algorithm_version,
+            waypoints=route_create.waypoints,
+            risk_data_status=route_create.risk_data_status,
+            ml_prediction_status=route_create.ml_prediction_status,
+            warnings=route_create.warnings,
         )
         try:
             geometry = parse_wkt_linestring(route_create.geometry)
@@ -140,6 +157,7 @@ class RouteComparisonService:
         vessel: Vessel,
         risk_grid: Any,
     ) -> RouteComparisonResponse:
+        import asyncio
         objectives = [
             ObjectiveType.SHORTEST,
             ObjectiveType.FASTEST,
@@ -150,10 +168,15 @@ class RouteComparisonService:
             objectives.append(base_request.objective_type)
 
         routes_generated: Dict[ObjectiveType, RouteResponse] = {}
+        errors: List[str] = []
 
-        for obj in objectives:
+        async def _plan_objective(obj: ObjectiveType):
             req = copy.deepcopy(base_request)
             req.objective_type = obj
+            
+            if obj != base_request.objective_type:
+                req.weights = None
+                
             if obj == ObjectiveType.SHORTEST and self.shortest_planner is not None:
                 planner = self.shortest_planner
             elif obj == ObjectiveType.SHORTEST:
@@ -165,13 +188,28 @@ class RouteComparisonService:
 
             try:
                 route_create = await planner.plan_route(req, vessel, risk_grid)
-                routes_generated[obj] = self._convert_to_response(route_create)
-            except ValueError:
-                continue
-            except Exception:
-                continue
+                return obj, self._convert_to_response(route_create), None
+            except ValueError as e:
+                return obj, None, str(e)
+            except Exception as e:
+                return obj, None, f"Internal error: {str(e)}"
+
+        results = await asyncio.gather(*[_plan_objective(obj) for obj in objectives])
+
+        for obj, route, error in results:
+            if route:
+                routes_generated[obj] = route
+            elif error:
+                errors.append(error)
 
         if not routes_generated:
+            print("ERRORS:", errors)
+            # Prioritize specific land errors over generic iteration limits if any
+            land_errors = [e for e in errors if "land" in e.lower() or "navigable" in e.lower()]
+            if land_errors:
+                raise ValueError(land_errors[0])
+            if errors:
+                raise ValueError(f"Route calculation failed: {errors[0]}")
             raise ValueError("No feasible routes could be generated for comparison.")
 
         if base_request.objective_type in routes_generated:
@@ -185,17 +223,23 @@ class RouteComparisonService:
         for obj, route in routes_generated.items():
             if route.properties.route_id == recommended.properties.route_id:
                 continue
+            time_diff = 0.0
+            if route.properties.travel_time is not None and recommended.properties.travel_time is not None:
+                time_diff = route.properties.travel_time - recommended.properties.travel_time
+            else:
+                time_diff = (route.properties.eta - recommended.properties.eta).total_seconds() / 3600.0
+                
+            risk_diff = 0.0
+            if route.properties.risk_exposure is not None and recommended.properties.risk_exposure is not None:
+                risk_diff = route.properties.risk_exposure - recommended.properties.risk_exposure
+            else:
+                risk_diff = route.properties.risk_score - recommended.properties.risk_score
+
             metrics = RouteComparisonMetrics(
-                distance_diff=route.properties.distance
-                - recommended.properties.distance,
-                time_diff_hours=(
-                    route.properties.eta - recommended.properties.eta
-                ).total_seconds()
-                / 3600.0,
-                fuel_diff=route.properties.estimated_fuel
-                - recommended.properties.estimated_fuel,
-                risk_diff=route.properties.risk_score
-                - recommended.properties.risk_score,
+                distance_diff=route.properties.distance - recommended.properties.distance,
+                time_diff_hours=time_diff,
+                fuel_diff=route.properties.estimated_fuel - recommended.properties.estimated_fuel,
+                risk_diff=risk_diff,
             )
             alternatives.append(
                 RouteAlternative(route=route, comparison_metrics=metrics)
@@ -207,16 +251,26 @@ class RouteComparisonService:
             base_request.objective_type,
         )
 
-        contributing = {
-            "iceberg_exposure": float(recommended.properties.risk_score),
-            "weather_severity": float(recommended.properties.risk_score),
-        }
+        risk_factors = {}
+        if recommended.properties.waypoints:
+            ice_vals = []
+            wave_vals = []
+            for wp in recommended.properties.waypoints:
+                if wp.env_conditions:
+                    if 'sea_ice_concentration' in wp.env_conditions:
+                        ice_vals.append(wp.env_conditions['sea_ice_concentration'])
+                    if 'wave_height' in wp.env_conditions:
+                        wave_vals.append(wp.env_conditions['wave_height'])
+            if ice_vals:
+                risk_factors["average_sea_ice_concentration"] = float(_avg(ice_vals))
+            if wave_vals:
+                risk_factors["average_wave_height"] = float(_avg(wave_vals))
 
         return RouteComparisonResponse(
             recommended_route=recommended,
             alternatives=alternatives,
             optimization_weights=base_request.weights or OptimizationWeights(),
-            contributing_risk_factors=contributing,
+            risk_factors=risk_factors,
             explanation=explanation,
             uncertainty=self._extract_uncertainty(risk_grid),
             warnings=self._get_warnings(risk_grid),

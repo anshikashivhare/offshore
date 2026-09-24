@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from app.models.enums import RiskCategory
 from app.schemas.common import GeoJSONFeature
@@ -9,11 +10,11 @@ from pydantic import BaseModel, ConfigDict
 class RiskCellProperties(BaseModel):
     id: uuid.UUID
     timestamp: datetime
-    ice_risk: float
-    iceberg_risk: float
-    weather_risk: float
-    current_risk: float
-    composite_risk: float
+    ice_risk: Optional[float] = None
+    iceberg_risk: Optional[float] = None
+    weather_risk: Optional[float] = None
+    current_risk: Optional[float] = None
+    composite_risk: Optional[float] = None
     risk_category: RiskCategory
     confidence_score: float = 1.0
     missing_data_flags: dict = {}
@@ -42,11 +43,11 @@ class RiskCellProperties(BaseModel):
 class RiskCellCreate(BaseModel):
     geometry: str
     timestamp: datetime
-    ice_risk: float
-    iceberg_risk: float
-    weather_risk: float
-    current_risk: float
-    composite_risk: float
+    ice_risk: Optional[float] = None
+    iceberg_risk: Optional[float] = None
+    weather_risk: Optional[float] = None
+    current_risk: Optional[float] = None
+    composite_risk: Optional[float] = None
     risk_category: RiskCategory
     confidence_score: float = 1.0
     missing_data_flags: dict = {}

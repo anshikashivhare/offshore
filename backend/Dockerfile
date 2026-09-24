@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir=/wheels -r requirements.txt
 
 
@@ -39,19 +39,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies from the wheel cache built in the previous stage.
 COPY --from=builder /wheels /wheels
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
     && rm -rf /wheels
 
 # Copy application source.
-COPY app ./app
-COPY gunicorn_config.py ./gunicorn_config.py
-COPY scripts ./scripts
-COPY data ./data
+COPY backend/app ./app
+COPY backend/scripts ./scripts
+COPY backend/data ./data
 
 # Copy the ML inference modules so backend can import ml.inference.*
 # Model weights (.json) are excluded from .dockerignore and baked in.
-COPY ../ml ./ml
+COPY ml ./ml
 
 # Non-root user for security.
 RUN groupadd --system appgroup \

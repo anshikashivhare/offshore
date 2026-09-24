@@ -65,7 +65,7 @@ export function AppHeader({
         <div className="header-pill">
           <CalendarDays size={13} className="pill-icon" />
           <span className="pill-mono-text">
-            {forecastDateTime ?? "13 SEP 2026 · 11:42 UTC"}
+            {forecastDateTime ?? "Live System Time"}
           </span>
         </div>
       </div>
@@ -90,13 +90,30 @@ export function AppHeader({
   );
 }
 
-export function KpiStrip({ forecast }: { forecast: ForecastMeta }) {
+export function KpiStrip({ forecast, route, liveEnv }: { forecast: ForecastMeta, route?: any, liveEnv?: any }) {
+  let avgIce = 0;
+  let avgWave = 0;
+  let riskScore = route ? route.riskScore : 0;
+  
+  if (liveEnv && liveEnv.waypoints && liveEnv.waypoints.length > 0) {
+    const validIce = liveEnv.waypoints.filter((w: any) => w.env_conditions?.sea_ice_concentration !== undefined);
+    const validWaves = liveEnv.waypoints.filter((w: any) => w.env_conditions?.wave_height !== undefined);
+    if (validIce.length > 0) {
+      avgIce = validIce.reduce((sum: number, w: any) => sum + w.env_conditions.sea_ice_concentration, 0) / validIce.length;
+    }
+    if (validWaves.length > 0) {
+      avgWave = validWaves.reduce((sum: number, w: any) => sum + w.env_conditions.wave_height, 0) / validWaves.length;
+    }
+  }
+
+  const hasData = liveEnv != null;
+
   return (
     <section className="passage-overview-strip" aria-label="Passage Overview and Metrics">
       {/* Title block */}
       <div className="overview-title-cell">
         <span className="overview-heading">PASSAGE OVERVIEW</span>
-        <span className="overview-sub">Mock data · API schema ready</span>
+        <span className="overview-sub">{hasData ? "Live Route Environmental Data" : "Waiting for route calculation..."}</span>
       </div>
 
       {/* Metric 1: Sea-ice concentration */}
@@ -112,17 +129,17 @@ export function KpiStrip({ forecast }: { forecast: ForecastMeta }) {
               stroke="#527C78"
               strokeWidth="3"
               strokeDasharray="56.5"
-              strokeDashoffset="32.8"
+              strokeDashoffset={hasData ? 56.5 * (1 - avgIce) : 56.5}
               strokeLinecap="round"
               transform="rotate(-90 12 12)"
             />
           </svg>
         </div>
         <div className="metric-text-group">
-          <span className="metric-large-num">42%</span>
+          <span className="metric-large-num">{hasData ? `${Math.round(avgIce * 100)}%` : "--"}</span>
           <span className="metric-sub-label">sea-ice concentration</span>
         </div>
-        <span className="metric-status-badge badge-mint">STABLE</span>
+        <span className="metric-status-badge badge-mint">{hasData ? "LIVE" : "PENDING"}</span>
       </div>
 
       {/* Metric 2: Significant wave height */}
@@ -131,22 +148,22 @@ export function KpiStrip({ forecast }: { forecast: ForecastMeta }) {
           <Waves size={16} className="icon-blue" />
         </div>
         <div className="metric-text-group">
-          <span className="metric-large-num">0.8 m</span>
+          <span className="metric-large-num">{hasData ? `${avgWave.toFixed(1)} m` : "--"}</span>
           <span className="metric-sub-label">significant wave height</span>
         </div>
-        <span className="metric-status-badge badge-blue">FORECAST</span>
+        <span className="metric-status-badge badge-blue">{hasData ? "LIVE" : "PENDING"}</span>
       </div>
 
       {/* Metric 3: Route risk score */}
       <div className="overview-metric-cell">
         <div className="metric-icon-plain">
-          <ShieldAlert size={16} className="icon-amber" />
+          <ShieldAlert size={16} className={route ? "icon-amber" : "icon-slate"} />
         </div>
         <div className="metric-text-group">
-          <span className="metric-large-num">0.31</span>
+          <span className="metric-large-num">{route ? riskScore.toFixed(2) : "--"}</span>
           <span className="metric-sub-label">route risk score</span>
         </div>
-        <span className="metric-status-badge badge-amber">MODERATE</span>
+        <span className={`metric-status-badge ${route ? "badge-amber" : "badge-slate"}`}>{route ? "ACTIVE" : "PENDING"}</span>
       </div>
 
       {/* Metric 4: Data confidence */}

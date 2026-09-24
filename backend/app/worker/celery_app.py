@@ -22,4 +22,10 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     broker_connection_retry_on_startup=True,
+    beat_schedule={
+        "update-ml-risk-forecast-every-6-hours": {
+            "task": "update_ml_risk_forecast",
+            "schedule": 21600.0,  # 6 hours in seconds
+        },
+    }
 )

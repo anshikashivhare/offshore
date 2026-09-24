@@ -52,6 +52,9 @@ class Settings(BaseSettings):
 
     # Forecast / risk engine limits
     RISK_CONFIDENCE_THRESHOLD: float = 0.5
+    RISK_THRESHOLD_MODERATE: float = 0.25
+    RISK_THRESHOLD_HIGH: float = 0.50
+    RISK_THRESHOLD_AVOID: float = 0.75
 
     # External data source timeouts (seconds)
     EXTERNAL_DATA_TIMEOUT: float = 30.0

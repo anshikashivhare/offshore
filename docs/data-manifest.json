@@ -1,0 +1,701 @@
+{
+  "manifest_version": "1.0",
+  "generated_at": "2026-09-24T12:48:14.390Z",
+  "repository": "offshore",
+  "description": "Complete inventory of all synthetic datasets in the OFFSHORE prototype system",
+  "total_datasets": 22,
+  "datasets": [
+    {
+      "dataset_id": "db_sea_ice_observations",
+      "source": "database_table:sea_ice_observations",
+      "format": "postgresql_postgis",
+      "record_count": 18250,
+      "variables": [
+        "id",
+        "timestamp",
+        "geometry",
+        "concentration",
+        "thickness",
+        "ice_type",
+        "source",
+        "data_quality"
+      ],
+      "geometry_type": "POLYGON",
+      "time_range": {
+        "start": "2025-01-01",
+        "end": "2026-06-23",
+        "estimated": true
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "ml/inference/seaice_predict.py",
+        "backend/app/services/risk/calculators.py:IceRiskCalculator",
+        "ml/training/seaice_xgb_train.py",
+        "ml/training/seaice_train_convlstm.py"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/sea_ice_synthetic_2026.csv"
+    },
+    {
+      "dataset_id": "db_weather_observations",
+      "source": "database_table:weather_observations",
+      "format": "postgresql_postgis",
+      "record_count": 73000,
+      "variables": [
+        "id",
+        "timestamp",
+        "geometry",
+        "wind_speed",
+        "wind_direction",
+        "temperature",
+        "wave_height",
+        "pressure",
+        "source"
+      ],
+      "geometry_type": "POINT",
+      "time_range": {
+        "start": "2025-01-01",
+        "end": "2026-06-23",
+        "estimated": true
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/services/risk/calculators.py:WeatherRiskCalculator",
+        "ml/inference/seaice_predict.py",
+        "ml/inference/trajectory_predict.py"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/weather_synthetic_2026.csv"
+    },
+    {
+      "dataset_id": "db_ocean_observations",
+      "source": "database_table:ocean_observations",
+      "format": "postgresql_postgis",
+      "record_count": 73000,
+      "variables": [
+        "id",
+        "timestamp",
+        "geometry",
+        "current_speed",
+        "current_direction",
+        "sea_surface_temperature",
+        "wave_information",
+        "source"
+      ],
+      "geometry_type": "POINT",
+      "time_range": {
+        "start": "2025-01-01",
+        "end": "2026-06-23",
+        "estimated": true
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/services/risk/calculators.py:CurrentRiskCalculator",
+        "ml/inference/seaice_predict.py",
+        "ml/inference/trajectory_predict.py"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/ocean_currents_synthetic_2026.csv"
+    },
+    {
+      "dataset_id": "db_icebergs",
+      "source": "database_table:icebergs",
+      "format": "postgresql",
+      "record_count": 30,
+      "variables": ["iceberg_id"],
+      "time_range": {
+        "start": "2025-01-01",
+        "end": "2026-06-23",
+        "estimated": true
+      },
+      "feeds_into": [
+        "database_table:iceberg_detections",
+        "database_table:iceberg_predictions"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/iceberg_trajectory_synthetic_2026.csv",
+      "notes": "Parent table for iceberg entities. IDs: IB-102, IB-221, IB-309, IB-412, IB-508 (5 unique)"
+    },
+    {
+      "dataset_id": "db_iceberg_detections",
+      "source": "database_table:iceberg_detections",
+      "format": "postgresql_postgis",
+      "record_count": 30424,
+      "variables": [
+        "id",
+        "iceberg_id",
+        "timestamp",
+        "geometry",
+        "estimated_size",
+        "extent",
+        "confidence",
+        "source_imagery",
+        "detection_metadata"
+      ],
+      "geometry_type": "POINT",
+      "time_range": {
+        "start": "2025-01-01",
+        "end": "2026-06-23",
+        "estimated": true
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/services/risk/calculators.py:IcebergRiskCalculator",
+        "ml/training/iceberg_xgb_train.py"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/iceberg_trajectory_synthetic_2026.csv"
+    },
+    {
+      "dataset_id": "db_iceberg_predictions",
+      "source": "database_table:iceberg_predictions",
+      "format": "postgresql_postgis",
+      "record_count": 30424,
+      "variables": [
+        "id",
+        "iceberg_id",
+        "prediction_timestamp",
+        "forecast_horizon",
+        "forecast_horizon_unit",
+        "predicted_geometry",
+        "predicted_path",
+        "uncertainty_representation",
+        "model_confidence",
+        "model_version"
+      ],
+      "geometry_type": "POINT",
+      "time_range": {
+        "start": "2025-01-01",
+        "end": "2026-06-23",
+        "estimated": true
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/api/v1/icebergs.py",
+        "frontend/src/components/Map.tsx"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/iceberg_trajectory_synthetic_2026.csv",
+      "model_version": "synthetic-xgb-v1"
+    },
+    {
+      "dataset_id": "db_risk_cells",
+      "source": "database_table:risk_cells",
+      "format": "postgresql_postgis",
+      "record_count": 50,
+      "variables": [
+        "id",
+        "geometry",
+        "timestamp",
+        "ice_risk",
+        "iceberg_risk",
+        "weather_risk",
+        "current_risk",
+        "composite_risk",
+        "risk_category",
+        "confidence_score",
+        "missing_data_flags",
+        "metadata_info"
+      ],
+      "geometry_type": "POLYGON",
+      "time_range": {
+        "start": "2026-09-18T06:00:00+00:00",
+        "end": "2026-09-18T06:00:00+00:00",
+        "note": "Single timestamp snapshot"
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/services/risk/engine.py",
+        "backend/app/api/v1/risk.py",
+        "frontend/src/components/Map.tsx"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/grid_cells_2026.csv"
+    },
+    {
+      "dataset_id": "db_vessels",
+      "source": "database_table:vessels",
+      "format": "postgresql",
+      "record_count": 2,
+      "variables": [
+        "vessel_id",
+        "vessel_name",
+        "vessel_type",
+        "cruising_speed",
+        "fuel_consumption",
+        "ice_capability",
+        "operational_limits"
+      ],
+      "feeds_into": [
+        "database_table:routes",
+        "backend/app/api/v1/vessels.py",
+        "backend/app/services/routing/route_planner.py"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "notes": "Hardcoded in seed script: RV Aurora Australis (VSL_00), RV Endurance (VSL_01)"
+    },
+    {
+      "dataset_id": "db_routes",
+      "source": "database_table:routes",
+      "format": "postgresql_postgis",
+      "record_count": 10,
+      "variables": [
+        "route_id",
+        "origin",
+        "destination",
+        "vessel_id",
+        "departure_time",
+        "geometry",
+        "distance",
+        "eta",
+        "estimated_fuel",
+        "risk_score",
+        "objective_type",
+        "algorithm_version"
+      ],
+      "geometry_type": "LINESTRING",
+      "time_range": {
+        "start": "2026-01-01",
+        "end": "2026-09-30",
+        "estimated": true
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/api/v1/routes.py",
+        "frontend/src/components/Map.tsx"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "source_csv": "data/raw/routes_synthetic_2026.csv",
+      "algorithm_version": "synthetic-a-star-v1"
+    },
+    {
+      "dataset_id": "db_alerts",
+      "source": "database_table:alerts",
+      "format": "postgresql_postgis",
+      "record_count": 2,
+      "variables": [
+        "id",
+        "alert_type",
+        "severity",
+        "location",
+        "timestamp",
+        "route_id",
+        "hazard_source",
+        "message",
+        "status",
+        "triggering_metric",
+        "threshold",
+        "confidence"
+      ],
+      "geometry_type": "POINT",
+      "time_range": {
+        "start": "2026-09-18T06:00:00+00:00",
+        "end": "2026-09-18T06:00:00+00:00"
+      },
+      "spatial_extent": {
+        "lat": [-90, -50],
+        "lon": [-180, 180],
+        "srid": 4326
+      },
+      "feeds_into": [
+        "backend/app/api/v1/alerts.py",
+        "frontend/src/components/AlertsPanel.tsx"
+      ],
+      "synthetic_data": true,
+      "version": "v1_seed_2026",
+      "seeding_script": "scripts/data_ingestion/seed_synthetic_data.py",
+      "notes": "Hardcoded: Iceberg Proximity Warning (HIGH), High Sea-Ice Concentration (MEDIUM)"
+    },
+    {
+      "dataset_id": "static_vessels_json",
+      "source": "file:backend/data/vessels.json",
+      "format": "json",
+      "record_count": 5,
+      "variables": [
+        "vessel_id",
+        "vessel_name",
+        "imo_number",
+        "mmsi",
+        "flag_country",
+        "vessel_type",
+        "max_speed",
+        "cruising_speed",
+        "ice_capability",
+        "icebreaking_capability",
+        "polar_operating_capability",
+        "length_m",
+        "beam_m",
+        "draft_m",
+        "fuel_type",
+        "fuel_consumption",
+        "passenger_capacity",
+        "cargo_capacity",
+        "data_source",
+        "last_updated_timestamp",
+        "verification_status",
+        "operational_limits"
+      ],
+      "feeds_into": [
+        "backend/app/api/v1/vessels.py"
+      ],
+      "synthetic_data": false,
+      "version": "v1_2026-09-22",
+      "notes": "Real vessel specifications: RRS Sir David Attenborough, RV Polarstern, USCGC Healy, RV Kronprins Haakon, SA Agulhas II",
+      "file_size_bytes": 4400
+    },
+    {
+      "dataset_id": "static_ports_json",
+      "source": "file:backend/data/ports.json",
+      "format": "json",
+      "record_count": "unknown_large",
+      "variables": [
+        "port_id",
+        "port_name",
+        "country",
+        "latitude",
+        "longitude",
+        "ice_class_required",
+        "facilities"
+      ],
+      "feeds_into": [
+        "backend/app/api/v1/ports.py",
+        "backend/app/services/routing/route_planner.py"
+      ],
+      "synthetic_data": false,
+      "version": "v1_2026",
+      "notes": "Antarctic and sub-Antarctic ports. File is 408KB, line count could not be determined.",
+      "file_size_bytes": 408634,
+      "file_hash": "skipped for performance"
+    },
+    {
+      "dataset_id": "ml_seaice_xgb_models",
+      "source": "ml_models:ml/models/weights/seaice_xgb_*.json",
+      "format": "xgboost_json",
+      "record_count": 18,
+      "model_type": "XGBoost Regressor",
+      "target": "target_sea_ice_concentration",
+      "feeds_into": [
+        "ml/inference/seaice_predict.py",
+        "backend/app/services/forecasting/seaice_forecaster.py"
+      ],
+      "synthetic_data": true,
+      "version": "multiple_runs",
+      "training_script": "ml/training/seaice_xgb_train.py",
+      "production_model": "ml/models/weights/production_seaice_xgb.json",
+      "latest_model": "ml/models/weights/seaice_xgb_latest.json",
+      "feature_schema": "ml/models/weights/seaice_feature_schema.json",
+      "feature_count": 17,
+      "file_size_range": "728KB - 1004KB",
+      "training_data_source": "sea_ice_aligned_2026.csv",
+      "training_samples": {
+        "train": 12775,
+        "val": 2737,
+        "test": 2738
+      },
+      "model_versions": [
+        "seaice_xgb.json",
+        "seaice_xgb_02f388c9.json",
+        "seaice_xgb_09b46f91.json",
+        "seaice_xgb_42d2fa6c.json",
+        "seaice_xgb_70d9c39b.json",
+        "seaice_xgb_c088c140.json",
+        "seaice_xgb_latest.json",
+        "production_seaice_xgb.json"
+      ]
+    },
+    {
+      "dataset_id": "ml_iceberg_xgb_models",
+      "source": "ml_models:ml/models/weights/iceberg_xgb_*.json",
+      "format": "xgboost_json",
+      "record_count": 8,
+      "model_type": "XGBoost Regressor (2 models: lat + lon)",
+      "target": "iceberg trajectory delta (lat, lon)",
+      "feeds_into": [
+        "ml/inference/trajectory_predict.py",
+        "backend/app/services/forecasting/iceberg_forecaster.py"
+      ],
+      "synthetic_data": true,
+      "version": "multiple_runs",
+      "training_script": "ml/training/iceberg_xgb_train.py",
+      "feature_schema": "ml/models/weights/iceberg_feature_schema.json",
+      "feature_count": 23,
+      "file_size_range": "643KB - 854KB",
+      "training_data_source": "iceberg_aligned_2026.csv",
+      "training_samples": {
+        "train": 21283,
+        "val": 4562,
+        "test": 4579
+      },
+      "model_versions": [
+        "iceberg_xgb_lat_latest.json",
+        "iceberg_xgb_lon_latest.json",
+        "iceberg_xgb_lat_cbb9da29.json",
+        "iceberg_xgb_lon_cbb9da29.json"
+      ]
+    },
+    {
+      "dataset_id": "ml_lstm_trajectory_models",
+      "source": "ml_models:ml/models/weights/lstm_model*.pt",
+      "format": "pytorch",
+      "record_count": 13,
+      "model_type": "LSTM",
+      "target": "iceberg trajectory sequence prediction",
+      "feeds_into": [
+        "ml/inference/trajectory_predict.py"
+      ],
+      "synthetic_data": true,
+      "version": "multiple_checkpoints",
+      "training_script": "ml/training/trajectory_train_lstm.py",
+      "production_model": "ml/models/weights/production_lstm_model.pt",
+      "latest_model": "ml/models/weights/lstm_model.pt",
+      "checkpoint": "ml/models/weights/lstm_model_checkpoint.pt",
+      "file_size_bytes": 24576,
+      "model_versions": [
+        "lstm_model.pt",
+        "lstm_model_checkpoint.pt",
+        "production_lstm_model.pt"
+      ]
+    },
+    {
+      "dataset_id": "ml_convlstm_seaice_models",
+      "source": "ml_models:ml/models/weights/convlstm*.pt",
+      "format": "pytorch",
+      "record_count": 15,
+      "model_type": "ConvLSTM",
+      "target": "sea ice concentration spatiotemporal forecast",
+      "feeds_into": [
+        "ml/inference/seaice_predict.py"
+      ],
+      "synthetic_data": true,
+      "version": "multiple_checkpoints",
+      "training_script": "ml/training/seaice_train_convlstm.py",
+      "production_model": "ml/models/weights/production_convlstm.pt",
+      "latest_model": "ml/models/weights/convlstm.pt",
+      "checkpoint": "ml/models/weights/convlstm_checkpoint.pt",
+      "file_size_bytes": 14336,
+      "model_versions": [
+        "convlstm.pt",
+        "convlstm_checkpoint.pt",
+        "production_convlstm.pt"
+      ]
+    },
+    {
+      "dataset_id": "ml_feature_schema_seaice",
+      "source": "file:ml/models/weights/seaice_feature_schema.json",
+      "format": "json",
+      "record_count": 1,
+      "variables": [
+        "run_id",
+        "feature_cols",
+        "target_col",
+        "xgb_params",
+        "data_source",
+        "dataset_path",
+        "n_train",
+        "n_val",
+        "n_test",
+        "preprocessing"
+      ],
+      "feeds_into": [
+        "ml/inference/seaice_predict.py",
+        "ml/training/seaice_xgb_train.py"
+      ],
+      "synthetic_data": true,
+      "version": "02f388c9",
+      "notes": "Documents 17 features including lat, lon, sea_ice_concentration, environmental vars, temporal features",
+      "file_size_bytes": 1331
+    },
+    {
+      "dataset_id": "ml_feature_schema_iceberg",
+      "source": "file:ml/models/weights/iceberg_feature_schema.json",
+      "format": "json",
+      "record_count": 1,
+      "variables": [
+        "run_id",
+        "feature_cols",
+        "target_lat_col",
+        "target_lon_col",
+        "xgb_params",
+        "data_source",
+        "dataset_path",
+        "n_train",
+        "n_val",
+        "n_test",
+        "preprocessing"
+      ],
+      "feeds_into": [
+        "ml/inference/trajectory_predict.py",
+        "ml/training/iceberg_xgb_train.py"
+      ],
+      "synthetic_data": true,
+      "version": "cbb9da29",
+      "notes": "Documents 23 features including position, velocity lags, wind/current decomposition, environmental vars",
+      "file_size_bytes": 1433
+    },
+    {
+      "dataset_id": "synthetic_source_archive",
+      "source": "external_zip:C:/Users/ASUS/Desktop/Synthetic data for offshore",
+      "format": "zip_archive",
+      "contains": [
+        "data/raw/sea_ice_synthetic_2026.csv",
+        "data/raw/weather_synthetic_2026.csv",
+        "data/raw/ocean_currents_synthetic_2026.csv",
+        "data/raw/iceberg_trajectory_synthetic_2026.csv",
+        "data/raw/routes_synthetic_2026.csv",
+        "data/raw/route_waypoints_synthetic_2026.csv",
+        "data/raw/grid_cells_2026.csv",
+        "data/metadata/generation_config_2026.json"
+      ],
+      "feeds_into": [
+        "scripts/data_ingestion/seed_synthetic_data.py"
+      ],
+      "synthetic_data": true,
+      "version": "2026_prototype",
+      "notes": "Master synthetic data archive. All database seeding originates from this ZIP file."
+    },
+    {
+      "dataset_id": "ml_processed_sea_ice_aligned",
+      "source": "external_csv:/Users/apple/Downloads/ml/data/processed/sea_ice_aligned_2026.csv",
+      "format": "csv",
+      "record_count": 18250,
+      "feeds_into": [
+        "ml/training/seaice_xgb_train.py"
+      ],
+      "synthetic_data": true,
+      "version": "2026_processed",
+      "notes": "Preprocessed and aligned sea ice training data. Referenced in seaice_feature_schema.json"
+    },
+    {
+      "dataset_id": "ml_processed_iceberg_aligned",
+      "source": "external_csv:/Users/apple/Downloads/ml/data/processed/iceberg_aligned_2026.csv",
+      "format": "csv",
+      "record_count": 30424,
+      "feeds_into": [
+        "ml/training/iceberg_xgb_train.py"
+      ],
+      "synthetic_data": true,
+      "version": "2026_processed",
+      "notes": "Preprocessed and aligned iceberg trajectory training data. Referenced in iceberg_feature_schema.json"
+    },
+    {
+      "dataset_id": "db_forecasts",
+      "source": "database_table:forecasts",
+      "format": "postgresql",
+      "record_count": 0,
+      "variables": [
+        "id",
+        "forecast_horizon_days",
+        "initialization_time",
+        "region",
+        "predicted_concentration",
+        "confidence",
+        "model_version",
+        "model_metadata",
+        "quality_flags",
+        "created_at"
+      ],
+      "feeds_into": [
+        "backend/app/api/v1/forecasts.py"
+      ],
+      "synthetic_data": false,
+      "version": "v1_empty",
+      "notes": "Empty table - forecasts are generated on-demand via API calls"
+    },
+    {
+      "dataset_id": "db_jobs",
+      "source": "database_table:jobs",
+      "format": "postgresql",
+      "record_count": 0,
+      "variables": [
+        "job_id",
+        "job_type",
+        "status",
+        "created_at",
+        "started_at",
+        "completed_at",
+        "error",
+        "progress",
+        "metadata_info"
+      ],
+      "feeds_into": [
+        "backend/app/api/v1/jobs.py",
+        "backend/app/services/celery/tasks.py"
+      ],
+      "synthetic_data": false,
+      "version": "v1_empty",
+      "notes": "Empty table - job records created at runtime for async task tracking"
+    }
+  ],
+  "data_lineage_summary": {
+    "source_zip_archive": "C:/Users/ASUS/Desktop/Synthetic data for offshore",
+    "seeding_pipeline": "scripts/data_ingestion/seed_synthetic_data.py → PostgreSQL database",
+    "ml_training_pipeline": "External processed CSVs → ml/training/*.py → ml/models/weights/*.{json,pt}",
+    "inference_pipeline": "ml/models/weights → ml/inference/*.py → backend/app/services",
+    "api_layer": "database tables + ml inference → backend/app/api/v1 → frontend"
+  },
+  "validation": {
+    "validation_script": "scripts/data_ingestion/validate_seeded_db.py",
+    "checks": [
+      "record_counts >= expected minimums",
+      "PostGIS geometry validity (ST_IsValid)",
+      "SRID consistency (all geometries SRID=4326)",
+      "foreign_key_integrity",
+      "spatial_bounds (Antarctic region)",
+      "temporal_bounds"
+    ]
+  },
+  "notes": [
+    "This manifest represents a READ-ONLY audit conducted on 2026-09-24.",
+    "No data was modified, deleted, or regenerated during this inventory.",
+    "All synthetic datasets are marked with 'synthetic_data: true'.",
+    "External file paths (e.g., /Users/apple/Downloads) indicate training data locations on development machines.",
+    "Production models are identified with 'production_*' prefix in filenames.",
+    "Multiple model versions exist for experimentation; 'latest' and 'production' versions are used in inference."
+  ]
+}

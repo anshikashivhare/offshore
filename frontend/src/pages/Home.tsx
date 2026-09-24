@@ -17,7 +17,7 @@ import {
   fetchLiveRouteEnvironment,
   fetchGlobalPorts,
   fetchRoutes,
-  planRoute,
+  compareRoutes,
   fetchVessels,
 } from "@/lib/api";
 import {
@@ -46,17 +46,17 @@ import type { AppLocation, Coordinate, LayerKey, Priority, Vessel } from "@/lib/
 
 export default function Home() {
   const [layers, setLayers] = useState(defaultLayers);
-  const [selectedRouteId, setSelectedRouteId] = useState(staticRoutes[0].id);
-  const [selectedIcebergId, setSelectedIcebergId] = useState<string | null>("IB-221");
+  const [selectedRouteId, setSelectedRouteId] = useState(staticRoutes[0]?.id || "");
+  const [selectedIcebergId, setSelectedIcebergId] = useState<string | null>(null);
   const [selectedVesselId, setSelectedVesselId] = useState<string>("");
   const [priority, setPriority] = useState<Priority>("Safety First");
-  const [origin, setOrigin] = useState<Coordinate>(locations[2].coordinate);
-  const [destination, setDestination] = useState<Coordinate>(locations[3].coordinate);
-  const [originLabel, setOriginLabel] = useState(locations[2].label);
-  const [destinationLabel, setDestinationLabel] = useState(locations[3].label);
+  const [origin, setOrigin] = useState<Coordinate | null>(null);
+  const [destination, setDestination] = useState<Coordinate | null>(null);
+  const [originLabel, setOriginLabel] = useState("");
+  const [destinationLabel, setDestinationLabel] = useState("");
   const [pickMode, setPickMode] = useState<"origin" | "destination" | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
-  const [activeAlertId, setActiveAlertId] = useState(alerts[0].id);
+  const [activeAlertId, setActiveAlertId] = useState(alerts[0]?.id || "");
   // Globe is the safe default for Antarctic interpretation; Mercator remains
   // available for familiar navigation interaction but visibly distorts scale.
   const [viewMode, setViewMode] = useState<"map" | "globe">("globe");
@@ -92,6 +92,14 @@ export default function Home() {
           }));
           // MapLibre is highly performant with thousands of points, so we can load them all
           setLiveLocations(ports);
+          if (!origin && ports.length > 2) {
+            setOrigin(ports[2].coordinate);
+            setOriginLabel(ports[2].label);
+          }
+          if (!destination && ports.length > 3) {
+            setDestination(ports[3].coordinate);
+            setDestinationLabel(ports[3].label);
+          }
         }
       })
       .catch((err) => console.error("Failed to fetch all ports:", err));
@@ -151,6 +159,10 @@ export default function Home() {
       setLiveEnvError("No vessel selected.");
       return;
     }
+    if (!origin || !destination) {
+      setLiveEnvError("Origin and destination must be selected.");
+      return;
+    }
     
     setIsCalculating(true);
     setLiveEnvError(null);
@@ -166,38 +178,54 @@ export default function Home() {
         custom_vessel_config: customVesselConfig
       };
       
-      const feature = await planRoute(requestPayload);
+      const res = await compareRoutes(requestPayload);
       
-      const distNm = feature.properties.distance || 0;
-      const etaDays = feature.properties.eta 
-        ? (new Date(feature.properties.eta).getTime() - new Date(feature.properties.departure_time).getTime()) / (1000 * 3600 * 24)
-        : 0;
+      const mapFeature = (feature: any, isRecommended: boolean = false, overrideObjective?: string) => {
+        const distNm = feature.properties.distance || 0;
+        const travelTimeHours = feature.properties.travel_time || 0;
+        const etaDays = travelTimeHours / 24;
+        let baseObjective = overrideObjective || feature.properties.objective_type || "Recommended";
+        if (baseObjective === "fastest") baseObjective = "Time Efficient";
+        if (baseObjective === "fuel_efficient") baseObjective = "Fuel Efficient";
+        if (baseObjective === "safest") baseObjective = "Safety First";
+        if (baseObjective === "shortest") baseObjective = "Shortest Path";
 
-      const mappedRoute = {
-        id: feature.properties.route_id,
-        name: `${priority} Route (${new Date().toLocaleTimeString()})`,
-        objective: priority === "Time Efficient" ? "Fastest" as const 
-                 : priority === "Fuel Efficient" ? "Fuel Efficient" as const 
-                 : priority === "Safety First" ? "Safest" as const 
-                 : "Recommended" as const,
-        distanceNm: distNm,
-        distanceKm: distNm * 1.852,
-        etaHours: etaDays * 24,
-        fuelLitres: feature.properties.estimated_fuel || 0,
-        estimatedDays: etaDays,
-        riskScore: feature.properties.risk_score || 0,
-        exposure: `${Math.round(etaDays)} days`,
-        status: "Calculated",
-        accent: "#2563eb",
-        geometry: feature.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] })),
-        data_provenance: feature.properties.waypoints?.map((w: any) => w.data_provenance) || [],
-        risk_data_status: feature.properties.risk_data_status,
-        ml_prediction_status: feature.properties.ml_prediction_status,
-        warnings: feature.properties.warnings
+        return {
+          id: feature.properties.route_id,
+          name: `${baseObjective} Route (${new Date().toLocaleTimeString()})`,
+          objective: baseObjective as any,
+          distanceNm: distNm,
+          distanceKm: distNm * 1.852,
+          etaHours: travelTimeHours,
+          fuelLitres: feature.properties.estimated_fuel || 0,
+          estimatedDays: etaDays,
+          riskScore: feature.properties.risk_score || 0,
+          exposure: feature.properties.risk_exposure != null ? `Risk Exposure: ${feature.properties.risk_exposure.toFixed(2)}` : `${Math.round(etaDays)} days`,
+          status: isRecommended ? "Recommended" : "Alternative",
+          accent: isRecommended ? "#2563eb" : "#64748b",
+          geometry: feature.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] })),
+          data_provenance: feature.properties.waypoints?.map((w: any) => w.data_provenance) || [],
+          risk_data_status: feature.properties.risk_data_status,
+          ml_prediction_status: feature.properties.ml_prediction_status,
+          warnings: feature.properties.warnings,
+          explanation: isRecommended ? res.explanation : undefined,
+          uncertainty: isRecommended ? res.uncertainty : undefined,
+          risk_factors: isRecommended ? res.risk_factors : undefined,
+        };
       };
 
-      setLiveRoutes([mappedRoute]);
-      setSelectedRouteId(mappedRoute.id);
+      const mappedRoutes = [];
+      if (res.recommended_route) {
+          mappedRoutes.push(mapFeature(res.recommended_route, true, priority));
+      }
+      if (res.alternatives) {
+          res.alternatives.forEach((alt: any) => {
+             mappedRoutes.push(mapFeature(alt.route, false));
+          });
+      }
+      
+      setLiveRoutes(mappedRoutes);
+      setSelectedRouteId(mappedRoutes[0]?.id || "");
     } catch (err: any) {
       console.error(err);
       setLiveEnvError(err.message || "Route calculation failed");
@@ -424,7 +452,7 @@ export default function Home() {
           />
 
           {/* Passage Overview / Environmental Metrics KPI Strip matching Image 2 */}
-          <KpiStrip forecast={forecastMeta} />
+          <KpiStrip forecast={forecastMeta} route={selectedRoute} liveEnv={liveEnvironment} />
         </main>
 
         {/* Right Route Options Panel (~290px) matching Image 2 */}
@@ -467,7 +495,7 @@ export default function Home() {
 
         <div className="status-bar-right">
           <span className="status-item-alert">
-            <Bell size={13} /> 2 route-relevant alerts
+            <Bell size={13} /> {alerts.length} route-relevant alerts
           </span>
           <button className="status-icon-link" aria-label="Documentation" title="Documentation">
             <BookOpen size={13} />

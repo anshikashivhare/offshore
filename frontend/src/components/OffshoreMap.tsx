@@ -343,20 +343,21 @@ export default function OffshoreMap({
   const destinationApproach =
     selectedRoute?.geometry[selectedRoute.geometry.length - 1] ?? destination;
   const hasSeparateDestinationApproach =
-    selectedRoute !== undefined &&
+    selectedRoute !== undefined && destination !== null && destinationApproach !== null &&
     (Math.abs(destinationApproach.lng - destination.lng) > 0.0001 ||
       Math.abs(destinationApproach.lat - destination.lat) > 0.0001);
 
   // Coords for viewport fit: origin + destination + selected route geometry.
   // Re-calculates (and therefore re-fits) when these inputs change.
   const fitCoords = useMemo(() => {
-    const pts: [number, number][] = [
-      [origin.lng, origin.lat],
-      [destination.lng, destination.lat],
-      ...(selectedRoute ? selectedRoute.geometry.map(toLngLat) : []),
-    ];
+    const pts: [number, number][] = [];
+    if (origin) pts.push([origin.lng, origin.lat]);
+    if (destination) pts.push([destination.lng, destination.lat]);
+    if (selectedRoute) {
+      pts.push(...selectedRoute.geometry.map(toLngLat));
+    }
     return pts;
-  }, [origin.lng, origin.lat, destination.lng, destination.lat, selectedRouteId, routes]);
+  }, [origin?.lng, origin?.lat, destination?.lng, destination?.lat, selectedRouteId, routes]);
 
   // Convert route coordinates to [lng, lat] tuples
   const routeCoordArrays = useMemo(
@@ -636,34 +637,38 @@ export default function OffshoreMap({
           })}
 
         {/* ============ ORIGIN MARKER (ROTHERA IN IMAGE 2) ============ */}
-        <MapMarker longitude={origin.lng} latitude={origin.lat}>
-          <MarkerContent>
-            <div className="waypoint-pin origin-pin" title="Origin">
-              O
-            </div>
-          </MarkerContent>
-          <MarkerLabel>
-            <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <span>{originLabel.split(",")[0]}</span>
-              <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(origin.lat, origin.lng)}</span>
-            </div>
-          </MarkerLabel>
-        </MapMarker>
+        {origin && (
+          <MapMarker longitude={origin.lng} latitude={origin.lat}>
+            <MarkerContent>
+              <div className="waypoint-pin origin-pin" title="Origin">
+                O
+              </div>
+            </MarkerContent>
+            <MarkerLabel>
+              <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <span>{originLabel.split(",")[0]}</span>
+                <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(origin.lat, origin.lng)}</span>
+              </div>
+            </MarkerLabel>
+          </MapMarker>
+        )}
 
         {/* The destination always identifies the selected port location. */}
-        <MapMarker longitude={destination.lng} latitude={destination.lat}>
-          <MarkerContent>
-            <div className="waypoint-pin destination-pin" title="Destination port">
-              D
-            </div>
-          </MarkerContent>
-          <MarkerLabel>
-            <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <span>{destinationLabel.split(",")[0]}</span>
-              <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(destination.lat, destination.lng)}</span>
-            </div>
-          </MarkerLabel>
-        </MapMarker>
+        {destination && (
+          <MapMarker longitude={destination.lng} latitude={destination.lat}>
+            <MarkerContent>
+              <div className="waypoint-pin destination-pin" title="Destination port">
+                D
+              </div>
+            </MarkerContent>
+            <MarkerLabel>
+              <div className="waypoint-label" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <span>{destinationLabel.split(",")[0]}</span>
+                <span style={{ fontSize: "9px", opacity: 0.7 }}>{formatCoordinate(destination.lat, destination.lng)}</span>
+              </div>
+            </MarkerLabel>
+          </MapMarker>
+        )}
 
         {hasSeparateDestinationApproach && (
           <MapMarker longitude={destinationApproach.lng} latitude={destinationApproach.lat}>

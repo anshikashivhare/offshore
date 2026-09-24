@@ -1,5 +1,7 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 export async function fetchRoutes() {
-  const response = await fetch("/api/v1/routes/");
+  const response = await fetch(`${API_BASE_URL}/api/v1/routes/`);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.detail ?? `Failed to fetch routes: ${response.status}`);
@@ -8,7 +10,7 @@ export async function fetchRoutes() {
 }
 
 export async function fetchIcebergs() {
-  const response = await fetch("/api/v1/icebergs/detections");
+  const response = await fetch(`${API_BASE_URL}/api/v1/icebergs/detections`);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.detail ?? `Failed to fetch icebergs: ${response.status}`);
@@ -26,7 +28,7 @@ export interface PaginationResponse<T> {
 }
 
 export async function fetchVessels(country?: string): Promise<PaginationResponse<Vessel>> {
-  const url = country ? `/api/v1/vessels/?country=${encodeURIComponent(country)}` : `/api/v1/vessels/`;
+  const url = country ? `${API_BASE_URL}/api/v1/vessels/?country=${encodeURIComponent(country)}` : `${API_BASE_URL}/api/v1/vessels/`;
   const response = await fetch(url);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -37,7 +39,7 @@ export async function fetchVessels(country?: string): Promise<PaginationResponse
 
 // Add more API wrappers here as needed
 export async function fetchGlobalPorts() {
-  const res = await fetch(`/api/v1/ports/?limit=6000`);
+  const res = await fetch(`${API_BASE_URL}/api/v1/ports/?limit=6000`);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.detail ?? `Failed to fetch all ports: ${res.status}`);
@@ -47,8 +49,8 @@ export async function fetchGlobalPorts() {
 
 export async function searchPorts(query: string = "", skip = 0, limit = 50) {
   const url = query
-    ? `/api/v1/ports/search?q=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`
-    : `/api/v1/ports/?skip=${skip}&limit=${limit}`;
+    ? `${API_BASE_URL}/api/v1/ports/search?q=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`
+    : `${API_BASE_URL}/api/v1/ports/?skip=${skip}&limit=${limit}`;
   const response = await fetch(url);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -58,7 +60,7 @@ export async function searchPorts(query: string = "", skip = 0, limit = 50) {
 }
 
 export async function fetchLiveRouteEnvironment(waypoints: { lat: number, lon: number, eta?: string }[]) {
-  const response = await fetch("/api/v1/environment/live", {
+  const response = await fetch(`${API_BASE_URL}/api/v1/environment/live`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ waypoints })
@@ -71,17 +73,30 @@ export async function fetchLiveRouteEnvironment(waypoints: { lat: number, lon: n
 }
 
 export async function planRoute(request: any) {
-  const response = await fetch("/api/v1/routes/plan", {
+  const response = await fetch(`${API_BASE_URL}/api/v1/routes/plan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request)
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    // Timeout middleware returns { error: { message, request_id } }, whereas
-    // FastAPI validation errors use { detail }. Preserve either useful message.
     throw new Error(
       body?.detail ?? body?.error?.message ?? `Failed to plan route: ${response.status}`,
+    );
+  }
+  return response.json();
+}
+
+export async function compareRoutes(request: any) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/routes/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(
+      body?.detail ?? body?.error?.message ?? `Failed to compare routes: ${response.status}`,
     );
   }
   return response.json();

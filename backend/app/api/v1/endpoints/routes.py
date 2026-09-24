@@ -96,6 +96,7 @@ async def plan_route(
 ) -> Any:
     """Plan a route using A* over the latest persisted risk surface."""
     from app.config.config import settings
+    from app.services.routing.validator import route_validator, RouteValidationError
 
     # Use custom configuration if provided
     if request.custom_vessel_config:
@@ -140,10 +141,15 @@ async def plan_route(
     snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=2.0)
     if snapped_origin is None:
         raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 2.0° search radius.")
-    
+
     snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=2.0)
     if snapped_dest is None:
         raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 2.0° search radius.")
+
+    # Track whether snapping was applied
+    origin_snapped = (snapped_origin.lat != origin_lat or snapped_origin.lon != origin_lon)
+    dest_snapped = (snapped_dest.lat != dest_lat or snapped_dest.lon != dest_lon)
+    endpoint_snapping_applied = origin_snapped or dest_snapped
 
     # The planner itself will handle water-snapping for its internal start/goal nodes.
     # We preserve the original request coordinates so they can be returned verbatim if needed.
@@ -160,7 +166,38 @@ async def plan_route(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    db_route_data = route_create.model_dump(exclude={"waypoints", "risk_data_status", "ml_prediction_status", "warnings"})
+    # CRITICAL: Validate route for land avoidance before returning to user
+    try:
+        is_valid, error_msg, details = route_validator.validate_wkt_linestring(
+            route_create.geometry, strict=False
+        )
+        if not is_valid:
+            # Route generation failed to avoid land - this is a critical bug
+            raise HTTPException(
+                status_code=500,
+                detail=f"Route validation failed: {error_msg}. This should not happen - please report this bug."
+            )
+        land_avoidance_validated = True
+    except RouteValidationError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Route crosses land: {str(exc)}. This should not happen - please report this bug."
+        )
+    except Exception as exc:
+        # Validation itself failed - still return route but mark as unvalidated
+        land_avoidance_validated = False
+        if route_create.warnings is None:
+            route_create.warnings = []
+        route_create.warnings.append(f"Land avoidance validation failed: {str(exc)}")
+
+    # Add validation metadata to route
+    route_create.land_avoidance_validated = land_avoidance_validated
+    route_create.endpoint_snapping_applied = endpoint_snapping_applied
+    if endpoint_snapping_applied:
+        route_create.snapped_origin = f"{snapped_origin.lon},{snapped_origin.lat}"
+        route_create.snapped_destination = f"{snapped_dest.lon},{snapped_dest.lat}"
+
+    db_route_data = route_create.model_dump(exclude={"waypoints", "risk_data_status", "ml_prediction_status", "warnings", "land_avoidance_validated", "endpoint_snapping_applied", "snapped_origin", "snapped_destination"})
     db_route = Route(**db_route_data)
     # Bypass DB persistence for demo mode (since Postgres is unavailable)
     # db.add(db_route)
@@ -180,15 +217,21 @@ async def plan_route(
         destination=db_route.destination,
         departure_time=db_route.departure_time,
         distance=db_route.distance,
+        travel_time=db_route.travel_time,
         eta=db_route.eta,
         estimated_fuel=db_route.estimated_fuel,
         risk_score=db_route.risk_score,
+        risk_exposure=db_route.risk_exposure,
         objective_type=db_route.objective_type,
         algorithm_version=db_route.algorithm_version,
         risk_data_status=route_create.risk_data_status,
         ml_prediction_status=route_create.ml_prediction_status,
         warnings=route_create.warnings,
-        waypoints=route_create.waypoints
+        waypoints=route_create.waypoints,
+        land_avoidance_validated=route_create.land_avoidance_validated,
+        endpoint_snapping_applied=route_create.endpoint_snapping_applied,
+        snapped_origin=route_create.snapped_origin,
+        snapped_destination=route_create.snapped_destination
     )
     return GeoJSONFeature[RouteProperties](
         type="Feature", geometry=geometry, properties=properties
@@ -216,9 +259,11 @@ async def get_route(
         destination=obj.destination,
         departure_time=obj.departure_time,
         distance=obj.distance,
+        travel_time=obj.travel_time,
         eta=obj.eta,
         estimated_fuel=obj.estimated_fuel,
         risk_score=obj.risk_score,
+        risk_exposure=obj.risk_exposure,
         objective_type=obj.objective_type,
         algorithm_version=obj.algorithm_version,
     )
@@ -239,25 +284,28 @@ async def compare_routes(
     else:
         try:
             vessel = await vessel_repo.get(db, request.vessel_id)
-        except Exception:
+        except Exception as exc:
             from app.config.config import settings
-            if not getattr(settings, "DEMO_MODE", False):
-                raise HTTPException(status_code=503, detail="Database unavailable")
-            vessel = None
-            
-        if vessel is None:
-            from app.config.config import settings
-            if getattr(settings, "DEMO_MODE", False) and str(request.vessel_id) == "00000000-0000-0000-0000-000000000000":
-                vessel = Vessel(
-                    vessel_id=request.vessel_id,
-                    vessel_name="Demo Explorer",
-                    vessel_type="Research",
-                    ice_capability="PC3",
-                    cruising_speed=12.0,
-                    fuel_consumption=2000.0,
-                )
+            if getattr(settings, "DEMO_MODE", False):
+                import json
+                from pathlib import Path
+                try:
+                    vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
+                    with vessels_path.open("r", encoding="utf-8") as f:
+                        all_vessels = json.load(f)
+                    v_id_str = str(request.vessel_id)
+                    vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
+                    if vessel_data:
+                        vessel = Vessel(**vessel_data)
+                    else:
+                        vessel = None
+                except Exception:
+                    vessel = None
             else:
-                raise HTTPException(status_code=404, detail="Vessel not found")
+                raise HTTPException(status_code=503, detail="Database unavailable") from exc
+
+        if vessel is None:
+            raise HTTPException(status_code=404, detail="Vessel not found")
 
     risk_grid = await _build_risk_grid(db, request)
     try:

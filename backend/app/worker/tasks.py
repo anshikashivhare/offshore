@@ -61,3 +61,39 @@ def _process_route_generation(task, payload):
 def _process_risk_generation(task, payload):
     time.sleep(1)
     task.update_state(state="RUNNING", meta={"progress": 100.0})
+
+
+@celery_app.task(bind=True, max_retries=3, name="update_ml_risk_forecast")
+def update_ml_risk_forecast(self):
+    """
+    Periodically updates risk_cells with ML forecasts for various horizons.
+    """
+    logger.info("Starting ML risk forecast update...")
+    try:
+        from app.services.forecasting.ml_forecaster import forecaster
+        from app.repositories.risk import risk_cell
+        from app.db.session import AsyncSessionLocal
+        import asyncio
+
+        # Run async function using asyncio
+        async def run_forecast():
+            horizons = [24, 48, 72, 168]
+            predictions = await forecaster.generate_predictions(horizons)
+            
+            total_upserted = 0
+            async with AsyncSessionLocal() as db:
+                for horizon, cells in predictions.items():
+                    logger.info(f"Upserting {len(cells)} forecast cells for horizon {horizon}h")
+                    await risk_cell.bulk_upsert_forecasts(db, cells)
+                    total_upserted += len(cells)
+            return total_upserted
+
+        loop = asyncio.get_event_loop()
+        total_upserted = loop.run_until_complete(run_forecast())
+                
+        logger.info(f"Completed ML risk forecast update. Upserted {total_upserted} cells.")
+        return {"status": "completed", "upserted": total_upserted}
+            
+    except Exception as exc:
+        logger.error(f"Failed to update ML risk forecast: {str(exc)}")
+        raise self.retry(exc=exc, countdown=60)
