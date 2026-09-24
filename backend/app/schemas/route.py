@@ -4,7 +4,8 @@ from typing import Optional
 
 from app.models.enums import ObjectiveType
 from app.schemas.common import GeoJSONFeature
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+from app.utils.coordinates import parse_wgs84_lon_lat
 
 
 from typing import Optional, List, Dict, Any
@@ -62,13 +63,20 @@ class OptimizationWeights(BaseModel):
 from app.schemas.vessel import VesselCreate
 
 class RouteRequest(BaseModel):
-    origin: str  # e.g. "lon,lat"
+    origin: str  # e.g. "lon,lat" in EPSG:4326 / WGS84
     destination: str
     vessel_id: uuid.UUID
     departure_time: datetime
     objective_type: ObjectiveType = ObjectiveType.SAFEST
     weights: Optional[OptimizationWeights] = None
     custom_vessel_config: Optional[VesselCreate] = None
+
+    @field_validator("origin", "destination")
+    @classmethod
+    def require_wgs84_lon_lat(cls, value: str) -> str:
+        """Reject invalid, swapped, or projected coordinate inputs early."""
+        parse_wgs84_lon_lat(value)
+        return value
 
     model_config = ConfigDict(
         json_schema_extra={

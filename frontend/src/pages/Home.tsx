@@ -57,13 +57,15 @@ export default function Home() {
   const [pickMode, setPickMode] = useState<"origin" | "destination" | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [activeAlertId, setActiveAlertId] = useState(alerts[0].id);
-  const [viewMode, setViewMode] = useState<"map" | "globe">("map");
+  // Globe is the safe default for Antarctic interpretation; Mercator remains
+  // available for familiar navigation interaction but visibly distorts scale.
+  const [viewMode, setViewMode] = useState<"map" | "globe">("globe");
   const [forecastHours, setForecastHours] = useState(16);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
-  const [liveRoutes, setLiveRoutes] = useState(staticRoutes);
+  const [liveRoutes, setLiveRoutes] = useState<typeof staticRoutes>([]);
   const [liveLocations, setLiveLocations] = useState<AppLocation[]>([]);
   const [liveVessels, setLiveVessels] = useState<Vessel[]>([]);
   const [customVesselConfig, setCustomVesselConfig] = useState<Vessel | null>(null);
@@ -72,36 +74,10 @@ export default function Home() {
   const [routeValidationError, setRouteValidationError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Dynamically generate 4 mock routes bridging the exact origin and destination
-    let wrapDx = destination.lng - origin.lng;
-    if (wrapDx > 180) wrapDx -= 360;
-    if (wrapDx < -180) wrapDx += 360;
-    const dy = destination.lat - origin.lat;
-    
-    const generateCurve = (offsetFactor: number) => {
-      const points = [];
-      const steps = 10;
-      const length = Math.sqrt(wrapDx * wrapDx + dy * dy) || 1;
-      const perpX = -dy / length;
-      const perpY = wrapDx / length;
-      
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const lng = origin.lng + wrapDx * t;
-        const lat = origin.lat + dy * t;
-        const curve = offsetFactor * (1 - Math.pow(2 * t - 1, 2));
-        points.push({ lat: lat + perpY * curve, lng: lng + perpX * curve });
-      }
-      return points;
-    };
-
-    const newRoutes: typeof staticRoutes = [
-      { id: "route-a", name: "Route A", objective: "Recommended", geometry: generateCurve(0), distanceKm: 2840, etaHours: 118, fuelLitres: 101480, riskScore: 0.31, exposure: "Low iceberg exposure", status: "Recommended for current priority", accent: "teal" },
-      { id: "route-b", name: "Route B", objective: "Safest", geometry: generateCurve(5), distanceKm: 2995, etaHours: 126, fuelLitres: 108360, riskScore: 0.22, exposure: "Lowest predicted risk", status: "Lower risk · +8 h transit", accent: "blue" },
-      { id: "route-c", name: "Route C", objective: "Fastest", geometry: generateCurve(-5), distanceKm: 2668, etaHours: 109, fuelLitres: 103120, riskScore: 0.49, exposure: "Moderate iceberg exposure", status: "Fastest · higher exposure", accent: "amber" },
-      { id: "route-d", name: "Route D", objective: "Fuel Efficient", geometry: generateCurve(2.5), distanceKm: 2784, etaHours: 116, fuelLitres: 97840, riskScore: 0.38, exposure: "Moderate sea-ice exposure", status: "Lowest estimated fuel", accent: "violet" },
-    ];
-    setLiveRoutes(newRoutes);
+    // REGRESSION GUARD: Never generate mock geometry (like straight lines) here.
+    // Ensure that liveRoutes remains empty until a successful backend route response 
+    // is received from POST /api/v1/routes/plan via handleCalculateRoute.
+    setLiveRoutes([]);
     setRouteValidationError(null);
   }, [origin, destination]);
 
@@ -144,36 +120,23 @@ export default function Home() {
       .catch((err) => console.error("Failed to fetch live routes:", err));
 
     fetchVessels()
-      .then((data) => {
-        if (data && data.items && data.items.length > 0) {
-          setLiveVessels(data.items);
-          setSelectedVesselId(data.items[0].vessel_id);
+      .then((res) => {
+        const items = res.data;
+        if (items && items.length > 0) {
+          setLiveVessels(items);
+          setSelectedVesselId(items[0].vessel_id);
+          setRouteValidationError("");
         } else {
-          // If successful but empty, it might be an empty catalog.
-          const fallback = [{
-            vessel_id: "00000000-0000-0000-0000-000000000000",
-            vessel_name: "Demo Explorer (Database Offline)",
-            vessel_type: "Research",
-            ice_capability: "PC3",
-            cruising_speed: 12.0,
-            fuel_consumption: 2000.0,
-          }];
-          setLiveVessels(fallback);
-          setSelectedVesselId(fallback[0].vessel_id);
+          setLiveVessels([]);
+          setSelectedVesselId("");
+          setRouteValidationError("No vessels available. Please check database connection or demo mode configuration.");
         }
       })
       .catch((err) => {
-        console.error("Failed to fetch vessels (Database likely offline):", err);
-        const fallback = [{
-          vessel_id: "00000000-0000-0000-0000-000000000000",
-          vessel_name: "Demo Explorer (Database Offline)",
-          vessel_type: "Research",
-          ice_capability: "PC3",
-          cruising_speed: 12.0,
-          fuel_consumption: 2000.0,
-        }];
-        setLiveVessels(fallback);
-        setSelectedVesselId(fallback[0].vessel_id);
+        console.error("Failed to fetch vessels:", err);
+        setLiveVessels([]);
+        setSelectedVesselId("");
+        setRouteValidationError(err.message || "Failed to fetch vessels.");
       });
   }, []);
 
@@ -184,6 +147,10 @@ export default function Home() {
 
   const handleCalculateRoute = useCallback(async () => {
     if (routeValidationError) return;
+    if (!selectedVesselId) {
+      setLiveEnvError("No vessel selected.");
+      return;
+    }
     
     setIsCalculating(true);
     setLiveEnvError(null);
@@ -491,11 +458,11 @@ export default function Home() {
             </span>
           </div>
           <span className="status-v-divider">|</span>
-          <span className={selectedRoute.ml_prediction_status === "unavailable" ? "text-red-500" : ""}>
-            ML Prediction: {selectedRoute.ml_prediction_status === "unavailable" ? "Unavailable" : "Active (XGBoost)"}
+          <span className={selectedRoute?.ml_prediction_status === "unavailable" ? "text-red-500" : ""}>
+            ML Prediction: {!selectedRoute ? "Pending" : selectedRoute.ml_prediction_status === "unavailable" ? "Unavailable" : "Active (XGBoost)"}
           </span>
           <span className="status-v-divider">|</span>
-          <span>Map projection: {viewMode === "globe" ? "Polar Orthographic" : "Antarctic Polar Stereographic"}</span>
+          <span>Map projection: {viewMode === "globe" ? "WGS84 globe" : "Web Mercator — distorted near poles"}</span>
         </div>
 
         <div className="status-bar-right">
@@ -509,7 +476,7 @@ export default function Home() {
             <Settings2 size={13} />
           </button>
           <span className="status-active-route">
-            {selectedRoute.name} selected <ChevronDown size={12} />
+            {selectedRoute ? `${selectedRoute.name} selected` : "No route selected"} <ChevronDown size={12} />
           </span>
         </div>
       </footer>

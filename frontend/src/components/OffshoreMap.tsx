@@ -332,10 +332,24 @@ export default function OffshoreMap({
     });
   }, []);
 
+  const selectedRoute = useMemo(
+    () => routes.find((route) => route.id === selectedRouteId) ?? routes[0],
+    [routes, selectedRouteId],
+  );
+
+  // A port's catalogue point can lie on land, while a route ends at its
+  // navigable water approach.  They are rendered as distinct entities: the
+  // destination pin always remains at the selected port.
+  const destinationApproach =
+    selectedRoute?.geometry[selectedRoute.geometry.length - 1] ?? destination;
+  const hasSeparateDestinationApproach =
+    selectedRoute !== undefined &&
+    (Math.abs(destinationApproach.lng - destination.lng) > 0.0001 ||
+      Math.abs(destinationApproach.lat - destination.lat) > 0.0001);
+
   // Coords for viewport fit: origin + destination + selected route geometry.
   // Re-calculates (and therefore re-fits) when these inputs change.
   const fitCoords = useMemo(() => {
-    const selectedRoute = routes.find((r) => r.id === selectedRouteId) ?? routes[0];
     const pts: [number, number][] = [
       [origin.lng, origin.lat],
       [destination.lng, destination.lat],
@@ -414,7 +428,7 @@ export default function OffshoreMap({
 
   return (
     <div className={`map-stage ${pickMode ? "is-picking" : ""}`}>
-      {/* Light Positron Basemap matching Image 2 */}
+      {/* All sources and overlays use WGS84 / GeoJSON [longitude, latitude]. */}
       <Map
         ref={mapRef}
         theme="light"
@@ -636,10 +650,10 @@ export default function OffshoreMap({
           </MarkerLabel>
         </MapMarker>
 
-        {/* ============ DESTINATION MARKER (CASEY IN IMAGE 2) ============ */}
+        {/* The destination always identifies the selected port location. */}
         <MapMarker longitude={destination.lng} latitude={destination.lat}>
           <MarkerContent>
-            <div className="waypoint-pin destination-pin" title="Destination">
+            <div className="waypoint-pin destination-pin" title="Destination port">
               D
             </div>
           </MarkerContent>
@@ -650,6 +664,25 @@ export default function OffshoreMap({
             </div>
           </MarkerLabel>
         </MapMarker>
+
+        {hasSeparateDestinationApproach && (
+          <MapMarker longitude={destinationApproach.lng} latitude={destinationApproach.lat}>
+            <MarkerContent>
+              <div
+                className="waypoint-pin"
+                title="Navigable approach: calculated route ends here"
+                style={{ background: "#527C78", fontSize: "10px" }}
+              >
+                A
+              </div>
+            </MarkerContent>
+            <MarkerLabel>
+              <div className="waypoint-label" style={{ fontSize: "9px" }}>
+                Navigable approach
+              </div>
+            </MarkerLabel>
+          </MapMarker>
+        )}
 
         {/* ============ ALL AVAILABLE PORTS (except origin/dest) ============ */}
 

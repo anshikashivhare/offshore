@@ -23,9 +23,16 @@ def clip_to_bbox_vector(
 def normalize_crs(gdf: gpd.GeoDataFrame, target_epsg: int = 4326) -> gpd.GeoDataFrame:
     """
     Ensures the GeoDataFrame uses the target EPSG.
+
+    A missing CRS is a data-quality failure, not evidence that the coordinates
+    are WGS84.  Silently assigning EPSG:4326 would place projected polar data
+    in the wrong location while appearing plausible on a map.
     """
     if gdf.crs is None:
-        gdf.set_crs(epsg=target_epsg, inplace=True)
+        raise ValueError(
+            "Input vector data has no CRS. Declare its source CRS before "
+            f"transforming it to EPSG:{target_epsg}."
+        )
     elif gdf.crs.to_epsg() != target_epsg:
         gdf.to_crs(epsg=target_epsg, inplace=True)
     return gdf

@@ -8,8 +8,15 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
-# Paths that are allowed longer execution time for ML/route workloads.
-_SLOW_PATH_PREFIXES = ("/routes", "/risk", "/predict")
+# API resources that are allowed longer execution time for ML/route workloads.
+# Requests are mounted below ``/api/v1``; matching only ``/routes`` previously
+# left ``/api/v1/routes/plan`` on the ordinary 15-second deadline.
+_SLOW_RESOURCE_SEGMENTS = ("/routes", "/risk", "/predict")
+
+
+def request_timeout_seconds(path: str) -> float:
+    """Choose the deadline from the mounted API path, not an assumed root path."""
+    return 60.0 if any(segment in path for segment in _SLOW_RESOURCE_SEGMENTS) else 15.0
 
 
 class RequestContextMiddleware:
@@ -33,9 +40,7 @@ class RequestContextMiddleware:
             return
 
         path: str = scope.get("path", "")
-        timeout_seconds = (
-            60.0 if any(path.startswith(p) for p in _SLOW_PATH_PREFIXES) else 15.0
-        )
+        timeout_seconds = request_timeout_seconds(path)
 
         start_time = time.perf_counter()
         method = scope.get("method", "")

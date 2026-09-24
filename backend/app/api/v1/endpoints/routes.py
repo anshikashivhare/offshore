@@ -105,30 +105,58 @@ async def plan_route(
         try:
             vessel = await vessel_repo.get(db, request.vessel_id)
         except Exception as exc:
-            if not getattr(settings, "DEMO_MODE", False):
-                raise HTTPException(status_code=503, detail="Database unavailable")
-            vessel = None
+            if getattr(settings, "DEMO_MODE", False):
+                import json
+                from pathlib import Path
+                try:
+                    vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
+                    with vessels_path.open("r", encoding="utf-8") as f:
+                        all_vessels = json.load(f)
+                    v_id_str = str(request.vessel_id)
+                    vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
+                    if vessel_data:
+                        vessel = Vessel(**vessel_data)
+                    else:
+                        vessel = None
+                except Exception:
+                    vessel = None
+            else:
+                raise HTTPException(status_code=503, detail="Database unavailable") from exc
 
         if vessel is None:
-            # Only use Demo Explorer if specifically requested or if it's the only way for the system to boot without DB.
-            if getattr(settings, "DEMO_MODE", False) and str(request.vessel_id) == "00000000-0000-0000-0000-000000000000":
-                vessel = Vessel(
-                    vessel_id=request.vessel_id,
-                    vessel_name="Demo Explorer",
-                    vessel_type="Research",
-                    ice_capability="PC3",
-                    cruising_speed=12.0,
-                    fuel_consumption=2000.0,
-                )
-            else:
-                raise HTTPException(status_code=404, detail="Vessel not found")
+            raise HTTPException(status_code=404, detail="Vessel not found")
+
+    # Snap origin and destination to water
+    from app.services.routing.grid import Node
+    try:
+        origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
+        dest_lon, dest_lat = (float(x) for x in request.destination.split(","))
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid origin or destination coordinates")
+
+    origin_node = Node(lat=origin_lat, lon=origin_lon)
+    dest_node = Node(lat=dest_lat, lon=dest_lon)
+
+    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=2.0)
+    if snapped_origin is None:
+        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 2.0° search radius.")
+    
+    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=2.0)
+    if snapped_dest is None:
+        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 2.0° search radius.")
+
+    # The planner itself will handle water-snapping for its internal start/goal nodes.
+    # We preserve the original request coordinates so they can be returned verbatim if needed.
 
     risk_grid = await _build_risk_grid(db, request)
+    demo_mode = getattr(settings, "DEMO_MODE", False)
+
     try:
         if request.objective_type.value == "shortest":
             route_create = await shortest_planner.plan_route(request, vessel, risk_grid)
         else:
-            route_create = await astar_planner.plan_route(request, vessel, risk_grid)
+            # Pass demo_mode flag to astar_planner
+            route_create = await astar_planner.plan_route(request, vessel, risk_grid, demo_mode=demo_mode)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

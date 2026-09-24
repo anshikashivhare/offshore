@@ -46,6 +46,17 @@ class DijkstraShortestPlanner(RoutePlanner):
         origin_node = Node(lat=origin_lat, lon=origin_lon)
         goal_node = Node(lat=dest_lat, lon=dest_lon)
 
+        snapped_start = self.grid_builder.snap_to_water(origin_node, max_radius_degrees=2.0)
+        snapped_goal = self.grid_builder.snap_to_water(goal_node, max_radius_degrees=2.0)
+        
+        if not snapped_start:
+            raise ValueError("Origin port is on land and no navigable water found within 2.0° search radius.")
+        if not snapped_goal:
+            raise ValueError("Destination port is on land and no navigable water found within 2.0° search radius.")
+            
+        origin_node = snapped_start
+        goal_node = snapped_goal
+
         counter = 0
         heap: List[Tuple[float, int, Node]] = [(0.0, counter, origin_node)]
         came_from: Dict[Node, Node] = {}
