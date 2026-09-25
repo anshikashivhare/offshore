@@ -37,6 +37,7 @@ raw/
 processed/
 *.nc
 *.csv
+synthetic_data/
 
 # ML model weights (keep .json model configs)
 backend/ml/seaice_model/convlstm.pt
