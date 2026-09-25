@@ -140,7 +140,7 @@ class AStarRoutePlanner(RoutePlanner):
         env_conditions_at: Dict[Node, dict] = {start_node: {}}
 
         iterations = 0
-        max_iterations = 50_000
+        max_iterations = 200_000
         
         if hasattr(risk_grid, 'cells'):
             risk_data = risk_grid
@@ -163,7 +163,7 @@ class AStarRoutePlanner(RoutePlanner):
         # Prefer a goal-directed search so a global exploratory voyage does
         # not exhaust the interactive budget by surveying an entire ocean.
         # Production keeps the near-admissible weight for risk-aware routing.
-        heuristic_weight = 2.0 if demo_mode else 1.05
+        heuristic_weight = 3.0 if demo_mode else 1.05
 
         closed_set = set()
 
@@ -187,7 +187,7 @@ class AStarRoutePlanner(RoutePlanner):
                     came_from, current, start_node, goal_node, vessel, request, risk_grid, arrival_times, env_conditions_at, demo_mode, risk_data
                 )
 
-            neighbors = grid_builder.get_neighbors(current)
+            neighbors = grid_builder.get_neighbors(current, goal_node)
             for neighbor in neighbors:
                 if neighbor in closed_set:
                     continue

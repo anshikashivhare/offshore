@@ -33,14 +33,15 @@ async def run_route(name, coords):
                 print(f"    risk_score: {props.get('risk_score')}")
                 print(f"    ml_prediction_status: {props.get('ml_prediction_status')}")
                 print(f"    land_intersections: {props.get('land_intersections')}")
+                
+                geom = data.get("recommended_route", {}).get("geometry", {})
+                waypoints = geom.get("coordinates", [])
+                print(f"    first 5 waypoints: {waypoints[:5]}")
+                print(f"    middle waypoint: {waypoints[len(waypoints)//2] if waypoints else 'None'}")
+                print(f"    last 5 waypoints: {waypoints[-5:]}")
             else:
                 print(f"  FAILED: {name} - HTTP {resp.status_code}")
                 print(f"    {resp.text}")
-        if hasattr(resp_data, "waypoints") or "waypoints" in resp_data:
-            waypoints = resp_data.get("waypoints", []) if isinstance(resp_data, dict) else getattr(resp_data, "waypoints", [])
-            print(f"    first 5 waypoints: {waypoints[:5]}")
-            print(f"    middle waypoint: {waypoints[len(waypoints)//2] if waypoints else 'None'}")
-            print(f"    last 5 waypoints: {waypoints[-5:]}")
     except Exception as e:
         print(f"  ERROR: {name} - {e}")
 

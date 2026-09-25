@@ -110,10 +110,38 @@ class GridBuilder:
     def __init__(self, resolution: float = 0.5):
         self.resolution = resolution
 
-    def get_neighbors(self, current: Node) -> List[Node]:
+    def get_neighbors(self, current: Node, goal: Optional[Node] = None) -> List[Node]:
         """Generate 8-way neighbors for a given grid node"""
         coords = _get_valid_neighbors(current.lat, current.lon, self.resolution)
-        return [Node(lat, lon) for lat, lon in coords]
+        neighbors = [Node(lat, lon) for lat, lon in coords]
+        
+        if goal and current.distance_to(goal) < 400.0:
+            # Check if line to goal is safe
+            dlat = goal.lat - current.lat
+            dlon_shortest = goal.lon - current.lon
+            if dlon_shortest > 180:
+                dlon_shortest -= 360
+            elif dlon_shortest < -180:
+                dlon_shortest += 360
+            dist_deg = math.sqrt(dlat**2 + dlon_shortest**2)
+            samples = max(5, int(math.ceil(dist_deg / 0.05)))
+            
+            is_safe = True
+            for i in range(1, samples + 1):
+                t = i / float(samples)
+                test_lat = current.lat + t * dlat
+                test_lon = current.lon + t * dlon_shortest
+                if test_lon > 180:
+                    test_lon -= 360
+                elif test_lon <= -180:
+                    test_lon += 360
+                if globe.is_land(test_lat, test_lon):
+                    is_safe = False
+                    break
+            if is_safe:
+                neighbors.append(goal)
+                
+        return neighbors
 
     def snap_to_water(self, node: Node, max_radius_degrees: float = 2.0) -> Optional[Node]:
         """Find nearest navigable water node using BFS on the routing grid."""
