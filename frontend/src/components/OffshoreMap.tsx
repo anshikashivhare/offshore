@@ -40,6 +40,7 @@ import {
   IcebergDetailCard,
   IcebergHoverTooltip,
   calculateDistanceNm,
+  isNavigationOverview,
   type VesselNavState,
 } from "./NavigationMode";
 import {
@@ -315,6 +316,55 @@ function SeaIceLayer({
       )}
     </>
   );
+}
+
+/**
+ * Keep the large, global ports dataset out of the first texture-rendering
+ * window.  MapLibre renders the GEBCO and sea-ice rasters first; once their
+ * initial visible tiles are ready, the port layers can be added without
+ * competing for the main thread or GPU upload budget.  The timeout preserves
+ * port functionality if a remote raster service is slow or unavailable.
+ */
+function InitialRasterLoadGate({ onReady }: { onReady: () => void }) {
+  const { map, isLoaded } = useMap();
+  const deliveredRef = useRef(false);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+
+  useEffect(() => {
+    if (!map || !isLoaded || deliveredRef.current) return;
+
+    const release = () => {
+      if (deliveredRef.current) return;
+      const gebcoReady = Boolean(map.getSource(GEBCO_SOURCE_ID)) && map.isSourceLoaded(GEBCO_SOURCE_ID);
+      const seaIceReady = Boolean(map.getSource(SEA_ICE_SOURCE_ID)) && map.isSourceLoaded(SEA_ICE_SOURCE_ID);
+      if (!gebcoReady || !seaIceReady) return;
+
+      deliveredRef.current = true;
+      onReadyRef.current();
+    };
+
+    // `sourcedata` catches the normal case; `idle` covers a map that already
+    // completed loading before this effect subscribed.
+    map.on("sourcedata", release);
+    map.on("idle", release);
+    release();
+
+    // Do not let a third-party imagery outage hide port functionality.
+    const fallback = window.setTimeout(() => {
+      if (deliveredRef.current) return;
+      deliveredRef.current = true;
+      onReadyRef.current();
+    }, 5000);
+
+    return () => {
+      map.off("sourcedata", release);
+      map.off("idle", release);
+      window.clearTimeout(fallback);
+    };
+  }, [map, isLoaded]);
+
+  return null;
 }
 
 // ─── MAP CONTROLS ─────────────────────────────────────────────────────
@@ -706,6 +756,7 @@ export default function OffshoreMap({
   onFocus,
 }: OffshoreMapProps) {
   const mapRef = useRef<MapRef>(null);
+  const [portsReady, setPortsReady] = useState(false);
 
   // Port hover popup state
   const [hoveredPortInfo, setHoveredPortInfo] = useState<HoveredPortInfo | null>(null);
@@ -890,6 +941,11 @@ export default function OffshoreMap({
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
         projection={projection}
+        // Preserve a useful history of loaded raster tiles. This makes the
+        // Map/Globe toggle and small return pans reuse GPU-ready imagery
+        // instead of repeatedly requesting and decoding the same textures.
+        maxTileCacheSize={192}
+        maxTileCacheZoomLevels={8}
         className={`offshore-maplibre ${viewMode === "navigation" ? "navigation-normal-map" : "gebco-polar-map"}`}
         attributionControl={false}
       >
@@ -943,6 +999,7 @@ export default function OffshoreMap({
           dateMode={seaIceDateMode}
           customDate={seaIceCustomDate}
         />
+        <InitialRasterLoadGate onReady={() => setPortsReady(true)} />
 
         {/* ============ POLAR GRATICULES (Hidden in navigation mode) ============ */}
         {viewMode !== "navigation" && <PolarGraticulesLayer />}
@@ -1179,14 +1236,16 @@ export default function OffshoreMap({
         )}
 
         {/* ============ PORTS INFRASTRUCTURE LAYER (BLUE in navigation mode) ============ */}
-        <PortsMapLayer
-          ports={locations}
-          visible={layers.ports !== false}
-          isNavMode={viewMode === "navigation"}
-          selectedPort={selectedPort ?? null}
-          onHoverPort={setHoveredPortInfo}
-          onClickPort={(port) => onSelectPort?.(port)}
-        />
+        {portsReady && (
+          <PortsMapLayer
+            ports={locations}
+            visible={layers.ports !== false}
+            isNavMode={viewMode === "navigation"}
+            selectedPort={selectedPort ?? null}
+            onHoverPort={setHoveredPortInfo}
+            onClickPort={(port) => onSelectPort?.(port)}
+          />
+        )}
 
         {/* ============ GEOGRAPHIC LABELS (Hidden in Navigation mode) ============ */}
         {viewMode !== "navigation" && (
@@ -1236,13 +1295,17 @@ export default function OffshoreMap({
           onRecenter={() => {
             setIsFollowing(true);
             if (mapRef.current && navState) {
+              const zoom = mapRef.current.getZoom() || 11.5;
+              const overview = isNavigationOverview(zoom);
               const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
               mapRef.current.easeTo({
                 center: [navState.position.lng, navState.position.lat],
-                bearing: navState.heading,
-                pitch: 48,
-                zoom: mapRef.current.getZoom() || 11.5,
-                padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
+                bearing: overview ? 0 : navState.heading,
+                pitch: overview ? 0 : 48,
+                zoom,
+                padding: overview
+                  ? { top: 0, bottom: 0, left: 0, right: 0 }
+                  : { top: paddingTop, bottom: 0, left: 0, right: 0 },
                 duration: 600,
               });
             }
@@ -1261,13 +1324,17 @@ export default function OffshoreMap({
           onRecenter={() => {
             setIsFollowing(true);
             if (mapRef.current && navState) {
+              const zoom = mapRef.current.getZoom() || 11.5;
+              const overview = isNavigationOverview(zoom);
               const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
               mapRef.current.easeTo({
                 center: [navState.position.lng, navState.position.lat],
-                bearing: navState.heading,
-                pitch: 48,
-                zoom: mapRef.current.getZoom() || 11.5,
-                padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
+                bearing: overview ? 0 : navState.heading,
+                pitch: overview ? 0 : 48,
+                zoom,
+                padding: overview
+                  ? { top: 0, bottom: 0, left: 0, right: 0 }
+                  : { top: paddingTop, bottom: 0, left: 0, right: 0 },
                 duration: 600,
               });
             }

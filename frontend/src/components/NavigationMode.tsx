@@ -212,6 +212,17 @@ export type VesselNavState = {
   segmentIndex: number;
 };
 
+// A pitched camera is useful close to the vessel, but a flat, north-up view is
+// essential at world scale. Keeping the perspective camera at a low zoom puts
+// the Mercator horizon inside the viewport and exposes the empty area seen
+// above the map in Navigation mode.
+export const NAVIGATION_OVERVIEW_ZOOM = 4.5;
+const NAVIGATION_PERSPECTIVE_PITCH = 48;
+
+export function isNavigationOverview(zoom: number): boolean {
+  return zoom <= NAVIGATION_OVERVIEW_ZOOM;
+}
+
 // =========================================================================
 // NAVIGATION CONTROLLER COMPONENT (Runs inside MapLibre Map instance)
 // =========================================================================
@@ -285,7 +296,7 @@ export function NavigationModeController({
       map.easeTo({
         center: [startPt.lng, startPt.lat],
         bearing: initialBearing,
-        pitch: 48,
+        pitch: NAVIGATION_PERSPECTIVE_PITCH,
         zoom: userZoomRef.current || 11.5,
         padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
         duration: 900,
@@ -383,7 +394,7 @@ export function NavigationModeController({
       // - bearing: follows vessel heading so direction of travel is always UP
       map.flyTo({
         center: [navState.position.lng, navState.position.lat],
-        pitch: 48,
+        pitch: NAVIGATION_PERSPECTIVE_PITCH,
         bearing: navState.heading,
         zoom: 11.5,
         padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
@@ -402,6 +413,33 @@ export function NavigationModeController({
       });
     }
   }, [enabled, map, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // At world scale, use the same overhead orientation people expect from a
+  // conventional map. This removes the artificial horizon/empty canvas while
+  // preserving the 3D vessel-following perspective at navigation zooms.
+  useEffect(() => {
+    if (!enabled || !map || !isLoaded) return;
+
+    const normalizeOverviewOrientation = () => {
+      if (!isNavigationOverview(map.getZoom())) return;
+      if (map.getPitch() === 0 && map.getBearing() === 0) return;
+
+      map.easeTo({
+        pitch: 0,
+        bearing: 0,
+        padding: { top: 0, bottom: 0, left: 0, right: 0 },
+        duration: 220,
+        essential: true,
+      });
+    };
+
+    map.on("zoomend", normalizeOverviewOrientation);
+    normalizeOverviewOrientation();
+
+    return () => {
+      map.off("zoomend", normalizeOverviewOrientation);
+    };
+  }, [enabled, map, isLoaded]);
 
   // User zoom listener: keep track of user's zoom changes so tracking does NOT snap back!
   useEffect(() => {
@@ -433,12 +471,16 @@ export function NavigationModeController({
     const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
     const targetZoom = userZoomRef.current ?? map.getZoom() ?? 11.5;
 
+    const overview = isNavigationOverview(targetZoom);
+
     map.easeTo({
       center: [navState.position.lng, navState.position.lat],
-      bearing: newBearing,
-      pitch: 48,
+      bearing: overview ? 0 : newBearing,
+      pitch: overview ? 0 : NAVIGATION_PERSPECTIVE_PITCH,
       zoom: targetZoom, // Dynamic user zoom - allows freely zooming in/out smoothly!
-      padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
+      padding: overview
+        ? { top: 0, bottom: 0, left: 0, right: 0 }
+        : { top: paddingTop, bottom: 0, left: 0, right: 0 },
       duration: 320,
       easing: (t) => t,
     });

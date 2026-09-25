@@ -28,10 +28,15 @@ export function getGebcoSourceConfig() {
         "&LAYERS=GEBCO_LATEST" +
         "&SRS=EPSG:3857" +
         "&BBOX={bbox-epsg-3857}" +
-        "&WIDTH=256&HEIGHT=256" +
+        // Request a 512px tile and tell MapLibre that it is 512px below. This
+        // covers four times the screen area per request compared with the old
+        // 256px configuration, while retaining the same on-screen detail.
+        // Fewer WMS round trips noticeably reduces gaps while the globe is
+        // first settling and during short pans.
+        "&WIDTH=512&HEIGHT=512" +
         "&FORMAT=image/png",
     ],
-    tileSize: 256,
+    tileSize: 512,
     attribution: GEBCO_ATTRIBUTION,
   };
 }
