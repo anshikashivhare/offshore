@@ -1,0 +1,58 @@
+{
+  "artifact_version": "v002",
+  "architecture": "LSTM",
+  "sequence_length": 8,
+  "features": [
+    "d_lat",
+    "d_lon",
+    "wind_speed_m_s",
+    "wind_direction_deg",
+    "ocean_current_u_m_s",
+    "ocean_current_v_m_s",
+    "sea_ice_concentration"
+  ],
+  "target": [
+    "delta_latitude",
+    "wrapped_delta_longitude"
+  ],
+  "normalization_mean": [
+    -8.749794485437807e-06,
+    0.046746948698701635,
+    7.468594912861347,
+    180.5078441109051,
+    0.06827089338395609,
+    -0.00016690556317165941,
+    0.3884713846895598
+  ],
+  "normalization_std": [
+    0.004729279202185238,
+    0.03241825667970049,
+    2.4011510983720576,
+    154.05945665690425,
+    0.052584237187877934,
+    0.02520179841503723,
+    0.185671863919579
+  ],
+  "train_icebergs": 22,
+  "val_icebergs": 4,
+  "test_icebergs": 4,
+  "synthetic_or_real": "SYNTHETIC",
+  "baseline_comparison": {
+    "test_samples": 20220,
+    "model": {
+      "mae_dlat": 0.0018313571345061064,
+      "mae_dlon": 0.003429496893659234,
+      "mean_haversine_km": 0.2748649830570692
+    },
+    "persistence": {
+      "mae_dlat": 0.003805814776569605,
+      "mae_dlon": 0.05111100897192955,
+      "mean_haversine_km": 2.112348706003269
+    },
+    "constant_velocity": {
+      "mae_dlat": 0.0016825851052999496,
+      "mae_dlon": 0.023225151002407074,
+      "mean_haversine_km": 0.9716168545654137
+    }
+  }
+}

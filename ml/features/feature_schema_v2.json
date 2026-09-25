@@ -1,0 +1,191 @@
+{
+  "version": "2.0",
+  "features": [
+    {
+      "feature_name": "sample_id",
+      "dtype": "object",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "cell_id",
+      "dtype": "int64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "timestamp",
+      "dtype": "datetime64[ns, UTC]",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "latitude",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "longitude",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "air_temperature_c",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "sea_level_pressure_hpa",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "wind_speed_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "wind_direction_deg",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "wind_u_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "wind_v_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "precipitation_mm_6h",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "visibility_km",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "cloud_cover_pct",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "storm_flag",
+      "dtype": "bool",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "weather_severity_index",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "forecast_horizon_hours",
+      "dtype": "int64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "target_wind_speed_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "data_status",
+      "dtype": "object",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "data_source_type",
+      "dtype": "object",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "current_u_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "current_v_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "current_speed_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "current_direction_deg",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "sea_surface_height_anomaly_cm",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "eddy_flag",
+      "dtype": "bool",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "sea_ice_concentration",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "sea_surface_temperature_c",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "ocean_current_u_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "ocean_current_v_m_s",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    },
+    {
+      "feature_name": "target_sea_ice_concentration",
+      "dtype": "float64",
+      "training_available": true,
+      "inference_available": true
+    }
+  ]
+}

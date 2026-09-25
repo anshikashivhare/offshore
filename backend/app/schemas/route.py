@@ -48,6 +48,19 @@ class RouteProperties(BaseModel):
     ml_prediction_status: Optional[str] = "unavailable"
     warnings: Optional[List[str]] = []
     waypoints: Optional[List[WaypointDetail]] = None
+    
+    # Iceberg Risk Metadata
+    iceberg_risk_status: Optional[str] = "unavailable"
+    iceberg_model_version: Optional[str] = "unavailable"
+    iceberg_forecast_available: Optional[bool] = False
+    forecast_coverage_hours: Optional[float] = 0.0
+    candidate_icebergs: Optional[int] = 0
+    closest_iceberg: Optional[str] = None
+    min_cpa_distance_km: Optional[float] = None
+    cpa_time: Optional[datetime] = None
+    encounter_risk: Optional[float] = 0.0
+    uncertainty_radius_km: Optional[float] = None
+    
     # Land avoidance validation metadata
     land_avoidance_validated: Optional[bool] = None
     endpoint_snapping_applied: Optional[bool] = None
@@ -133,6 +146,19 @@ class RouteCreate(BaseModel):
     ml_prediction_status: Optional[str] = "unavailable"
     warnings: Optional[List[str]] = []
     waypoints: Optional[List[WaypointDetail]] = None
+
+    # Iceberg Risk Metadata
+    iceberg_risk_status: Optional[str] = "unavailable"
+    iceberg_model_version: Optional[str] = "unavailable"
+    iceberg_forecast_available: Optional[bool] = False
+    forecast_coverage_hours: Optional[float] = 0.0
+    candidate_icebergs: Optional[int] = 0
+    closest_iceberg: Optional[str] = None
+    min_cpa_distance_km: Optional[float] = None
+    cpa_time: Optional[datetime] = None
+    encounter_risk: Optional[float] = 0.0
+    uncertainty_radius_km: Optional[float] = None
+
     # Land avoidance validation metadata
     land_avoidance_validated: Optional[bool] = None
     endpoint_snapping_applied: Optional[bool] = None

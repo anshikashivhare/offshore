@@ -1,0 +1,18 @@
+{
+  "test_samples": 20220,
+  "model": {
+    "mae_dlat": 0.0018313571345061064,
+    "mae_dlon": 0.003429496893659234,
+    "mean_haversine_km": 0.2748649830570692
+  },
+  "persistence": {
+    "mae_dlat": 0.003805814776569605,
+    "mae_dlon": 0.05111100897192955,
+    "mean_haversine_km": 2.112348706003269
+  },
+  "constant_velocity": {
+    "mae_dlat": 0.0016825851052999496,
+    "mae_dlon": 0.023225151002407074,
+    "mean_haversine_km": 0.9716168545654137
+  }
+}

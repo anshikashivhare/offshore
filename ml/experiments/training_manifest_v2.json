@@ -1,0 +1,39 @@
+{
+  "experiment_id": "exp_v002",
+  "timestamp": "2026-09-25T04:25:50.474081",
+  "processed_dataset": "ml/data/processed/aligned_environment_v2.csv",
+  "target": "target_sea_ice_concentration",
+  "features": [
+    "latitude",
+    "longitude",
+    "sea_ice_concentration",
+    "air_temperature_c",
+    "sea_surface_temperature_c",
+    "sea_level_pressure_hpa",
+    "wind_speed_m_s",
+    "wind_u_m_s",
+    "wind_v_m_s",
+    "current_speed_m_s",
+    "current_u_m_s",
+    "current_v_m_s",
+    "sea_surface_height_anomaly_cm",
+    "forecast_horizon_hours",
+    "month",
+    "sin_doy",
+    "cos_doy"
+  ],
+  "train_period": [
+    "2025-01-01 00:00:00+00:00",
+    "2026-03-20 00:00:00+00:00"
+  ],
+  "test_period": [
+    "2026-06-23 00:00:00+00:00",
+    "2026-09-25 00:00:00+00:00"
+  ],
+  "hyperparameters": {
+    "max_depth": 6,
+    "learning_rate": 0.1,
+    "n_estimators": 300
+  },
+  "artifact_hash": "a85a1705d35cf5141d0ac64cbe894bd8d83498520374744f708ec101903818e0"
+}

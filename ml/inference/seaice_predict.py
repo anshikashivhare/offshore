@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 # Default model paths
 _MODEL_DIR   = Path(__file__).parent.parent / "models" / "weights"
-_MODEL_PATH  = _MODEL_DIR / "seaice_xgb_latest.json"
+_MODEL_PATH  = _MODEL_DIR / "seaice_xgb_v002.json"
 _SCHEMA_PATH = _MODEL_DIR / "seaice_feature_schema.json"
 
 _model  = None

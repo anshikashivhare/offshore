@@ -207,7 +207,15 @@ async def plan_route(
         route_create.snapped_origin = f"{snapped_origin.lon},{snapped_origin.lat}"
         route_create.snapped_destination = f"{snapped_dest.lon},{snapped_dest.lat}"
 
-    db_route_data = route_create.model_dump(exclude={"waypoints", "risk_data_status", "ml_prediction_status", "warnings", "land_avoidance_validated", "endpoint_snapping_applied", "snapped_origin", "snapped_destination", "cost_decomposition"})
+    exclude_fields = {
+        "waypoints", "risk_data_status", "ml_prediction_status", "warnings", 
+        "land_avoidance_validated", "endpoint_snapping_applied", "snapped_origin", 
+        "snapped_destination", "cost_decomposition",
+        "iceberg_risk_status", "iceberg_model_version", "iceberg_forecast_available",
+        "forecast_coverage_hours", "candidate_icebergs", "closest_iceberg",
+        "min_cpa_distance_km", "cpa_time", "encounter_risk", "uncertainty_radius_km"
+    }
+    db_route_data = route_create.model_dump(exclude=exclude_fields)
     db_route = Route(**db_route_data)
     # Bypass DB persistence for demo mode (since Postgres is unavailable)
     # db.add(db_route)
@@ -242,7 +250,17 @@ async def plan_route(
         endpoint_snapping_applied=route_create.endpoint_snapping_applied,
         snapped_origin=route_create.snapped_origin,
         snapped_destination=route_create.snapped_destination,
-        cost_decomposition=route_create.cost_decomposition
+        cost_decomposition=route_create.cost_decomposition,
+        iceberg_risk_status=route_create.iceberg_risk_status,
+        iceberg_model_version=route_create.iceberg_model_version,
+        iceberg_forecast_available=route_create.iceberg_forecast_available,
+        forecast_coverage_hours=route_create.forecast_coverage_hours,
+        candidate_icebergs=route_create.candidate_icebergs,
+        closest_iceberg=route_create.closest_iceberg,
+        min_cpa_distance_km=route_create.min_cpa_distance_km,
+        cpa_time=route_create.cpa_time,
+        encounter_risk=route_create.encounter_risk,
+        uncertainty_radius_km=route_create.uncertainty_radius_km
     )
     return GeoJSONFeature[RouteProperties](
         type="Feature", geometry=geometry, properties=properties

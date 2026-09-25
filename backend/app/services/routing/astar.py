@@ -88,8 +88,10 @@ class AStarRoutePlanner(RoutePlanner):
         return path
 
     async def plan_route(
-        self, request: RouteRequest, vessel: Vessel, risk_grid: Any, demo_mode: bool = False
+        self, request: RouteRequest, vessel: Vessel, risk_grid: Any, demo_mode: bool = False, candidate_icebergs: List[Dict[str, Any]] = None
     ) -> RouteCreate:
+        if candidate_icebergs is None:
+            candidate_icebergs = []
         try:
             origin_coords = [float(x) for x in request.origin.split(",")]
             dest_coords = [float(x) for x in request.destination.split(",")]
@@ -125,6 +127,16 @@ class AStarRoutePlanner(RoutePlanner):
         # Note: Pre-fetching must happen outside the A* loop!
         # For prototype, we prefetch a simplified corridor
         await global_forecast_grid.prefetch_corridor([start_node, goal_node])
+
+        # ML Iceberg Trajectory Pre-caching
+        predicted_icebergs = []
+        try:
+            from app.services.risk.iceberg_risk import iceberg_engine
+            for ice in candidate_icebergs:
+                pred = iceberg_engine.predict_iceberg_trajectory(ice, request.departure_time, [3])
+                predicted_icebergs.append(pred)
+        except Exception as e:
+            print(f"Failed to load ML Icebergs: {e}")
 
         open_set = []
         # State: (f_score, id(node), node, current_eta)
@@ -214,6 +226,19 @@ class AStarRoutePlanner(RoutePlanner):
                         effective_risk = 0.0
                 else:
                     effective_risk = risk
+
+                # Dynamic ML Iceberg Risk Evaluation
+                if predicted_icebergs:
+                    try:
+                        from app.services.risk.iceberg_risk import iceberg_engine
+                        iceberg_res = iceberg_engine.evaluate_edge_risk(current, neighbor, current_time, rough_eta, predicted_icebergs)
+                        if not iceberg_res['navigable']:
+                            continue # Hard collision constraint failed
+                        
+                        # Soft penalty
+                        effective_risk = max(effective_risk, iceberg_res['risk_index'])
+                    except Exception as e:
+                        print(f"Iceberg evaluation failed: {e}")
 
                 edge_cost = scorer.calculate_edge_cost_4d(
                     current, neighbor, vessel, effective_risk, env
