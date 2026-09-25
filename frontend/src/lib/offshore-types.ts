@@ -9,6 +9,7 @@ export type LayerKey =
   | "seaIceConcentration"
   | "forecast"
   | "icebergs"
+  | "ports"
   | "tracks"
   | "trajectories"
   | "uncertainty"
@@ -17,6 +18,16 @@ export type LayerKey =
   | "vessel"
   | "oceanCurrents"
   | "weather";
+
+export interface PortRecord {
+  id: string;
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+  port_type?: string;
+  code?: string;
+}
 
 export type Priority = "Safety First" | "Balanced" | "Fuel Efficient" | "Time Efficient";
 
@@ -100,11 +111,13 @@ export type Alert = {
   location: Coordinate;
 };
 
+export type ViewMode = "map" | "globe" | "navigation";
+
 export type ForecastMeta = {
   asOf: string;
   horizonHours: number;
-  confidence: "High" | "Moderate" | "Limited";
-  status: "Available" | "Delayed" | "Unavailable";
+  confidence: "High" | "Moderate" | "Limited" | "Unknown";
+  status: "Available" | "Delayed" | "Unavailable" | "Loading";
 };
 
 export type RiskCell = {

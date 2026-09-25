@@ -158,6 +158,7 @@ class RouteComparisonService:
         base_request: RouteRequest,
         vessel: Vessel,
         risk_grid: Any,
+        demo_mode: bool = False,
     ) -> RouteComparisonResponse:
         import asyncio
         objectives = [
@@ -179,19 +180,32 @@ class RouteComparisonService:
             if obj != base_request.objective_type:
                 req.weights = None
                 
-            if obj == ObjectiveType.SHORTEST and self.shortest_planner is not None:
+            if obj == ObjectiveType.SHORTEST and self.shortest_planner is not None and not demo_mode:
                 planner = self.shortest_planner
             elif obj == ObjectiveType.SHORTEST:
-                # No dedicated shortest planner; force distance-only weights
+                # No dedicated shortest planner or in demo mode; force distance-only weights
                 req.weights = OptimizationWeights(alpha=0.0, beta=1.0, gamma=0.0)
                 planner = self.planner
             else:
                 planner = self.planner
 
             try:
-                route_create = await planner.plan_route(req, vessel, risk_grid)
+                import inspect
+                sig = inspect.signature(planner.plan_route)
+                if "demo_mode" in sig.parameters:
+                    route_create = await planner.plan_route(req, vessel, risk_grid, demo_mode=demo_mode)
+                else:
+                    route_create = await planner.plan_route(req, vessel, risk_grid)
                 return obj, self._convert_to_response(route_create), None
             except ValueError as e:
+                # If shortest planner failed on trans-ocean voyage, retry with distance-weighted A*
+                if obj == ObjectiveType.SHORTEST and planner is not self.planner:
+                    try:
+                        req.weights = OptimizationWeights(alpha=0.0, beta=1.0, gamma=0.0)
+                        route_create = await self.planner.plan_route(req, vessel, risk_grid, demo_mode=demo_mode)
+                        return obj, self._convert_to_response(route_create), None
+                    except Exception as retry_err:
+                        return obj, None, str(retry_err)
                 return obj, None, str(e)
             except Exception as e:
                 return obj, None, f"Internal error: {str(e)}"

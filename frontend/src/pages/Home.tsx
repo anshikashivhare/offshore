@@ -4,6 +4,7 @@ import {
   BookOpen,
   ChevronDown,
   CircleHelp,
+  Compass,
   Globe,
   Map as MapIcon,
   Maximize2,
@@ -40,7 +41,8 @@ import {
   trajectories,
   uncertainty,
 } from "@/lib/offshore-mock-data";
-import type { AppLocation, Coordinate, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
+import type { AppLocation, Coordinate, LayerKey, PortRecord, Priority, Vessel, ViewMode } from "@/lib/offshore-types";
+import { UnifiedSearchBar } from "@/components/PortFeatureManager";
 import { SEA_ICE_DEFAULT_OPACITY, type SeaIceDateMode } from "@/services/map/nasaGibs";
 
 // Mock geometry generation removed in favor of actual backend calculation
@@ -49,18 +51,19 @@ export default function Home() {
   const [layers, setLayers] = useState(defaultLayers);
   const [selectedRouteId, setSelectedRouteId] = useState(staticRoutes[0]?.id || "");
   const [selectedIcebergId, setSelectedIcebergId] = useState<string | null>(null);
+  const [selectedPort, setSelectedPort] = useState<PortRecord | null>(null);
   const [selectedVesselId, setSelectedVesselId] = useState<string>("");
   const [priority, setPriority] = useState<Priority>("Safety First");
-  const [origin, setOrigin] = useState<Coordinate | null>(null);
-  const [destination, setDestination] = useState<Coordinate | null>(null);
-  const [originLabel, setOriginLabel] = useState("");
-  const [destinationLabel, setDestinationLabel] = useState("");
+  const [origin, setOrigin] = useState<Coordinate | null>(locations[0]?.coordinate || null);
+  const [destination, setDestination] = useState<Coordinate | null>(locations[1]?.coordinate || null);
+  const [originLabel, setOriginLabel] = useState(locations[0]?.label || "");
+  const [destinationLabel, setDestinationLabel] = useState(locations[1]?.label || "");
   const [pickMode, setPickMode] = useState<"origin" | "destination" | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [activeAlertId, setActiveAlertId] = useState(alerts[0]?.id || "");
   // Globe is the safe default for Antarctic interpretation; Mercator remains
-  // available for familiar navigation interaction but visibly distorts scale.
-  const [viewMode, setViewMode] = useState<"map" | "globe">("globe");
+  // available for familiar navigation interaction; Navigation mode gives 3D perspective voyage view.
+  const [viewMode, setViewMode] = useState<ViewMode>("globe");
   const [forecastHours, setForecastHours] = useState(16);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -72,7 +75,7 @@ export default function Home() {
 
   const [liveIcebergs, setLiveIcebergs] = useState(icebergs);
   const [liveRoutes, setLiveRoutes] = useState<typeof staticRoutes>([]);
-  const [liveLocations, setLiveLocations] = useState<AppLocation[]>([]);
+  const [liveLocations, setLiveLocations] = useState<AppLocation[]>(locations);
   const [liveVessels, setLiveVessels] = useState<Vessel[]>([]);
   const [customVesselConfig, setCustomVesselConfig] = useState<Vessel | null>(null);
   const [liveEnvironment, setLiveEnvironment] = useState<any>(null);
@@ -88,27 +91,33 @@ export default function Home() {
   }, [origin, destination]);
 
   useEffect(() => {
-    fetchGlobalPorts()
-      .then((data) => {
-        if (data && data.data && data.data.length > 0) {
-          const ports = data.data.map((p: any) => ({
-            label: `${p.name}, ${p.country}`,
-            coordinate: { lat: p.lat, lng: p.lon },
-            country: p.country
-          }));
-          // MapLibre is highly performant with thousands of points, so we can load them all
-          setLiveLocations(ports);
-          if (!origin && ports.length > 2) {
-            setOrigin(ports[2].coordinate);
-            setOriginLabel(ports[2].label);
+    // Defer full 5,400+ ports database ingestion to idle time so initial UI & map render is instantaneous (0ms lag)
+    const loadGlobalPorts = () => {
+      fetchGlobalPorts()
+        .then((data) => {
+          const list = data?.data || data?.items || [];
+          if (list && list.length > 0) {
+            const ports = list.map((p: any) => ({
+              label: `${p.name}, ${p.country}`,
+              coordinate: { lat: p.lat ?? p.latitude, lng: p.lon ?? p.longitude },
+              country: p.country
+            }));
+            const existingLabels = new Set(ports.map((p: any) => p.label.toLowerCase()));
+            const combined = [
+              ...locations.filter((loc) => !existingLabels.has(loc.label.toLowerCase())),
+              ...ports
+            ];
+            setLiveLocations(combined);
           }
-          if (!destination && ports.length > 3) {
-            setDestination(ports[3].coordinate);
-            setDestinationLabel(ports[3].label);
-          }
-        }
-      })
-      .catch((err) => console.error("Failed to fetch all ports:", err));
+        })
+        .catch((err) => console.error("Failed to fetch all ports:", err));
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(loadGlobalPorts, { timeout: 1200 });
+    } else {
+      setTimeout(loadGlobalPorts, 600);
+    }
 
     fetchIcebergs()
       .then((data) => {
@@ -122,7 +131,12 @@ export default function Home() {
             drift: "NNW",
             risk: "moderate"
           }));
-          setLiveIcebergs(mapped);
+          const existingIds = new Set(mapped.map((b: any) => b.id));
+          const combined = [
+            ...mapped,
+            ...icebergs.filter((b) => !existingIds.has(b.id)),
+          ];
+          setLiveIcebergs(combined);
         }
       })
       .catch((err) => console.error("Failed to fetch live icebergs:", err));
@@ -249,6 +263,16 @@ export default function Home() {
     [selectedRouteId, liveRoutes]
   );
 
+  const selectedVessel = useMemo(() => {
+    if (selectedVesselId) {
+      const found = liveVessels.find((v) => v.vessel_id === selectedVesselId);
+      if (found) return found;
+    }
+    if (customVesselConfig) return customVesselConfig;
+    if (liveVessels.length > 0) return liveVessels[0];
+    return null;
+  }, [selectedVesselId, liveVessels, customVesselConfig]);
+
   useEffect(() => {
     if (!selectedRoute) return;
     const fetchEnv = async () => {
@@ -293,6 +317,20 @@ export default function Home() {
     [pickMode]
   );
 
+  const handleSelectPort = useCallback((port: PortRecord | null) => {
+    setSelectedPort(port);
+  }, []);
+
+  const handleSetOriginFromPort = useCallback((port: PortRecord) => {
+    setOrigin({ lat: port.lat, lng: port.lon });
+    setOriginLabel(`${port.name}, ${port.country}`);
+  }, []);
+
+  const handleSetDestinationFromPort = useCallback((port: PortRecord) => {
+    setDestination({ lat: port.lat, lng: port.lon });
+    setDestinationLabel(`${port.name}, ${port.country}`);
+  }, []);
+
   const handleFocus = useCallback((_coordinate: Coordinate) => {
     /* MapLibre focus */
   }, []);
@@ -334,69 +372,95 @@ export default function Home() {
   );
 
   return (
-    <div className="offshore-app" onKeyDown={handleKeyDown} tabIndex={-1}>
-      {/* Top Header matching Image 2 */}
-      <AppHeader
-        onMenu={() => setMobileSidebar((value) => !value)}
-        routeLabel={shortRouteTitle}
-        forecastDateTime={forecastDateTime}
-      />
+    <div className={`offshore-app ${viewMode === "navigation" ? "navigation-view-active" : ""}`} onKeyDown={handleKeyDown} tabIndex={-1}>
+      {/* Top Header (Hidden in Navigation Mode for clean edge-to-edge view) */}
+      {viewMode !== "navigation" && (
+        <AppHeader
+          onMenu={() => setMobileSidebar((value) => !value)}
+          routeLabel={shortRouteTitle}
+          forecastDateTime={forecastDateTime}
+        />
+      )}
 
-      <div className="workspace">
-        {/* Light Mission Configuration Panel (~270px) matching Image 2 */}
-        <div className={`mission-config-wrapper ${mobileSidebar ? "open" : ""}`}>
-          <MissionSidebar
-            locations={liveLocations}
-            vessels={liveVessels}
-            selectedVesselId={selectedVesselId}
-            origin={{ label: originLabel, coordinate: origin }}
-            destination={{ label: destinationLabel, coordinate: destination }}
-            priority={priority}
-            layers={layers}
-            pickMode={pickMode}
-            onVesselChange={setSelectedVesselId}
-            onPriorityChange={setPriority}
-            onLocationChange={handleLocationChange}
-            onPickMode={setPickMode}
-            onToggleLayer={(key: LayerKey) =>
-              setLayers((current) => ({ ...current, [key]: !current[key] }))
-            }
-            isCalculating={isCalculating}
-            onCalculateRoute={handleCalculateRoute}
-            routeError={routeValidationError || liveEnvError}
-            customVesselConfig={customVesselConfig}
-            onCustomVesselConfigChange={setCustomVesselConfig}
-            seaIceOpacity={seaIceOpacity}
-            onSeaIceOpacityChange={setSeaIceOpacity}
-            seaIceDateMode={seaIceDateMode}
-            onSeaIceDateModeChange={setSeaIceDateMode}
-            seaIceCustomDate={seaIceCustomDate}
-            onSeaIceCustomDateChange={setSeaIceCustomDate}
-          />
-        </div>
+      <div className={`workspace ${viewMode === "navigation" ? "navigation-fullscreen-active" : ""}`}>
+        {/* Light Mission Configuration Panel (Hidden in Navigation Mode) */}
+        {viewMode !== "navigation" && (
+          <div className={`mission-config-wrapper ${mobileSidebar ? "open" : ""}`}>
+            <MissionSidebar
+              locations={liveLocations}
+              vessels={liveVessels}
+              selectedVesselId={selectedVesselId}
+              origin={{ label: originLabel, coordinate: origin }}
+              destination={{ label: destinationLabel, coordinate: destination }}
+              priority={priority}
+              layers={layers}
+              pickMode={pickMode}
+              onVesselChange={setSelectedVesselId}
+              onPriorityChange={setPriority}
+              onLocationChange={handleLocationChange}
+              onPickMode={setPickMode}
+              onToggleLayer={(key: LayerKey) =>
+                setLayers((current) => ({ ...current, [key]: !current[key] }))
+              }
+              isCalculating={isCalculating}
+              onCalculateRoute={handleCalculateRoute}
+              routeError={routeValidationError || liveEnvError}
+              customVesselConfig={customVesselConfig}
+              onCustomVesselConfigChange={setCustomVesselConfig}
+              seaIceOpacity={seaIceOpacity}
+              onSeaIceOpacityChange={setSeaIceOpacity}
+              seaIceDateMode={seaIceDateMode}
+              onSeaIceDateModeChange={setSeaIceDateMode}
+              seaIceCustomDate={seaIceCustomDate}
+              onSeaIceCustomDateChange={setSeaIceCustomDate}
+            />
+          </div>
+        )}
 
-        {/* Dominant Map Workspace (Centerpiece) matching Image 2 */}
-        <main className={`map-workspace ${isFullscreen ? "map-fullscreen" : ""}`}>
+        {/* Dominant Map Workspace (Expands to FULL SCREEN in Navigation Mode) */}
+        <main className={`map-workspace ${isFullscreen || viewMode === "navigation" ? "map-fullscreen navigation-fullscreen" : ""}`}>
           {/* Map Header */}
-          <div className="map-header">
+          <div className={`map-header ${viewMode === "navigation" ? "map-header-nav-floating" : ""}`}>
             <div className="map-header-left">
-              <span className="eyebrow">MISSION 08 · ROUTE PLANNING</span>
+              <span className="eyebrow">{viewMode === "navigation" ? "OFFSHORE · VOYAGE NAVIGATION" : "MISSION 08 · ROUTE PLANNING"}</span>
               <h1 className="map-passage-title">{routeTitle}</h1>
-              <p className="map-passage-sub">
-                Risk-aware passage planning · Antarctic Peninsula to Wilkes Land
-              </p>
+              {viewMode !== "navigation" && (
+                <p className="map-passage-sub">
+                  Risk-aware passage planning · Antarctic Peninsula to Wilkes Land
+                </p>
+              )}
+            </div>
+
+            {/* Global Port, Vessel & Iceberg Search Bar */}
+            <div className="map-header-search">
+              <UnifiedSearchBar
+                ports={liveLocations}
+                vessels={liveVessels}
+                icebergs={liveIcebergs}
+                onSelectPort={handleSelectPort}
+                onSelectVessel={(vesselId, coord) => {
+                  setSelectedVesselId(vesselId);
+                  handleFocus(coord);
+                }}
+                onSelectIceberg={(icebergId, coord) => {
+                  setSelectedIcebergId(icebergId);
+                  handleFocus(coord);
+                }}
+              />
             </div>
 
             <div className="map-header-actions">
-              <ForecastBadge forecast={forecastMeta} forecastDateTime={forecastDateTime} />
+              {viewMode !== "navigation" && (
+                <ForecastBadge forecast={forecastMeta} forecastDateTime={forecastDateTime} />
+              )}
 
-              {/* Map / Globe toggle matching Image 2 */}
+              {/* Map / Globe / Navigation toggle */}
               <div className="map-globe-toggle">
                 <button
                   className={`toggle-tab-btn ${viewMode === "map" ? "active" : ""}`}
                   onClick={() => setViewMode("map")}
                   aria-label="Map view"
-                  title="Map view"
+                  title="2D Map view"
                 >
                   <MapIcon size={14} />
                   <span>Map</span>
@@ -410,14 +474,27 @@ export default function Home() {
                   <Globe size={14} />
                   <span>Globe</span>
                 </button>
+                <button
+                  className={`toggle-tab-btn ${viewMode === "navigation" ? "active" : ""}`}
+                  onClick={() => setViewMode("navigation")}
+                  aria-label="Navigation voyage view"
+                  title="Navigation / Voyage Mode (Pitched 3D Perspective Follow)"
+                >
+                  <Compass size={14} />
+                  <span>Navigation</span>
+                </button>
               </div>
 
-              <button className="control-icon-btn" aria-label="Open help" title="System Help">
-                <CircleHelp size={15} />
-              </button>
-              <button className="control-icon-btn" aria-label="Open settings" title="Map Settings">
-                <Settings2 size={15} />
-              </button>
+              {viewMode !== "navigation" && (
+                <>
+                  <button className="control-icon-btn" aria-label="Open help" title="System Help">
+                    <CircleHelp size={15} />
+                  </button>
+                  <button className="control-icon-btn" aria-label="Open settings" title="Map Settings">
+                    <Settings2 size={15} />
+                  </button>
+                </>
+              )}
               <button
                 className={`control-icon-btn ${isFullscreen ? "active" : ""}`}
                 aria-label="Fullscreen map"
@@ -430,7 +507,7 @@ export default function Home() {
           </div>
 
           {/* Map Frame with light polar basemap and legend */}
-          <div className={`map-frame ${isFullscreen ? "fullscreen" : ""}`}>
+          <div className={`map-frame ${isFullscreen || viewMode === "navigation" ? "fullscreen" : ""}`}>
             <OffshoreMap
               layers={layers}
               icebergs={liveIcebergs}
@@ -441,6 +518,10 @@ export default function Home() {
               routes={routes}
               selectedRouteId={selectedRouteId}
               selectedIcebergId={selectedIcebergId}
+              selectedPort={selectedPort}
+              onSelectPort={handleSelectPort}
+              onSetOriginPort={handleSetOriginFromPort}
+              onSetDestinationPort={handleSetDestinationFromPort}
               origin={origin}
               originLabel={originLabel}
               destination={destination}
@@ -448,6 +529,9 @@ export default function Home() {
               locations={liveLocations}
               pickMode={pickMode}
               viewMode={viewMode}
+              selectedVessel={selectedVessel}
+              liveEnvironment={liveEnvironment}
+              onExitNavigation={() => setViewMode("map")}
               seaIceOpacity={seaIceOpacity}
               seaIceDateMode={seaIceDateMode}
               seaIceCustomDate={seaIceCustomDate}
@@ -456,75 +540,85 @@ export default function Home() {
               onPickCoordinate={handlePickCoordinate}
               onFocus={handleFocus}
             />
-            <MapOverlayLegend />
+            {viewMode !== "navigation" && <MapOverlayLegend />}
           </div>
 
-          {/* Time Control Bar matching Image 2 */}
-          <Timeline
-            forecast={forecastMeta}
-            forecastHours={forecastHours}
-            onForecastHoursChange={setForecastHours}
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-          />
+          {/* Time Control Bar (Hidden in Navigation Mode) */}
+          {viewMode !== "navigation" && (
+            <Timeline
+              forecast={forecastMeta}
+              forecastHours={forecastHours}
+              onForecastHoursChange={setForecastHours}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
+          )}
 
-          {/* Passage Overview / Environmental Metrics KPI Strip matching Image 2 */}
-          <KpiStrip forecast={forecastMeta} route={selectedRoute} liveEnv={liveEnvironment} />
+          {/* Passage Overview / Environmental Metrics KPI Strip (Hidden in Navigation Mode) */}
+          {viewMode !== "navigation" && (
+            <KpiStrip forecast={forecastMeta} route={selectedRoute} liveEnv={liveEnvironment} />
+          )}
         </main>
 
-        {/* Right Route Options Panel (~290px) matching Image 2 */}
-        <div className="route-options-wrapper">
-          <DecisionPanel
-            routes={routes}
-            selectedRoute={selectedRoute}
-            alerts={alerts}
-            onSelectRoute={setSelectedRouteId}
-            onFocusAlert={(alert) => {
-              setActiveAlertId(alert.id);
-              handleFocus(alert.location);
-            }}
-          />
-        </div>
+        {/* Right Route Options Panel (Hidden in Navigation Mode) */}
+        {viewMode !== "navigation" && (
+          <div className="route-options-wrapper">
+            <DecisionPanel
+              routes={routes}
+              selectedRoute={selectedRoute}
+              alerts={alerts}
+              onSelectRoute={setSelectedRouteId}
+              onFocusAlert={(alert) => {
+                setActiveAlertId(alert.id);
+                handleFocus(alert.location);
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Bottom Status Bar matching Image 2 */}
-      <footer className="bottom-status-bar" aria-label="Operational status bar">
-        <div className="status-bar-left">
-          <div className="status-indicator-group">
-            <span className={`live-status-dot ${routeValidationError || liveEnvError ? "error" : "success"}`} style={{ backgroundColor: routeValidationError || liveEnvError ? "#ef4444" : "#10b981" }} />
+      {/* Bottom Status Bar (Hidden in Navigation Mode) */}
+      {viewMode !== "navigation" && (
+        <footer className="bottom-status-bar" aria-label="Operational status bar">
+          <div className="status-bar-left">
+            <div className="status-indicator-group">
+              <span className={`live-status-dot ${routeValidationError || liveEnvError ? "error" : "success"}`} style={{ backgroundColor: routeValidationError || liveEnvError ? "#ef4444" : "#10b981" }} />
+              <span>
+                {routeValidationError
+                  ? `VALIDATION ERROR: ${routeValidationError}`
+                  : (liveEnvError 
+                      ? `STALE DATA: ${liveEnvError}` 
+                      : (liveEnvironment 
+                          ? `Live Retrieval: Success (Forecast: ${liveEnvironment.waypoints[0]?.weather_status?.latest_forecast_time || "N/A"})` 
+                          : "Connecting live stream..."))}
+              </span>
+            </div>
+            <span className="status-v-divider">|</span>
+            <span className={selectedRoute?.ml_prediction_status === "unavailable" ? "text-red-500" : ""}>
+              ML Prediction: {!selectedRoute ? "Pending" : selectedRoute.ml_prediction_status === "unavailable" ? "Unavailable" : "Active (XGBoost)"}
+            </span>
+            <span className="status-v-divider">|</span>
             <span>
-              {routeValidationError
-                ? `VALIDATION ERROR: ${routeValidationError}`
-                : (liveEnvError 
-                    ? `STALE DATA: ${liveEnvError}` 
-                    : (liveEnvironment 
-                        ? `Live Retrieval: Success (Forecast: ${liveEnvironment.waypoints[0]?.weather_status?.latest_forecast_time || "N/A"})` 
-                        : "Connecting live stream..."))}
+              Map projection: {viewMode === "globe" ? "WGS84 globe" : viewMode === "navigation" ? "Web Mercator (3D Navigation perspective)" : "Web Mercator — distorted near poles"}
             </span>
           </div>
-          <span className="status-v-divider">|</span>
-          <span className={selectedRoute?.ml_prediction_status === "unavailable" ? "text-red-500" : ""}>
-            ML Prediction: {!selectedRoute ? "Pending" : selectedRoute.ml_prediction_status === "unavailable" ? "Unavailable" : "Active (XGBoost)"}
-          </span>
-          <span className="status-v-divider">|</span>
-          <span>Map projection: {viewMode === "globe" ? "WGS84 globe" : "Web Mercator — distorted near poles"}</span>
-        </div>
 
-        <div className="status-bar-right">
-          <span className="status-item-alert">
-            <Bell size={13} /> {alerts.length} route-relevant alerts
-          </span>
-          <button className="status-icon-link" aria-label="Documentation" title="Documentation">
-            <BookOpen size={13} />
-          </button>
-          <button className="status-icon-link" aria-label="Settings" title="Settings">
-            <Settings2 size={13} />
-          </button>
-          <span className="status-active-route">
-            {selectedRoute ? `${selectedRoute.name} selected` : "No route selected"} <ChevronDown size={12} />
-          </span>
-        </div>
-      </footer>
+          <div className="status-bar-right">
+            <span className="status-item-alert">
+              <Bell size={13} /> {alerts.length} route-relevant alerts
+            </span>
+            <button className="status-icon-link" aria-label="Documentation" title="Documentation">
+              <BookOpen size={13} />
+            </button>
+            <button className="status-icon-link" aria-label="Settings" title="Settings">
+              <Settings2 size={13} />
+            </button>
+            <span className="status-active-route">
+              {selectedRoute ? `${selectedRoute.name} selected` : "No route selected"} <ChevronDown size={12} />
+            </span>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

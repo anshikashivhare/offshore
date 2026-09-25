@@ -18,10 +18,30 @@ import type {
   IcebergTrack,
   IcebergTrajectory,
   LayerKey,
+  PortRecord,
   RiskCell,
   Route,
   UncertaintyRegion,
+  Vessel,
+  ViewMode,
 } from "@/lib/offshore-types";
+import {
+  PortsMapLayer,
+  PortHoverCard,
+  PortDetailCard,
+  type HoveredPortInfo,
+} from "./PortFeatureManager";
+import {
+  NavigationModeController,
+  VesselMarker,
+  NavigationProminentRoute,
+  NavigationHUD,
+  NavigationZoomControls,
+  IcebergDetailCard,
+  IcebergHoverTooltip,
+  calculateDistanceNm,
+  type VesselNavState,
+} from "./NavigationMode";
 import {
   GEBCO_SOURCE_ID,
   GEBCO_LAYER_ID,
@@ -48,13 +68,20 @@ type OffshoreMapProps = {
   routes: Route[];
   selectedRouteId: string;
   selectedIcebergId: string | null;
-  origin: Coordinate;
+  origin: Coordinate | null;
   originLabel?: string;
-  destination: Coordinate;
+  destination: Coordinate | null;
   destinationLabel?: string;
   locations?: AppLocation[];
   pickMode: "origin" | "destination" | null;
-  viewMode: "map" | "globe";
+  viewMode: ViewMode;
+  selectedVessel?: Vessel | null;
+  selectedPort?: PortRecord | null;
+  onSelectPort?: (port: PortRecord | null) => void;
+  onSetOriginPort?: (port: PortRecord) => void;
+  onSetDestinationPort?: (port: PortRecord) => void;
+  liveEnvironment?: any;
+  onExitNavigation?: () => void;
   seaIceOpacity: number;
   seaIceDateMode: SeaIceDateMode;
   seaIceCustomDate?: string;
@@ -100,7 +127,7 @@ const oceanBaseStyle: MapLibreGL.StyleSpecification = {
 };
 
 // ─── GEBCO RASTER LAYER ───────────────────────────────────────────────
-function GebcoLayer({ visible }: { visible: boolean }) {
+function GebcoLayer({ visible, isNavMode = false }: { visible: boolean; isNavMode?: boolean }) {
   const { map, isLoaded } = useMap();
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
@@ -144,17 +171,19 @@ function GebcoLayer({ visible }: { visible: boolean }) {
     }
   }, [map, isLoaded]);
 
-  // Visibility toggle (no source re-creation)
+  // Visibility & opacity toggle (no source re-creation)
   useEffect(() => {
     if (!map || !isLoaded) return;
     try {
       if (map.getLayer(GEBCO_LAYER_ID)) {
         map.setLayoutProperty(GEBCO_LAYER_ID, "visibility", visible ? "visible" : "none");
+        // In navigation mode, keep GEBCO subtle so sea ice is the prominent layer
+        map.setPaintProperty(GEBCO_LAYER_ID, "raster-opacity", isNavMode ? 0.35 : 1.0);
       }
     } catch {
       /* ignore */
     }
-  }, [map, isLoaded, visible]);
+  }, [map, isLoaded, visible, isNavMode]);
 
   return (
     <>
@@ -418,11 +447,11 @@ const SUPPRESSED_BASEMAP_LAYERS = [
   "place_city_dot_r7",
 ];
 
-function MapLabelSuppressor() {
+function MapLabelSuppressor({ enabled = true }: { enabled?: boolean }) {
   const { map, isLoaded } = useMap();
 
   useEffect(() => {
-    if (!map || !isLoaded) return;
+    if (!map || !isLoaded || !enabled) return;
 
     const apply = () => {
       SUPPRESSED_BASEMAP_LAYERS.forEach((layerId) => {
@@ -444,17 +473,17 @@ function MapLabelSuppressor() {
     return () => {
       map.off("style.load", apply);
     };
-  }, [map, isLoaded]);
+  }, [map, isLoaded, enabled]);
 
   return null;
 }
 
 // ─── DYNAMIC VIEW FITTER ──────────────────────────────────────────────
-function DynamicViewFitter({ coords }: { coords: [number, number][] }) {
+function DynamicViewFitter({ coords, enabled = true }: { coords: [number, number][]; enabled?: boolean }) {
   const { map, isLoaded } = useMap();
 
   useEffect(() => {
-    if (!map || !isLoaded || coords.length < 2) return;
+    if (!map || !isLoaded || !enabled || coords.length < 2) return;
 
     const lngs = coords.map((c) => c[0]);
     const lats = coords.map((c) => c[1]);
@@ -474,74 +503,11 @@ function DynamicViewFitter({ coords }: { coords: [number, number][] }) {
         duration: 1000,
       },
     );
-  }, [map, isLoaded, coords]);
+  }, [map, isLoaded, coords, enabled]);
 
   return null;
 }
 
-// ─── PORTS LAYER ──────────────────────────────────────────────────────
-function PortsLayer({
-  locations,
-  originLabel,
-  destinationLabel,
-}: {
-  locations: any[];
-  originLabel: string;
-  destinationLabel: string;
-}) {
-  const { map, isLoaded } = useMap();
-
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    const sourceId = "offshore-ports";
-    const layerId = "offshore-ports-circle";
-
-    const features = locations
-      .filter((loc) => loc.label !== originLabel && loc.label !== destinationLabel)
-      .map((loc) => ({
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [loc.coordinate.lng, loc.coordinate.lat],
-        },
-        properties: {
-          label: loc.label.split(",")[0],
-        },
-      }));
-
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features,
-        } as any,
-      });
-    } else {
-      (map.getSource(sourceId) as any).setData({
-        type: "FeatureCollection",
-        features,
-      });
-    }
-
-    if (!map.getLayer(layerId)) {
-      map.addLayer({
-        id: layerId,
-        type: "circle",
-        source: sourceId,
-        paint: {
-          "circle-color": "#8A9B9D",
-          "circle-radius": 3.5,
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#FFFFFF",
-        },
-      });
-    }
-  }, [map, isLoaded, locations, originLabel, destinationLabel]);
-
-  return null;
-}
 
 // ─── COMPACT LEGEND ───────────────────────────────────────────────────
 function SeaIceLegend() {
@@ -643,6 +609,69 @@ function DataStatusIndicator({
   );
 }
 
+// ─── OPTIMIZED CONSOLIDATED POLAR GRATICULES LAYER ────────────────────
+function PolarGraticulesLayer() {
+  const { map, isLoaded } = useMap();
+
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    const sourceId = "polar-graticules-source";
+    const layerId = "polar-graticules-layer";
+
+    if (!map.getSource(sourceId)) {
+      const features: any[] = [];
+      for (let lat = -80; lat <= 80; lat += 20) {
+        const coords: [number, number][] = [];
+        for (let lng = -180; lng <= 180; lng += 10) coords.push([lng, lat]);
+        features.push({
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: coords },
+        });
+      }
+      for (let lng = -180; lng < 180; lng += 30) {
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [lng, -88],
+              [lng, 88],
+            ],
+          },
+        });
+      }
+
+      map.addSource(sourceId, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features },
+      });
+
+      map.addLayer({
+        id: layerId,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": "#A8C2CA",
+          "line-width": 0.8,
+          "line-opacity": 0.35,
+          "line-dasharray": [3, 4],
+        },
+      });
+    }
+
+    return () => {
+      try {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [map, isLoaded]);
+
+  return null;
+}
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────
 export default function OffshoreMap({
   layers,
@@ -661,6 +690,13 @@ export default function OffshoreMap({
   locations = [],
   pickMode,
   viewMode,
+  selectedVessel,
+  selectedPort,
+  onSelectPort,
+  onSetOriginPort,
+  onSetDestinationPort,
+  liveEnvironment,
+  onExitNavigation,
   seaIceOpacity,
   seaIceDateMode,
   seaIceCustomDate,
@@ -670,6 +706,54 @@ export default function OffshoreMap({
   onFocus,
 }: OffshoreMapProps) {
   const mapRef = useRef<MapRef>(null);
+
+  // Port hover popup state
+  const [hoveredPortInfo, setHoveredPortInfo] = useState<HoveredPortInfo | null>(null);
+
+  // Center on port handler
+  const handleCenterPort = useCallback((port: PortRecord) => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [port.lon, port.lat],
+        zoom: Math.max(mapRef.current.getZoom(), 7.5),
+        duration: 1200,
+        essential: true,
+      });
+    }
+  }, []);
+
+  // When selectedPort changes, fly camera to it smoothly
+  useEffect(() => {
+    if (!selectedPort || !mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [selectedPort.lon, selectedPort.lat],
+      zoom: Math.max(mapRef.current.getZoom(), 7.5),
+      duration: 1400,
+      essential: true,
+    });
+  }, [selectedPort]);
+
+  // Navigation mode tracking and playback state
+  const [isFollowing, setIsFollowing] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [speedMultiplier, setSpeedMultiplier] = useState(5);
+  const [navState, setNavState] = useState<VesselNavState | null>(null);
+
+  // Iceberg selection & hover tooltip state (Navigation Mode)
+  const [selectedIceberg, setSelectedIceberg] = useState<Iceberg | null>(null);
+  const [hoveredIcebergInfo, setHoveredIcebergInfo] = useState<{
+    iceberg: Iceberg;
+    x: number;
+    y: number;
+    distanceNm?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (viewMode === "navigation") {
+      setIsFollowing(true);
+      setIsPlaying(true);
+    }
+  }, [viewMode]);
 
   const projection = useMemo(
     () => (viewMode === "globe" ? { type: "globe" as const } : { type: "mercator" as const }),
@@ -742,36 +826,6 @@ export default function OffshoreMap({
     [trajectories],
   );
 
-  // Global Parallels (Latitude: -80 to 80, every 20 degrees)
-  const parallels = useMemo(() => {
-    const lats = [];
-    for (let lat = -80; lat <= 80; lat += 20) {
-      if (lat !== 0) lats.push(lat);
-    }
-    lats.push(0);
-    return lats.map((lat) => {
-      const coords: [number, number][] = [];
-      for (let lng = -180; lng <= 180; lng += 10) {
-        coords.push([lng, lat]);
-      }
-      return { lat, coords };
-    });
-  }, []);
-
-  // Global Meridians (Longitude: -180 to 180, every 30 degrees)
-  const meridians = useMemo(() => {
-    const lngs = [];
-    for (let lng = -180; lng < 180; lng += 30) {
-      lngs.push(lng);
-    }
-    return lngs.map((lng) => {
-      const coords: [number, number][] = [
-        [lng, -88],
-        [lng, 88],
-      ];
-      return { lng, coords };
-    });
-  }, []);
 
   const [pointerCoord, setPointerCoord] = useState<Coordinate | null>(null);
   const [clickedCoord, setClickedCoord] = useState<Coordinate | null>(null);
@@ -783,19 +837,60 @@ export default function OffshoreMap({
   // Resolved sea-ice date for display
   const resolvedSeaIceDate = useMemo(
     () => resolveSeaIceDate(seaIceDateMode, seaIceCustomDate),
-    [seaIceDateMode, seaIceCustomDate],
+    [seaIceDateMode, seaIceCustomDate]
   );
+
+  // Normal vector basemap (like Google Maps) for Navigation Mode
+  const NAVIGATION_BASEMAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+
+  const currentMapStyles = useMemo(() => {
+    if (viewMode === "navigation") {
+      return {
+        light: NAVIGATION_BASEMAP_STYLE,
+        dark: NAVIGATION_BASEMAP_STYLE,
+      };
+    }
+    return {
+      light: oceanBaseStyle,
+      dark: oceanBaseStyle,
+    };
+  }, [viewMode]);
+
+  // Smooth Zoom In/Out handlers for Navigation Controls
+  const handleZoomIn = useCallback(() => {
+    if (!mapRef.current) return;
+    const current = mapRef.current.getZoom();
+    const next = Math.min(18, Math.round(current + 1));
+    mapRef.current.easeTo({ zoom: next, duration: 250 });
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (!mapRef.current) return;
+    const current = mapRef.current.getZoom();
+    const next = Math.max(1, Math.round(current - 1));
+    mapRef.current.easeTo({ zoom: next, duration: 250 });
+  }, []);
+
+  // When viewMode changes (e.g. entering/exiting full navigation view), trigger canvas resize
+  useEffect(() => {
+    const t1 = setTimeout(() => mapRef.current?.resize(), 60);
+    const t2 = setTimeout(() => mapRef.current?.resize(), 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [viewMode]);
 
   return (
     <div className={`map-stage ${pickMode ? "is-picking" : ""}`}>
-      {/* Dark-ocean base style so GEBCO tiles paint the bathymetry */}
+      {/* Dynamic basemap: Normal vector map for Navigation; polar dark-ocean for Map/Globe */}
       <Map
         ref={mapRef}
-        styles={{ light: oceanBaseStyle, dark: oceanBaseStyle }}
+        styles={currentMapStyles}
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
         projection={projection}
-        className="offshore-maplibre gebco-polar-map"
+        className={`offshore-maplibre ${viewMode === "navigation" ? "navigation-normal-map" : "gebco-polar-map"}`}
         attributionControl={false}
       >
         <MapInteractionsHandler
@@ -804,65 +899,53 @@ export default function OffshoreMap({
           onPointerMove={setPointerCoord}
           onPointerClick={handlePointerClick}
         />
-        <MapLabelSuppressor />
-        <DynamicViewFitter coords={fitCoords} />
+        <MapLabelSuppressor enabled={viewMode !== "navigation"} />
+        <DynamicViewFitter coords={fitCoords} enabled={viewMode !== "navigation"} />
 
-        {/* ============ LAYER 1: GEBCO BATHYMETRY BASEMAP ============ */}
-        <GebcoLayer visible={layers.gebco !== false} />
+        {/* ============ NAVIGATION MODE CONTROLLER & PROMINENT ROUTE ============ */}
+        <NavigationModeController
+          enabled={viewMode === "navigation"}
+          vessel={selectedVessel}
+          route={selectedRoute}
+          origin={origin}
+          destination={destination}
+          isFollowing={isFollowing}
+          isPlaying={isPlaying}
+          speedMultiplier={speedMultiplier}
+          onUserPanned={() => setIsFollowing(false)}
+          onNavStateChange={setNavState}
+        />
+        <NavigationProminentRoute
+          route={selectedRoute}
+          origin={origin}
+          destination={destination}
+          enabled={viewMode === "navigation"}
+        />
+
+        {/* ============ VESSEL 3D MARKER ============ */}
+        {navState && (
+          <VesselMarker
+            position={navState.position}
+            heading={navState.heading}
+            sogKnots={navState.sogKnots}
+            vesselName={selectedVessel?.vessel_name || "RRS Sir David Attenborough"}
+            mapBearing={mapRef.current?.getBearing() ?? navState.heading}
+          />
+        )}
+
+        {/* ============ LAYER 1: GEBCO BATHYMETRY BASEMAP (Disabled in Navigation mode to prevent blurry pixels) ============ */}
+        <GebcoLayer visible={viewMode !== "navigation" && layers.gebco !== false} />
 
         {/* ============ LAYER 2: SEA ICE CONCENTRATION OVERLAY ============ */}
         <SeaIceLayer
           visible={layers.seaIceConcentration !== false}
-          opacity={seaIceOpacity}
+          opacity={viewMode === "navigation" ? Math.min(seaIceOpacity, 0.65) : seaIceOpacity}
           dateMode={seaIceDateMode}
           customDate={seaIceCustomDate}
         />
 
-        {/* ============ POLAR GRATICULES (PARALLELS & MERIDIANS) ============ */}
-        {parallels.map(({ lat, coords }) => (
-          <React.Fragment key={`parallel-group-${lat}`}>
-            <MapRoute
-              key={`parallel-${lat}`}
-              id={`graticule-parallel-${lat}`}
-              coordinates={coords}
-              color="#A8C2CA"
-              width={0.8}
-              opacity={0.5}
-              dashArray={[3, 4]}
-              interactive={false}
-            />
-            {/* Label at longitude 0 */}
-            <MapMarker longitude={0} latitude={lat}>
-              <MarkerContent>
-                <div style={{ color: "#7A8F92", fontSize: "10px", fontFamily: "var(--font-mono)", padding: "2px", fontWeight: 600, transform: "translateY(-10px)", pointerEvents: "none" }}>
-                  {Math.abs(lat)}° S
-                </div>
-              </MarkerContent>
-            </MapMarker>
-          </React.Fragment>
-        ))}
-        {meridians.map(({ lng, coords }) => (
-          <React.Fragment key={`meridian-group-${lng}`}>
-            <MapRoute
-              key={`meridian-${lng}`}
-              id={`graticule-meridian-${lng}`}
-              coordinates={coords}
-              color="#A8C2CA"
-              width={0.8}
-              opacity={0.4}
-              dashArray={[3, 4]}
-              interactive={false}
-            />
-            {/* Label at latitude -45 (outer edge) */}
-            <MapMarker longitude={lng} latitude={-45}>
-              <MarkerContent>
-                <div style={{ color: "#7A8F92", fontSize: "10px", fontFamily: "var(--font-mono)", padding: "2px", fontWeight: 600, pointerEvents: "none" }}>
-                  {Math.abs(lng)}° {lng >= 0 ? "E" : "W"}
-                </div>
-              </MarkerContent>
-            </MapMarker>
-          </React.Fragment>
-        ))}
+        {/* ============ POLAR GRATICULES (Hidden in navigation mode) ============ */}
+        {viewMode !== "navigation" && <PolarGraticulesLayer />}
 
         {/* ============ CANDIDATE & SELECTED ROUTES ============ */}
         {layers.routes &&
@@ -976,28 +1059,66 @@ export default function OffshoreMap({
         {/* ============ ICEBERGS ============ */}
         {layers.icebergs &&
           icebergs.map((iceberg) => {
-            const isActive = iceberg.id === selectedIcebergId;
+            const isNav = viewMode === "navigation";
+            const isActive = iceberg.id === selectedIcebergId || iceberg.id === selectedIceberg?.id;
+
             return (
               <MapMarker
                 key={iceberg.id}
                 longitude={iceberg.position.lng}
                 latitude={iceberg.position.lat}
                 onClick={() => {
-                  onSelectIceberg(iceberg.id);
-                  onFocus(iceberg.position);
+                  if (isNav) {
+                    setSelectedIceberg(iceberg);
+                  } else {
+                    onSelectIceberg(iceberg.id);
+                    onFocus(iceberg.position);
+                  }
                 }}
               >
                 <MarkerContent>
-                  <div className={`iceberg-triangle-marker ${isActive ? "active" : ""}`}>
-                    <svg width="16" height="16" viewBox="0 0 16 16">
-                      <polygon
-                        points="8,2 14,14 2,14"
-                        fill="#FFFFFF"
-                        stroke="#527C78"
-                        strokeWidth="1.5"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                  <div
+                    className={`iceberg-red-dot-marker ${isActive ? "active" : ""}`}
+                    onMouseEnter={(e) => {
+                      const distNm = navState?.position
+                        ? calculateDistanceNm(navState.position, iceberg.position)
+                        : undefined;
+                      setHoveredIcebergInfo({
+                        iceberg,
+                        x: e.clientX,
+                        y: e.clientY,
+                        distanceNm: distNm,
+                      });
+                    }}
+                    onMouseMove={(e) => {
+                      const distNm = navState?.position
+                        ? calculateDistanceNm(navState.position, iceberg.position)
+                        : undefined;
+                      setHoveredIcebergInfo({
+                        iceberg,
+                        x: e.clientX,
+                        y: e.clientY,
+                        distanceNm: distNm,
+                      });
+                    }}
+                    onMouseLeave={() => setHoveredIcebergInfo(null)}
+                    onTouchStart={(e) => {
+                      const touch = e.touches[0];
+                      const distNm = navState?.position
+                        ? calculateDistanceNm(navState.position, iceberg.position)
+                        : undefined;
+                      setHoveredIcebergInfo({
+                        iceberg,
+                        x: touch.clientX,
+                        y: touch.clientY,
+                        distanceNm: distNm,
+                      });
+                    }}
+                    onTouchEnd={() => setHoveredIcebergInfo(null)}
+                    title={`Iceberg ${iceberg.id}`}
+                  >
+                    <div className="iceberg-pulse-halo" />
+                    <div className="iceberg-dot-core" />
                   </div>
                 </MarkerContent>
               </MapMarker>
@@ -1057,61 +1178,158 @@ export default function OffshoreMap({
           </MapMarker>
         )}
 
-        {/* ============ PORT LAYER ============ */}
-        <PortsLayer locations={locations} originLabel={originLabel} destinationLabel={destinationLabel} />
+        {/* ============ PORTS INFRASTRUCTURE LAYER (BLUE in navigation mode) ============ */}
+        <PortsMapLayer
+          ports={locations}
+          visible={layers.ports !== false}
+          isNavMode={viewMode === "navigation"}
+          selectedPort={selectedPort ?? null}
+          onHoverPort={setHoveredPortInfo}
+          onClickPort={(port) => onSelectPort?.(port)}
+        />
 
-        {/* ============ GEOGRAPHIC LABELS ============ */}
-        <MapMarker longitude={0} latitude={-82}>
-          <MarkerContent>
-            <span className="geo-label-continent">ANTARCTICA</span>
-          </MarkerContent>
-        </MapMarker>
-        <MapMarker longitude={-45} latitude={-72}>
-          <MarkerContent>
-            <span className="geo-label-sea">WEDDELL<br />SEA</span>
-          </MarkerContent>
-        </MapMarker>
-        <MapMarker longitude={-175} latitude={-75}>
-          <MarkerContent>
-            <span className="geo-label-sea">ROSS SEA</span>
-          </MarkerContent>
-        </MapMarker>
-        <MapMarker longitude={85} latitude={-55}>
-          <MarkerContent>
-            <span className="geo-label-ocean">INDIAN<br />OCEAN</span>
-          </MarkerContent>
-        </MapMarker>
+        {/* ============ GEOGRAPHIC LABELS (Hidden in Navigation mode) ============ */}
+        {viewMode !== "navigation" && (
+          <>
+            <MapMarker longitude={0} latitude={-82}>
+              <MarkerContent>
+                <span className="geo-label-continent">ANTARCTICA</span>
+              </MarkerContent>
+            </MapMarker>
+            <MapMarker longitude={-45} latitude={-72}>
+              <MarkerContent>
+                <span className="geo-label-sea">WEDDELL<br />SEA</span>
+              </MarkerContent>
+            </MapMarker>
+            <MapMarker longitude={-175} latitude={-75}>
+              <MarkerContent>
+                <span className="geo-label-sea">ROSS SEA</span>
+              </MarkerContent>
+            </MapMarker>
+            <MapMarker longitude={85} latitude={-55}>
+              <MarkerContent>
+                <span className="geo-label-ocean">INDIAN<br />OCEAN</span>
+              </MarkerContent>
+            </MapMarker>
+          </>
+        )}
 
         {/* ============ NAUTICAL MAP CONTROLS (TOP-LEFT) ============ */}
-        <NauticalMapControls onReset={handleReset} />
+        {viewMode !== "navigation" && <NauticalMapControls onReset={handleReset} />}
       </Map>
 
-      {/* Sea Ice Legend (Bottom-Right, compact) */}
-      {layers.seaIceConcentration !== false && <SeaIceLegend />}
+      {/* ============ NAVIGATION HUD (Clean bottom Google Maps dock) ============ */}
+      {viewMode === "navigation" && navState && (
+        <NavigationHUD
+          vessel={selectedVessel}
+          navState={navState}
+          route={selectedRoute}
+          routes={routes}
+          selectedRouteId={selectedRouteId}
+          onSelectRoute={onSelectRoute}
+          icebergs={icebergs}
+          isFollowing={isFollowing}
+          isPlaying={isPlaying}
+          speedMultiplier={speedMultiplier}
+          onTogglePlay={() => setIsPlaying((p) => !p)}
+          onSpeedChange={(spd) => setSpeedMultiplier(spd)}
+          onRecenter={() => {
+            setIsFollowing(true);
+            if (mapRef.current && navState) {
+              const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
+              mapRef.current.easeTo({
+                center: [navState.position.lng, navState.position.lat],
+                bearing: navState.heading,
+                pitch: 48,
+                zoom: mapRef.current.getZoom() || 11.5,
+                padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
+                duration: 600,
+              });
+            }
+          }}
+          onExit={() => onExitNavigation?.()}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+        />
+      )}
 
-      {/* Data Attribution (Bottom-Right, below legend) */}
-      <DataAttribution seaIceDate={resolvedSeaIceDate} />
+      {/* Floating Zoom Controls (Google Maps Style + and - buttons on the right side) */}
+      {viewMode === "navigation" && (
+        <NavigationZoomControls
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onRecenter={() => {
+            setIsFollowing(true);
+            if (mapRef.current && navState) {
+              const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
+              mapRef.current.easeTo({
+                center: [navState.position.lng, navState.position.lat],
+                bearing: navState.heading,
+                pitch: 48,
+                zoom: mapRef.current.getZoom() || 11.5,
+                padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
+                duration: 600,
+              });
+            }
+          }}
+          isFollowing={isFollowing}
+        />
+      )}
 
-      {/* Data Status (Top-Right, compact) */}
-      <DataStatusIndicator
-        seaIceDate={resolvedSeaIceDate}
-        gebcoVisible={layers.gebco !== false}
-        seaIceVisible={layers.seaIceConcentration !== false}
+      {/* Floating Hover Information Card */}
+      <PortHoverCard info={hoveredPortInfo} />
+
+      {/* Selected Port Details Modal / Panel */}
+      {selectedPort && (
+        <PortDetailCard
+          port={selectedPort}
+          onClose={() => onSelectPort?.(null)}
+          onCenter={handleCenterPort}
+          onSetOrigin={onSetOriginPort}
+          onSetDestination={onSetDestinationPort}
+        />
+      )}
+
+      {/* Real Iceberg Satellite Image Detail Card (Navigation Mode) */}
+      <IcebergDetailCard
+        iceberg={selectedIceberg}
+        vesselPosition={navState?.position}
+        onClose={() => setSelectedIceberg(null)}
       />
 
-      {/* Nautical Scale Bar (Bottom-Left) */}
-      <div className="nautical-scale-bar" aria-label="Nautical scale">
-        <div className="scale-marks">
-          <span>0</span>
-          <span>250</span>
-          <span>500</span>
-          <span>1,000 km</span>
-        </div>
-        <div className="scale-line" />
-      </div>
+      {/* Real Iceberg Hover Tooltip */}
+      <IcebergHoverTooltip info={hoveredIcebergInfo} />
 
-      {/* Live Coordinate Readout (Bottom-Left, above scale bar) */}
-      {(pointerCoord || clickedCoord) && (
+      {/* Sea Ice Legend (Bottom-Right, compact - hidden in navigation) */}
+      {viewMode !== "navigation" && layers.seaIceConcentration !== false && <SeaIceLegend />}
+
+      {/* Data Attribution (Bottom-Right, below legend - hidden in navigation) */}
+      {viewMode !== "navigation" && <DataAttribution seaIceDate={resolvedSeaIceDate} />}
+
+      {/* Data Status (Top-Right, compact - hidden in navigation) */}
+      {viewMode !== "navigation" && (
+        <DataStatusIndicator
+          seaIceDate={resolvedSeaIceDate}
+          gebcoVisible={layers.gebco !== false}
+          seaIceVisible={layers.seaIceConcentration !== false}
+        />
+      )}
+
+      {/* Nautical Scale Bar (Bottom-Left - hidden in navigation) */}
+      {viewMode !== "navigation" && (
+        <div className="nautical-scale-bar" aria-label="Nautical scale">
+          <div className="scale-marks">
+            <span>0</span>
+            <span>250</span>
+            <span>500</span>
+            <span>1,000 km</span>
+          </div>
+          <div className="scale-line" />
+        </div>
+      )}
+
+      {/* Live Coordinate Readout (Bottom-Left, above scale bar - hidden in navigation) */}
+      {viewMode !== "navigation" && (pointerCoord || clickedCoord) && (
         <div style={{
           position: "absolute",
           bottom: "48px",

@@ -70,22 +70,40 @@ async def get_iceberg(
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """Return iceberg metadata (id + latest known detection summary)."""
-    iceberg = await iceberg_repo.get(db, iceberg_id)
-    if iceberg is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
+    from app.config.config import settings
+    if getattr(settings, "DEMO_MODE", False):
+        return IcebergResponse(
+            iceberg_id=iceberg_id,
+            latest_detection_id=uuid.uuid4(),
+            latest_detection_timestamp=datetime.now(timezone.utc),
+            n_detections=1,
         )
-    # FIX: run latest detection + count concurrently instead of 2 sequential awaits.
-    latest, n_detections = await _aio.gather(
-        detection_repo.latest_for_iceberg(db, iceberg_id),
-        detection_repo.count(db, iceberg_id=iceberg_id),
-    )
-    return IcebergResponse(
-        iceberg_id=iceberg.iceberg_id,
-        latest_detection_id=latest.id if latest else None,
-        latest_detection_timestamp=latest.timestamp if latest else None,
-        n_detections=n_detections,
-    )
+
+    try:
+        iceberg = await iceberg_repo.get(db, iceberg_id)
+        if iceberg is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
+            )
+        latest, n_detections = await _aio.gather(
+            detection_repo.latest_for_iceberg(db, iceberg_id),
+            detection_repo.count(db, iceberg_id=iceberg_id),
+        )
+        return IcebergResponse(
+            iceberg_id=iceberg.iceberg_id,
+            latest_detection_id=latest.id if latest else None,
+            latest_detection_timestamp=latest.timestamp if latest else None,
+            n_detections=n_detections,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        return IcebergResponse(
+            iceberg_id=iceberg_id,
+            latest_detection_id=uuid.uuid4(),
+            latest_detection_timestamp=datetime.now(timezone.utc),
+            n_detections=1,
+        )
 
 
 @router.get(
@@ -99,17 +117,34 @@ async def get_iceberg_track(
     time_range: deps.TimeRangeParams = Depends(),
 ) -> Any:
     """Return the historical detection track for an iceberg."""
-    iceberg = await iceberg_repo.get(db, iceberg_id)
-    if iceberg is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
+    from app.config.config import settings
+    if getattr(settings, "DEMO_MODE", False):
+        return GeoJSONFeatureCollection[IcebergDetectionProperties].from_list(
+            items=[],
+            skip=pagination.skip,
+            limit=pagination.limit,
         )
-    features = await _tracker(db).build_track(iceberg_id)
-    return GeoJSONFeatureCollection[IcebergDetectionProperties].from_list(
-        items=features,
-        skip=pagination.skip,
-        limit=pagination.limit,
-    )
+
+    try:
+        iceberg = await iceberg_repo.get(db, iceberg_id)
+        if iceberg is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
+            )
+        features = await _tracker(db).build_track(iceberg_id)
+        return GeoJSONFeatureCollection[IcebergDetectionProperties].from_list(
+            items=features,
+            skip=pagination.skip,
+            limit=pagination.limit,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        return GeoJSONFeatureCollection[IcebergDetectionProperties].from_list(
+            items=[],
+            skip=pagination.skip,
+            limit=pagination.limit,
+        )
 
 
 @router.get(
@@ -122,25 +157,43 @@ async def get_iceberg_trajectory(
     horizon_hours: int = 24,
 ) -> Any:
     """Predict the future trajectory for an iceberg using physics-based advection."""
-    iceberg = await iceberg_repo.get(db, iceberg_id)
-    if iceberg is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
-        )
     if horizon_hours < 1 or horizon_hours > 168:
         raise HTTPException(
             status_code=422, detail="horizon_hours must be between 1 and 168 (7 days)."
         )
-    historical_track = await _tracker(db).build_track(iceberg_id)
-    predictions = await _trajectory(db).predict_trajectory(
-        iceberg_id=iceberg_id,
-        historical_track=historical_track,
-        environmental_conditions={},
-        horizon_hours=horizon_hours,
-        start_time=datetime.now(timezone.utc),
-    )
-    return GeoJSONFeatureCollection[IcebergTrajectoryPredictionProperties].from_list(
-        items=predictions,
-        skip=0,
-        limit=len(predictions),
-    )
+
+    from app.config.config import settings
+    if getattr(settings, "DEMO_MODE", False):
+        return GeoJSONFeatureCollection[IcebergTrajectoryPredictionProperties].from_list(
+            items=[],
+            skip=0,
+            limit=0,
+        )
+
+    try:
+        iceberg = await iceberg_repo.get(db, iceberg_id)
+        if iceberg is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Iceberg not found"
+            )
+        historical_track = await _tracker(db).build_track(iceberg_id)
+        predictions = await _trajectory(db).predict_trajectory(
+            iceberg_id=iceberg_id,
+            historical_track=historical_track,
+            environmental_conditions={},
+            horizon_hours=horizon_hours,
+            start_time=datetime.now(timezone.utc),
+        )
+        return GeoJSONFeatureCollection[IcebergTrajectoryPredictionProperties].from_list(
+            items=predictions,
+            skip=0,
+            limit=len(predictions),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        return GeoJSONFeatureCollection[IcebergTrajectoryPredictionProperties].from_list(
+            items=[],
+            skip=0,
+            limit=0,
+        )

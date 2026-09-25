@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 export async function fetchRoutes() {
   const response = await fetch(`${API_BASE_URL}/api/v1/routes/`);
@@ -38,6 +38,16 @@ export async function fetchVessels(country?: string): Promise<PaginationResponse
 }
 
 // Add more API wrappers here as needed
+export async function fetchPorts(skip = 0, limit = 1000) {
+  const url = `${API_BASE_URL}/api/v1/ports/?skip=${skip}&limit=${limit}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.detail ?? `Failed to fetch ports: ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function fetchGlobalPorts() {
   const res = await fetch(`${API_BASE_URL}/api/v1/ports/?limit=6000`);
   if (!res.ok) {

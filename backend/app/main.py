@@ -5,7 +5,7 @@ from app.api.v1.health import router as health_router
 from app.config.config import settings
 from app.config.exceptions import setup_exception_handlers
 from app.config.logging import setup_logging
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -112,4 +112,6 @@ if os.path.exists(frontend_dist):
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
+        if full_path.startswith("api") or full_path.startswith("ws"):
+            raise HTTPException(status_code=404, detail="Not Found")
         return FileResponse(os.path.join(frontend_dist, "index.html"))

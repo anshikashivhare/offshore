@@ -112,30 +112,28 @@ async def plan_route(
     if request.custom_vessel_config:
         vessel = Vessel(**request.custom_vessel_config.model_dump())
         vessel.vessel_id = request.vessel_id # Preserve the ID
+    elif getattr(settings, "DEMO_MODE", False):
+        import json
+        from pathlib import Path
+        try:
+            vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
+            with vessels_path.open("r", encoding="utf-8") as f:
+                all_vessels = json.load(f)
+            v_id_str = str(request.vessel_id)
+            vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
+            if not vessel_data and all_vessels:
+                vessel_data = all_vessels[0]
+            vessel = Vessel(**vessel_data) if vessel_data else None
+        except Exception:
+            vessel = None
     else:
         try:
             vessel = await vessel_repo.get(db, request.vessel_id)
         except Exception as exc:
-            if getattr(settings, "DEMO_MODE", False):
-                import json
-                from pathlib import Path
-                try:
-                    vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
-                    with vessels_path.open("r", encoding="utf-8") as f:
-                        all_vessels = json.load(f)
-                    v_id_str = str(request.vessel_id)
-                    vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
-                    if vessel_data:
-                        vessel = Vessel(**vessel_data)
-                    else:
-                        vessel = None
-                except Exception:
-                    vessel = None
-            else:
-                raise HTTPException(status_code=503, detail="Database unavailable") from exc
+            raise HTTPException(status_code=503, detail="Database unavailable") from exc
 
-        if vessel is None:
-            raise HTTPException(status_code=404, detail="Vessel not found")
+    if vessel is None:
+        raise HTTPException(status_code=404, detail="Vessel not found")
 
     # Snap origin and destination to water
     from app.services.routing.grid import Node
@@ -148,13 +146,13 @@ async def plan_route(
     origin_node = Node(lat=origin_lat, lon=origin_lon)
     dest_node = Node(lat=dest_lat, lon=dest_lon)
 
-    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=2.0)
+    snapped_origin = astar_planner.grid_builder.snap_to_water(origin_node, max_radius_degrees=3.0)
     if snapped_origin is None:
-        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 2.0° search radius.")
+        raise HTTPException(status_code=400, detail="Origin port is on land and no navigable water found within 3.0° search radius.")
 
-    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=2.0)
+    snapped_dest = astar_planner.grid_builder.snap_to_water(dest_node, max_radius_degrees=3.0)
     if snapped_dest is None:
-        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 2.0° search radius.")
+        raise HTTPException(status_code=400, detail="Destination port is on land and no navigable water found within 3.0° search radius.")
 
     # Track whether snapping was applied
     origin_snapped = (snapped_origin.lat != origin_lat or snapped_origin.lon != origin_lon)
@@ -267,6 +265,44 @@ async def plan_route(
     )
 
 
+@router.get("/", response_model=list[RouteResponse])
+async def list_routes(
+    db: AsyncSession = Depends(deps.get_db),
+    pagination: deps.PaginationParams = Depends(),
+) -> Any:
+    """Fetch recent routes."""
+    from app.config.config import settings
+    if getattr(settings, "DEMO_MODE", False):
+        return []
+    try:
+        routes = await route_repo.get_multi(db, skip=pagination.skip, limit=pagination.limit)
+        results = []
+        for r in routes:
+            try:
+                geom = parse_wkt_linestring(r.geometry)
+            except Exception:
+                geom = {"type": "LineString", "coordinates": []}
+            props = RouteProperties(
+                route_id=r.route_id,
+                vessel_id=r.vessel_id,
+                origin=r.origin,
+                destination=r.destination,
+                departure_time=r.departure_time,
+                distance=r.distance,
+                travel_time=r.travel_time,
+                eta=r.eta,
+                estimated_fuel=r.estimated_fuel,
+                risk_score=r.risk_score,
+                risk_exposure=r.risk_exposure,
+                objective_type=r.objective_type,
+                algorithm_version=r.algorithm_version,
+            )
+            results.append(GeoJSONFeature[RouteProperties](type="Feature", geometry=geom, properties=props))
+        return results
+    except Exception:
+        return []
+
+
 @router.get("/{route_id}", response_model=RouteResponse)
 async def get_route(
     route_id: uuid.UUID,
@@ -307,38 +343,38 @@ async def compare_routes(
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """Compare routes across all objectives."""
+    from app.config.config import settings
+    demo_mode = getattr(settings, "DEMO_MODE", False)
+
     if request.custom_vessel_config:
         vessel = Vessel(**request.custom_vessel_config.model_dump())
         vessel.vessel_id = request.vessel_id
+    elif demo_mode:
+        import json
+        from pathlib import Path
+        try:
+            vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
+            with vessels_path.open("r", encoding="utf-8") as f:
+                all_vessels = json.load(f)
+            v_id_str = str(request.vessel_id)
+            vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
+            if not vessel_data and all_vessels:
+                vessel_data = all_vessels[0]
+            vessel = Vessel(**vessel_data) if vessel_data else None
+        except Exception:
+            vessel = None
     else:
         try:
             vessel = await vessel_repo.get(db, request.vessel_id)
         except Exception as exc:
-            from app.config.config import settings
-            if getattr(settings, "DEMO_MODE", False):
-                import json
-                from pathlib import Path
-                try:
-                    vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
-                    with vessels_path.open("r", encoding="utf-8") as f:
-                        all_vessels = json.load(f)
-                    v_id_str = str(request.vessel_id)
-                    vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
-                    if vessel_data:
-                        vessel = Vessel(**vessel_data)
-                    else:
-                        vessel = None
-                except Exception:
-                    vessel = None
-            else:
-                raise HTTPException(status_code=503, detail="Database unavailable") from exc
+            raise HTTPException(status_code=503, detail="Database unavailable") from exc
 
-        if vessel is None:
-            raise HTTPException(status_code=404, detail="Vessel not found")
+    if vessel is None:
+        raise HTTPException(status_code=404, detail="Vessel not found")
 
     risk_grid = await _build_risk_grid(db, request)
     try:
-        comparison = await comparison_service.compare_routes(request, vessel, risk_grid)
+        comparison = await comparison_service.compare_routes(request, vessel, risk_grid, demo_mode=demo_mode)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

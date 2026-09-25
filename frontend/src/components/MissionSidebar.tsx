@@ -9,7 +9,7 @@ import {
   Shield,
   Ship,
 } from "lucide-react";
-import type { AppLocation, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
+import type { AppLocation, Coordinate, LayerKey, Priority, Vessel } from "@/lib/offshore-types";
 import { searchPorts } from "@/lib/api";
 import type { SeaIceDateMode } from "@/services/map/nasaGibs";
 
@@ -77,8 +77,15 @@ function SearchablePortSelect({
     doSearch(term);
   };
 
-  // Show backend results when searching, otherwise show local locations
-  const displayList = searchTerm.trim() ? searchResults : locations;
+  // Show backend results when searching, with instant local fallback filter
+  const displayList = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return locations;
+    if (searchResults.length > 0) return searchResults;
+    return locations.filter(
+      (l) => l.label.toLowerCase().includes(term) || (l.country && l.country.toLowerCase().includes(term))
+    );
+  }, [searchTerm, searchResults, locations]);
 
   const displayValue = useMemo(() => {
     const loc = locations.find((l) => l.label === value);
@@ -131,16 +138,16 @@ function SearchablePortSelect({
             )}
             {!isSearching && !searchTerm.trim() && (
               <div style={{ padding: "4px 12px 8px 12px", fontSize: "11px", color: "#8A9B9D", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase" }}>
-                Showing 50 of {locations.length.toLocaleString()} ports — type to search
+                Showing {Math.min(50, locations.length)} of {locations.length.toLocaleString()} ports — type to search
               </div>
             )}
             {!isSearching && searchTerm.trim() && displayList.length > 0 && (
               <div style={{ padding: "4px 12px 8px 12px", fontSize: "11px", color: "#8A9B9D", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase" }}>
-                {displayList.length} results for '{searchTerm}'
+                {displayList.length} results for '{searchTerm}' {displayList.length > 40 ? "(showing top 40)" : ""}
               </div>
             )}
             
-            {!isSearching && (searchTerm.trim() ? displayList : displayList.slice(0, 50)).map((loc) => {
+            {!isSearching && displayList.slice(0, 40).map((loc) => {
               const display = loc.country === "Antarctica" ? `${loc.label} {Antarctica}` : loc.label;
               return (
                 <div
@@ -179,8 +186,8 @@ type MissionSidebarProps = {
   locations: AppLocation[];
   vessels: Vessel[];
   selectedVesselId: string;
-  origin: AppLocation;
-  destination: AppLocation;
+  origin: { label: string; coordinate: Coordinate | null } | AppLocation;
+  destination: { label: string; coordinate: Coordinate | null } | AppLocation;
   priority: Priority;
   layers: Record<LayerKey, boolean>;
   pickMode: "origin" | "destination" | null;
@@ -216,6 +223,7 @@ const environmentLayers: Array<{ key: LayerKey; label: string; color: string }> 
 ];
 
 const navigationLayers: Array<{ key: LayerKey; label: string; color: string }> = [
+  { key: "ports", label: "Ports & Harbors", color: "#0284C7" },
   { key: "vessel", label: "Vessels", color: "#183B43" },
   { key: "icebergs", label: "Icebergs", color: "#C66B45" },
   { key: "tracks", label: "Historical tracks", color: "#596A6D" },

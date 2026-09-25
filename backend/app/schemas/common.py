@@ -7,6 +7,7 @@ T = TypeVar("T")
 
 class Pagination(BaseModel, Generic[T]):
     data: List[T]
+    items: Optional[List[T]] = None
     total: int
     skip: int
     limit: int
@@ -14,8 +15,10 @@ class Pagination(BaseModel, Generic[T]):
     @classmethod
     def from_list(cls, items: List[T], skip: int, limit: int) -> "Pagination[T]":
         """Creates a paginated response directly from an in-memory list."""
+        sliced = items[skip : skip + limit]
         return cls(
-            data=items[skip : skip + limit],
+            data=sliced,
+            items=sliced,
             total=len(items),
             skip=skip,
             limit=limit,
@@ -27,6 +30,7 @@ class Pagination(BaseModel, Generic[T]):
         data = [model_cls.model_validate(v) for v in items] if model_cls else items
         return cls(
             data=data,
+            items=data,
             total=total,
             skip=skip,
             limit=limit,

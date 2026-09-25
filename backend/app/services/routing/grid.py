@@ -143,46 +143,41 @@ class GridBuilder:
                 
         return neighbors
 
-    def snap_to_water(self, node: Node, max_radius_degrees: float = 2.0) -> Optional[Node]:
-        """Find nearest navigable water node using BFS on the routing grid."""
+    def snap_to_water(self, node: Node, max_radius_degrees: float = 3.0) -> Optional[Node]:
+        """Find nearest navigable water node using concentric search on the routing grid.
         
-        # Align origin to grid to ensure all waypoints are strictly grid nodes
+        Aligns origin to grid to ensure all waypoints are strictly grid nodes.
+        """
         grid_lat = round(node.lat / self.resolution) * self.resolution
         grid_lon = round(node.lon / self.resolution) * self.resolution
         grid_node = Node(lat=grid_lat, lon=grid_lon)
 
-        # First check if the given grid node itself is water
-        if not globe.is_land(grid_node.lat, grid_node.lon):
+        # First check if the given grid node itself is water and navigable
+        if not globe.is_land(grid_node.lat, grid_node.lon) and len(self.get_neighbors(grid_node)) > 0:
             return grid_node
 
-        queue = [(grid_node, 0.0)]
-        visited = {grid_node}
-        best_node = None
-        best_dist = float('inf')
+        res = self.resolution
+        min_lat = math.floor((node.lat - max_radius_degrees) / res) * res
+        max_lat = math.ceil((node.lat + max_radius_degrees) / res) * res
+        min_lon = math.floor((node.lon - max_radius_degrees) / res) * res
+        max_lon = math.ceil((node.lon + max_radius_degrees) / res) * res
 
-        # Limit BFS to avoid infinite loops, though max_radius handles bounding
-        max_iterations = 5000
-        iterations = 0
-        
-        valid_nodes = []
+        candidates = []
+        lat = min_lat
+        while lat <= max_lat + 1e-6:
+            lon = min_lon
+            while lon <= max_lon + 1e-6:
+                d = math.hypot(lat - node.lat, lon - node.lon)
+                if d <= max_radius_degrees and not globe.is_land(lat, lon):
+                    cand = Node(lat=round(lat, 4), lon=round(lon, 4))
+                    nbrs = self.get_neighbors(cand)
+                    if nbrs:
+                        candidates.append((node.distance_to(cand), cand))
+                lon += res
+            lat += res
 
-        while queue and iterations < max_iterations:
-            iterations += 1
-            current, _ = queue.pop(0)
-
-            for neighbor in self.get_neighbors(current):
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    
-                    dist_deg = math.sqrt((neighbor.lat - grid_node.lat)**2 + (neighbor.lon - grid_node.lon)**2)
-                    if dist_deg <= max_radius_degrees:
-                        queue.append((neighbor, dist_deg))
-                        
-                        # get_neighbors already ensures it's navigable water (not land)
-                        valid_nodes.append(neighbor)
-
-        if not valid_nodes:
+        if not candidates:
             return None
             
-        # Find the one with minimum Haversine distance to the original non-aligned coordinate
-        return min(valid_nodes, key=lambda n: node.distance_to(n))
+        candidates.sort(key=lambda x: x[0])
+        return candidates[0][1]

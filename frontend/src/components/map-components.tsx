@@ -20,10 +20,10 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+import maplibreglWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+
 if (typeof window !== "undefined" && !MapLibreGL.getWorkerUrl()) {
-  MapLibreGL.setWorkerUrl(
-    `https://unpkg.com/maplibre-gl@${MapLibreGL.getVersion()}/dist/maplibre-gl-worker.mjs`,
-  );
+  MapLibreGL.setWorkerUrl(maplibreglWorkerUrl);
 }
 
 const defaultStyles = {
@@ -294,7 +294,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     const map = new MapLibreGL.Map({
       container: containerRef.current,
       style: initialStyle,
-      renderWorldCopies: false,
+      renderWorldCopies: props.renderWorldCopies ?? true,
       attributionControl: false,
       ...props,
       ...viewport,
@@ -328,6 +328,14 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Dynamic renderWorldCopies sync
+  useEffect(() => {
+    if (!mapInstance) return;
+    if (typeof props.renderWorldCopies === "boolean") {
+      mapInstance.setRenderWorldCopies(props.renderWorldCopies);
+    }
+  }, [mapInstance, props.renderWorldCopies]);
 
   // Sync controlled viewport to map
   useEffect(() => {
