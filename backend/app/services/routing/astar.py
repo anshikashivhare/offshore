@@ -102,14 +102,14 @@ class AStarRoutePlanner(RoutePlanner):
         goal_node = Node(lat=dest_coords[1], lon=dest_coords[0])
         grid_builder = self._grid_for_voyage(start_node, goal_node)
         
-        # Restrict snapping radius to 0.1 degrees (~6 NM) to prevent dangerously large jumps
-        snapped_start = self.grid_builder.snap_to_water(start_node, max_radius_degrees=0.1)
-        snapped_goal = self.grid_builder.snap_to_water(goal_node, max_radius_degrees=0.1)
+        # Restrict snapping radius to 3.0 degrees to allow ports that are slightly inland
+        snapped_start = self.grid_builder.snap_to_water(start_node, max_radius_degrees=3.0)
+        snapped_goal = self.grid_builder.snap_to_water(goal_node, max_radius_degrees=3.0)
         
         if not snapped_start:
-            raise ValueError("Origin port is not a valid maritime access point (no navigable water within 0.1°).")
+            raise ValueError("Origin port is not a valid maritime access point (no navigable water within 3.0°).")
         if not snapped_goal:
-            raise ValueError("Destination port is not a valid maritime access point (no navigable water within 0.1°).")
+            raise ValueError("Destination port is not a valid maritime access point (no navigable water within 3.0°).")
             
         start_node = snapped_start
         goal_node = snapped_goal
@@ -164,7 +164,8 @@ class AStarRoutePlanner(RoutePlanner):
             
         missing_risk = risk_data.status == "UNAVAILABLE"
         if missing_risk and request.objective_type.value == "safest":
-            raise ValueError("INSUFFICIENT_RISK_DATA: Safety First route requires valid risk data. The route cannot be risk-validated.")
+            if not demo_mode:
+                raise ValueError("INSUFFICIENT_RISK_DATA: Safety First route requires valid risk data. The route cannot be risk-validated.")
             
         risk_grid = cells
 

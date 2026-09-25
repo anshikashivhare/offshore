@@ -366,8 +366,8 @@ export function NavigationModeController({
         // Enable smooth, fluid wheel zoom
         if (map.scrollZoom) {
           map.scrollZoom.enable();
-          map.scrollZoom.setWheelZoomRate(1 / 450);
-          map.scrollZoom.setZoomRate(1 / 100);
+          map.scrollZoom.setWheelZoomRate(1 / 90);
+          map.scrollZoom.setZoomRate(1 / 20);
         }
       } catch {
         /* ignore */
@@ -491,17 +491,21 @@ export function NavigationModeController({
     if (!enabled || !map || !isLoaded) return;
 
     const handleUserDrag = (e: any) => {
-      if (e.originalEvent) {
+      if (e.originalEvent && e.originalEvent.type !== 'wheel') {
         onUserPanned();
       }
     };
 
     map.on("dragstart", handleUserDrag);
     map.on("rotatestart", handleUserDrag);
+    map.on("zoomstart", handleUserDrag);
+    map.on("pitchstart", handleUserDrag);
 
     return () => {
       map.off("dragstart", handleUserDrag);
       map.off("rotatestart", handleUserDrag);
+      map.off("zoomstart", handleUserDrag);
+      map.off("pitchstart", handleUserDrag);
     };
   }, [enabled, map, isLoaded, onUserPanned]);
 
