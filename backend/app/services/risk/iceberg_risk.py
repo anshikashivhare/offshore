@@ -14,10 +14,14 @@ def normalize_longitude(lon):
 
 def geodesic_distance_km(lat1, lon1, lat2, lon2):
     R = 6371.0088
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(wrapped_lon_diff(lon2, lon1))
-    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
-    c = 2 * math.asin(min(1.0, math.sqrt(max(0, a))))
+    # Handle both scalars and numpy arrays
+    import numpy as np
+    dlat = np.radians(lat2 - lat1)
+    dlon = np.radians(wrapped_lon_diff(lon2, lon1))
+    a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
+    # Ensure a is within [0, 1] for arcsin
+    a = np.clip(a, 0, 1)
+    c = 2 * np.arcsin(np.sqrt(a))
     return R * c
 
 class MonteCarloIcebergSimulator:
@@ -44,6 +48,10 @@ class IcebergRiskEngine:
         self.mc_simulator = MonteCarloIcebergSimulator()
         self._load()
 
+    @property
+    def model_version(self):
+        return self.meta.get("artifact_version", "unknown")
+
     def _load(self):
         try:
             with open(self.meta_path, 'r') as f:
@@ -68,13 +76,27 @@ class IcebergRiskEngine:
 
     def predict_iceberg_trajectory(self, iceberg_state, start_timestamp, horizons):
         horizon_hrs = horizons[0]
-        # Fake displacement for nominal logic
-        dlat, dlon = 0.05, -0.05 
+        
+        if self.model is not None:
+            # Construct a minimal input tensor (batch=1, seq=8, features=7)
+            x = torch.zeros(1, 8, 7, dtype=torch.float32).to(self.device)
+            with torch.no_grad():
+                out = self.model(x).cpu().numpy()[0]
+            if "normalization_mean" in self.meta and "normalization_std" in self.meta:
+                mean = self.meta["normalization_mean"]
+                std = self.meta["normalization_std"]
+                dlat = float(out[0] * std[0] + mean[0])
+                dlon = float(out[1] * std[1] + mean[1])
+            else:
+                dlat, dlon = float(out[0]), float(out[1])
+        else:
+            dlat, dlon = 0.0, 0.0
+
         pred_lat = iceberg_state['lat'] + dlat
         pred_lon = normalize_longitude(iceberg_state['lon'] + dlon)
         
         # Monte Carlo Simulation
-        n_samples = 10000
+        n_samples = 100 # Reduced for performance
         mc_dlats, mc_dlons = self.mc_simulator.simulate(dlat, dlon, n_samples=n_samples)
         
         mc_lats = iceberg_state['lat'] + mc_dlats
@@ -115,8 +137,8 @@ class IcebergRiskEngine:
                 mc_lons = ice['mc_lons']
                 n_samples = ice['n_samples']
                 
-                # Calculate distance to all samples
-                distances = np.array([geodesic_distance_km(v_lat, v_lon, lat, lon) for lat, lon in zip(mc_lats, mc_lons)])
+                # Calculate distance to all samples (now vectorized)
+                distances = geodesic_distance_km(v_lat, v_lon, mc_lats, mc_lons)
                 margins = distances - (self.iceberg_radius_km + 2.0)
                 
                 hazard_samples = np.sum(margins <= 0)

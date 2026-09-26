@@ -37,61 +37,65 @@ def _normalize_port(p: dict, idx: int) -> dict:
     }
 
 
-# Load ports data once at module import using pathlib for clarity
-_ports_path = Path(__file__).resolve().parents[4] / "data" / "ports.json"
-try:
-    with _ports_path.open("r", encoding="utf-8") as f:
-        raw_ports = json.load(f)
-        PORTS_DATA = [_normalize_port(p, idx) for idx, p in enumerate(raw_ports)]
-except Exception as exc:
-    logger.error("Failed to load ports data: %s", exc)
-    PORTS_DATA = []
-
-
-@router.post("/reload", response_model=bool)
-def reload_ports():
-    """Reload ports JSON file and invalidate related caches."""
-    global PORTS_DATA
-    try:
-        with _ports_path.open("r", encoding="utf-8") as f:
-            raw_ports = json.load(f)
-            PORTS_DATA = [_normalize_port(p, idx) for idx, p in enumerate(raw_ports)]
-        # Invalidate cache for both list and search endpoints
-        clear_cache_for_prefix("/api/v1/ports")
-        return True
-    except Exception as exc:
-        logger.error("Failed to reload ports data: %s", exc)
-        return False
-
-
+import uuid
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.schemas.common import Pagination
 
-
 @router.get("", response_model=Pagination[Port])
 @router.get("/", response_model=Pagination[Port])
-def get_ports(
+async def get_ports(
     pagination: deps.PaginationParams = Depends(),
-    bbox: deps.BBoxParams = Depends()
+    bbox: deps.BBoxParams = Depends(),
+    db: AsyncSession = Depends(deps.get_db)
 ):
     """Return a paginated list of ports, optionally filtered by bounding box."""
-    results = PORTS_DATA
     bbox_tuple = bbox.as_tuple()
+    where_clause = ""
+    params = {}
     if bbox_tuple:
         min_lat, min_lon, max_lat, max_lon = bbox_tuple
-        results = [
-            p for p in results
-            if min_lat <= p["lat"] <= max_lat and min_lon <= p["lon"] <= max_lon
-        ]
-    return Pagination.from_list(results, pagination.skip, pagination.limit)
+        where_clause = "WHERE latitude >= :min_lat AND latitude <= :max_lat AND longitude >= :min_lon AND longitude <= :max_lon"
+        params = {"min_lat": min_lat, "max_lat": max_lat, "min_lon": min_lon, "max_lon": max_lon}
+        
+    query = f"SELECT port_id, name, country, latitude, longitude FROM ports {where_clause} ORDER BY name LIMIT :limit OFFSET :skip"
+    params["limit"] = pagination.limit
+    params["skip"] = pagination.skip
+    
+    res = await db.execute(text(query), params)
+    results = []
+    for r in res:
+        results.append({
+            "id": str(r.port_id),
+            "name": r.name,
+            "country": r.country,
+            "lat": r.latitude,
+            "lon": r.longitude,
+            "latitude": r.latitude,
+            "longitude": r.longitude
+        })
+    return Pagination.from_list(results, 0, len(results))
 
 
 @router.get("/search", response_model=Pagination[Port])
-def search_ports(
+async def search_ports(
     q: str = Query(..., min_length=1),
     pagination: deps.PaginationParams = Depends(),
+    db: AsyncSession = Depends(deps.get_db)
 ):
     """Search ports by name or country substring (case‑insensitive) with pagination."""
-    q_lower = q.lower()
-    results = [p for p in PORTS_DATA if q_lower in p["name"].lower() or q_lower in p["country"].lower()]
-    return Pagination.from_list(results, pagination.skip, pagination.limit)
+    query = "SELECT port_id, name, country, latitude, longitude FROM ports WHERE name ILIKE :q OR country ILIKE :q ORDER BY name LIMIT :limit OFFSET :skip"
+    res = await db.execute(text(query), {"q": f"%{q}%", "limit": pagination.limit, "skip": pagination.skip})
+    results = []
+    for r in res:
+        results.append({
+            "id": str(r.port_id),
+            "name": r.name,
+            "country": r.country,
+            "lat": r.latitude,
+            "lon": r.longitude,
+            "latitude": r.latitude,
+            "longitude": r.longitude
+        })
+    return Pagination.from_list(results, 0, len(results))

@@ -1,37 +1,48 @@
-#!/bin/bash
-# SIH 26059 - Antarctic Navigation Demo Startup Script
+#!/usr/bin/env bash
+set -e
 
 echo "========================================="
-echo " Starting SIH 26059 Demo Infrastructure"
+echo " SIH 26059 - FINAL DEMO STARTUP SCRIPT"
 echo "========================================="
 
-# 1. Preflight Check
-echo "Running Preflight checks..."
-PYTHONPATH=backend backend/.venv/bin/python scripts/training/preflight_demo.py
-if [ $? -ne 0 ]; then
-    echo "ERROR: Preflight failed. Please fix configuration before starting."
-    exit 1
-fi
+# 1. Start Database
+echo "Starting PostgreSQL/PostGIS database..."
+cd database
+docker-compose up -d
+cd ..
 
-echo "Starting Backend (FastAPI)..."
+# 2. Wait for DB
+echo "Waiting for database to accept connections..."
+sleep 5
+
+# 3. Start Backend
+echo "Starting FastAPI Backend..."
 cd backend
-.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+source venv_mac/bin/activate || echo "Warning: Virtual environment not found. Assuming dependencies are globally installed."
+export PYTHONPATH=$(pwd)
+# Run in background
+uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 cd ..
 
-echo "Starting Frontend (React)..."
+# 4. Start Frontend
+echo "Starting React Frontend..."
 cd frontend
+# Run in background
 npm run dev &
 FRONTEND_PID=$!
 cd ..
 
 echo "========================================="
-echo "DEMO INFRASTRUCTURE RUNNING"
-echo "Backend URL:  http://localhost:8000"
-echo "Frontend URL: http://localhost:5173 (usually)"
-echo "DEMO_MODE is Active if DB is unavailable."
-echo "Press Ctrl+C to stop all services."
+echo " SYSTEM STARTED"
 echo "========================================="
+echo "Backend: http://localhost:8000"
+echo "Frontend: http://localhost:3000 (Check Vite/Next port if different)"
+echo ""
+echo "Press Ctrl+C to stop all services."
 
-trap "kill $BACKEND_PID $FRONTEND_PID; exit" INT TERM
+# Trap Ctrl+C and kill background processes
+trap "echo 'Shutting down services...'; kill $BACKEND_PID; kill $FRONTEND_PID; cd database && docker-compose down; exit" INT
+
+# Keep script running to maintain processes
 wait

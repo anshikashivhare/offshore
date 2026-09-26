@@ -153,7 +153,7 @@ class GridBuilder:
         grid_node = Node(lat=grid_lat, lon=grid_lon)
 
         # First check if the given grid node itself is water and navigable
-        if not globe.is_land(grid_node.lat, grid_node.lon) and len(self.get_neighbors(grid_node)) > 0:
+        if -90 <= grid_node.lat <= 90 and not globe.is_land(grid_node.lat, grid_node.lon) and len(self.get_neighbors(grid_node)) > 0:
             return grid_node
 
         res = self.resolution
@@ -165,15 +165,16 @@ class GridBuilder:
         candidates = []
         lat = min_lat
         while lat <= max_lat + 1e-6:
-            lon = min_lon
-            while lon <= max_lon + 1e-6:
-                d = math.hypot(lat - node.lat, lon - node.lon)
-                if d <= max_radius_degrees and not globe.is_land(lat, lon):
-                    cand = Node(lat=round(lat, 4), lon=round(lon, 4))
-                    nbrs = self.get_neighbors(cand)
-                    if nbrs:
-                        candidates.append((node.distance_to(cand), cand))
-                lon += res
+            if -90 <= lat <= 90:
+                lon = min_lon
+                while lon <= max_lon + 1e-6:
+                    d = math.hypot(lat - node.lat, lon - node.lon)
+                    if d <= max_radius_degrees and not globe.is_land(lat, lon):
+                        cand = Node(lat=round(lat, 4), lon=round(lon, 4))
+                        nbrs = self.get_neighbors(cand)
+                        if nbrs:
+                            candidates.append((node.distance_to(cand), cand))
+                    lon += res
             lat += res
 
         if not candidates:

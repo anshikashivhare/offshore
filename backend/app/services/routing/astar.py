@@ -152,7 +152,7 @@ class AStarRoutePlanner(RoutePlanner):
         env_conditions_at: Dict[Node, dict] = {start_node: {}}
 
         iterations = 0
-        max_iterations = 200_000
+        max_iterations = 20_000
         
         if hasattr(risk_grid, 'cells'):
             risk_data = risk_grid
@@ -195,7 +195,7 @@ class AStarRoutePlanner(RoutePlanner):
                 continue
             closed_set.add(current)
 
-            if (current == goal_node or current.distance_to(goal_node) < grid_builder.resolution * 60 * 1.5):
+            if current == goal_node:
                 return self._reconstruct_route(
                     came_from, current, start_node, goal_node, vessel, request, risk_grid, arrival_times, env_conditions_at, demo_mode, risk_data
                 )
@@ -222,8 +222,9 @@ class AStarRoutePlanner(RoutePlanner):
                         # Assign an arbitrary unverified penalty instead
                         effective_risk = 0.5 
                     else:
-                        if request.objective_type == ObjectiveType.SAFEST:
-                            raise ValueError("Safety First objective requires verified risk data. Missing ML predictions.")
+                        if request.objective_type.value == "safest":
+                            raise ValueError("INSUFFICIENT_RISK_DATA: Safety First route requires valid risk data. Missing ML predictions.")
+                        # Missing risk on a specific node just means 0 known risk for other objectives.
                         effective_risk = 0.0
                 else:
                     effective_risk = risk

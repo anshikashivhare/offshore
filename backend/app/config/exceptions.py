@@ -68,12 +68,17 @@ def setup_exception_handlers(app: FastAPI) -> None:
             exc.errors(),
             trace_id,
         )
+        safe_errors = []
+        for err in exc.errors():
+            safe_err = {k: v for k, v in err.items() if k not in ("ctx",)}
+            safe_errors.append(safe_err)
+
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content=_error_payload(
                 code="VALIDATION_ERROR",
                 message="Invalid request payload",
-                details=exc.errors(),
+                details=safe_errors,
                 trace_id=trace_id,
             ),
         )

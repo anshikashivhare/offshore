@@ -1,17 +1,20 @@
-import uuid
 from typing import Any, Dict, List
-from datetime import datetime
+import datetime
 
 from app.schemas.route import RouteRequest, RouteCreate
 from app.models.vessel import Vessel
 from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.validator import route_validator, RouteValidationError
 from app.config.config import settings
+from app.services.providers.postgres_providers import PostGISIcebergProvider
+from app.services.providers.demo import DemoIcebergProvider
 
 class RouteOrchestrator:
     def __init__(self, db_session: Any):
         self.db = db_session
         self.planner = AStarRoutePlanner(resolution=0.5)
+        self.iceberg_provider = PostGISIcebergProvider(self.db)
+        self.demo_iceberg_provider = DemoIcebergProvider()
 
     async def execute_route_plan(self, request: RouteRequest, vessel: Vessel) -> RouteCreate:
         demo_mode = getattr(settings, "DEMO_MODE", False)
@@ -49,11 +52,23 @@ class RouteOrchestrator:
         return {}
 
     async def _prepare_iceberg_context(self, request: RouteRequest, demo_mode: bool) -> List[Dict[str, Any]]:
-        # DB-independent candidate fetch
+        # Calculate bounds from request
+        try:
+            origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
+            dest_lon, dest_lat = (float(x) for x in request.destination.split(","))
+            bounds = {
+                "min_lon": min(origin_lon, dest_lon) - 5.0,
+                "max_lon": max(origin_lon, dest_lon) + 5.0,
+                "min_lat": min(origin_lat, dest_lat) - 5.0,
+                "max_lat": max(origin_lat, dest_lat) + 5.0,
+            }
+        except Exception:
+            bounds = {"min_lon": -180.0, "max_lon": 180.0, "min_lat": -90.0, "max_lat": 90.0}
+            
         if demo_mode:
-            return [{"iceberg_id": "demo-hazard", "lat": -60.05, "lon": 50.55, "source": "synthetic_demo"}]
-        # Production would execute ST_Intersects bounding box query on IcebergDetection here
-        return []
+            return await self.demo_iceberg_provider.get_candidate_icebergs(bounds)
+            
+        return await self.iceberg_provider.get_candidate_icebergs(bounds)
 
     def _validate_route(self, route_create: RouteCreate) -> RouteCreate:
         try:
@@ -73,7 +88,11 @@ class RouteOrchestrator:
     def _populate_metadata(self, route_create: RouteCreate, icebergs: List[Dict], risk_grid: Any) -> None:
         route_create.candidate_icebergs = len(icebergs)
         if icebergs:
-            route_create.iceberg_model_version = "v002"
+            try:
+                from app.services.risk.iceberg_risk import iceberg_engine
+                route_create.iceberg_model_version = getattr(iceberg_engine, "model_version", "unknown")
+            except Exception:
+                route_create.iceberg_model_version = "unknown"
             route_create.iceberg_forecast_available = True
             route_create.iceberg_risk_status = "active"
             route_create.forecast_coverage_hours = 3.0

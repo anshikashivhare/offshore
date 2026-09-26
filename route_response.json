@@ -1,0 +1,229 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [
+        -60.0,
+        -65.0
+      ],
+      [
+        -59.5,
+        -65.0
+      ],
+      [
+        -59.0,
+        -65.0
+      ],
+      [
+        -58.5,
+        -65.0
+      ],
+      [
+        -58.0,
+        -65.0
+      ],
+      [
+        -57.5,
+        -65.0
+      ],
+      [
+        -57.0,
+        -64.5
+      ],
+      [
+        -56.5,
+        -64.0
+      ],
+      [
+        -56.5,
+        -63.5
+      ],
+      [
+        -57.0,
+        -63.0
+      ],
+      [
+        -56.5,
+        -62.5
+      ],
+      [
+        -56.0,
+        -62.0
+      ],
+      [
+        -55.5,
+        -61.5
+      ],
+      [
+        -55.5,
+        -61.0
+      ],
+      [
+        -55.0,
+        -60.5
+      ],
+      [
+        -55.0,
+        -60.0
+      ]
+    ]
+  },
+  "properties": {
+    "route_id": "e5a04c14-ae36-4d7f-9a41-8ff165d43b2f",
+    "vessel_id": "3a92b8d0-5e8a-4c28-8d4e-1b7f2c69d4a1",
+    "origin": "-60,-65",
+    "destination": "-55,-60",
+    "departure_time": "2026-09-26T13:41:14.504158Z",
+    "distance": 384.5413812699282,
+    "travel_time": 29.580106251111108,
+    "eta": "2026-09-27T19:16:02.886662Z",
+    "estimated_fuel": 754.2927094033332,
+    "risk_score": 0.5,
+    "risk_exposure": 192.2706906349641,
+    "objective_type": "fastest",
+    "algorithm_version": "AStar-4D-TimeAware-v1.0",
+    "risk_data_status": "demo_unverified",
+    "ml_prediction_status": "AVAILABLE",
+    "warnings": [
+      "Risk data could not be loaded because the configured PostgreSQL database is unavailable.",
+      "Risk data is unavailable. Route is not risk-validated."
+    ],
+    "waypoints": [
+      {
+        "lat": -65.0,
+        "lon": -60.0,
+        "eta": "2026-09-26T13:41:14.504158Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -65.0,
+        "lon": -59.5,
+        "eta": "2026-09-26T14:39:47.845098Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -65.0,
+        "lon": -59.0,
+        "eta": "2026-09-26T15:38:21.186038Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -65.0,
+        "lon": -58.5,
+        "eta": "2026-09-26T16:36:54.526978Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -65.0,
+        "lon": -58.0,
+        "eta": "2026-09-26T17:35:27.867918Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -65.0,
+        "lon": -57.5,
+        "eta": "2026-09-26T18:34:01.208858Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -64.5,
+        "lon": -57.0,
+        "eta": "2026-09-26T21:04:39.190923Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -64.0,
+        "lon": -56.5,
+        "eta": "2026-09-26T23:35:43.065337Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -63.5,
+        "lon": -56.5,
+        "eta": "2026-09-27T01:54:16.359900Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -63.0,
+        "lon": -57.0,
+        "eta": "2026-09-27T04:26:12.868646Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -62.5,
+        "lon": -56.5,
+        "eta": "2026-09-27T06:58:36.098544Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -62.0,
+        "lon": -56.0,
+        "eta": "2026-09-27T09:31:26.305017Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -61.5,
+        "lon": -55.5,
+        "eta": "2026-09-27T12:04:43.733059Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -61.0,
+        "lon": -55.5,
+        "eta": "2026-09-27T14:23:17.027622Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -60.5,
+        "lon": -55.0,
+        "eta": "2026-09-27T16:57:29.592099Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      },
+      {
+        "lat": -60.0,
+        "lon": -55.0,
+        "eta": "2026-09-27T19:16:02.886662Z",
+        "data_provenance": "live_forecast",
+        "env_conditions": {}
+      }
+    ],
+    "iceberg_risk_status": "unavailable",
+    "iceberg_model_version": "unavailable",
+    "iceberg_forecast_available": false,
+    "forecast_coverage_hours": 0.0,
+    "candidate_icebergs": 0,
+    "closest_iceberg": null,
+    "min_cpa_distance_km": null,
+    "cpa_time": null,
+    "encounter_risk": 0.0,
+    "uncertainty_radius_km": null,
+    "land_avoidance_validated": true,
+    "endpoint_snapping_applied": false,
+    "snapped_origin": null,
+    "snapped_destination": null,
+    "cost_decomposition": {
+      "total_cost": 118.32042500613176,
+      "time_cost": 23.664085001226354,
+      "fuel_cost": 75.42927094140899,
+      "risk_cost": 19.22706906349641,
+      "wave_penalty": 0.0,
+      "wind_penalty": 0.0
+    }
+  }
+}

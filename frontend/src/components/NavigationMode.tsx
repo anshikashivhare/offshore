@@ -64,43 +64,7 @@ export function shortestAngleDiff(target: number, current: number): number {
   return ((((target - current) % 360) + 540) % 360) - 180;
 }
 
-/**
- * Calculates intermediate great-circle waypoints between two coordinates.
- * Produces a smooth navigable curve on the globe/Mercator map.
- */
-export function generateGreatCircleWaypoints(
-  start: Coordinate,
-  end: Coordinate,
-  numPoints = 35
-): Coordinate[] {
-  const p1Lat = toRadians(start.lat);
-  const p1Lng = toRadians(start.lng);
-  const p2Lat = toRadians(end.lat);
-  const p2Lng = toRadians(end.lng);
-
-  const d = 2 * Math.asin(
-    Math.sqrt(
-      Math.sin((p2Lat - p1Lat) / 2) ** 2 +
-      Math.cos(p1Lat) * Math.cos(p2Lat) * (Math.sin((p2Lng - p1Lng) / 2) ** 2)
-    )
-  );
-
-  if (d < 1e-6) return [start, end];
-
-  const points: Coordinate[] = [];
-  for (let i = 0; i <= numPoints; i++) {
-    const f = i / numPoints;
-    const A = Math.sin((1 - f) * d) / Math.sin(d);
-    const B = Math.sin(f * d) / Math.sin(d);
-    const x = A * Math.cos(p1Lat) * Math.cos(p1Lng) + B * Math.cos(p2Lat) * Math.cos(p2Lng);
-    const y = A * Math.cos(p1Lat) * Math.sin(p1Lng) + B * Math.cos(p2Lat) * Math.sin(p2Lng);
-    const z = A * Math.sin(p1Lat) + B * Math.sin(p2Lat);
-    const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
-    const lng = Math.atan2(y, x);
-    points.push({ lat: toDegrees(lat), lng: toDegrees(lng) });
-  }
-  return points;
-}
+// Removed generateGreatCircleWaypoints to prevent mock geometry from hiding backend failures.
 
 /**
  * Converts a compass bearing in degrees to a 16-wind cardinal direction string.
@@ -252,23 +216,13 @@ export function NavigationModeController({
 }) {
   const { map, isLoaded } = useMap();
 
-  // Route geometry fallback: route > [origin, destination] with smooth great circle > default Antarctic point
+  // Route geometry fallback: ONLY use backend geometry. No fake straight lines.
   const routeGeometry = useMemo<Coordinate[]>(() => {
     if (route && route.geometry && route.geometry.length > 1) {
       return route.geometry;
     }
-    if (origin && destination) {
-      return generateGreatCircleWaypoints(origin, destination, 35);
-    }
-    if (origin) {
-      return [origin, { lat: origin.lat - 1, lng: origin.lng + 1 }];
-    }
-    return [
-      { lat: -67.57, lng: -68.13 }, // Rothera
-      { lat: -64.82, lng: -63.50 }, // Port Lockroy
-      { lat: -62.19, lng: -58.96 }, // King George Island
-    ];
-  }, [route, origin, destination]);
+    return [];
+  }, [route]);
 
   // Cruising speed from existing backend vessel data
   const baseSpeedKnots = vessel?.cruising_speed || 13.0;
@@ -607,11 +561,8 @@ export function NavigationProminentRoute({
     if (route && route.geometry && route.geometry.length > 1) {
       return route.geometry;
     }
-    if (origin && destination) {
-      return generateGreatCircleWaypoints(origin, destination, 35);
-    }
     return [];
-  }, [route, origin, destination]);
+  }, [route]);
 
   if (points.length < 2) return null;
   const coords = points.map((c) => [c.lng, c.lat] as [number, number]);

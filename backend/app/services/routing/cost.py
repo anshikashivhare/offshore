@@ -125,7 +125,13 @@ class RouteScorer:
             return float('inf')
             
         time_hours = distance / sog
-        fuel = time_hours * vessel.fuel_consumption
+        # Fuel consumption increases if pushing through heavy waves or headwinds
+        base_fuel_rate = vessel.fuel_consumption
+        # Heuristic: 1m of wave height increases fuel consumption by 10%
+        # Heuristic: every 10 knots (5 m/s) of wind increases fuel consumption by 5%
+        fuel_multiplier = 1.0 + (wave_height * 0.1)
+        fuel_multiplier += (wind_speed * 0.005)
+        fuel = time_hours * base_fuel_rate * fuel_multiplier
 
         cost = (
             self.weights.alpha * fuel
@@ -143,12 +149,14 @@ class RouteScorer:
             return {}
         distance = current.distance_to(neighbor)
         time_hours = distance / sog
-        fuel = time_hours * vessel.fuel_consumption
-        
         # Recalculate penalties
         w_vel = env_conditions.get("wind_speed_10m") or 0.0
         w_dir = env_conditions.get("wind_direction_10m") or 0.0
         wave_h = env_conditions.get("wave_height") or 0.0
+        
+        fuel_multiplier = 1.0 + (wave_h * 0.1)
+        fuel_multiplier += (w_vel * 0.005)
+        fuel = time_hours * vessel.fuel_consumption * fuel_multiplier
         
         import math
         dy = neighbor.lat - current.lat

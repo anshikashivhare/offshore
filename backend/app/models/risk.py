@@ -23,7 +23,6 @@ class RiskCell(Base):
     confidence_score: Mapped[float] = mapped_column(Float, default=1.0)
     missing_data_flags: Mapped[dict] = mapped_column(JSON, default=dict)
     metadata_info: Mapped[dict] = mapped_column(JSON, default=dict)
-    data_source: Mapped[str] = mapped_column(String(50), default="observation")
 
     __table_args__ = (
         UniqueConstraint("geometry", "timestamp", name="uix_risk_cell_geom_time"),

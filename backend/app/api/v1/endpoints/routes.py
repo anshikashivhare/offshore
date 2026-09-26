@@ -14,6 +14,7 @@ from app.schemas.route import (RouteComparisonResponse, RouteProperties, RiskGri
 from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.comparison import RouteComparisonService
 from app.services.routing.dijkstra import DijkstraShortestPlanner
+from app.services.orchestration.route_orchestrator import RouteOrchestrator
 from app.utils.geojson import parse_wkt_linestring, to_geojson_geometry
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -56,24 +57,25 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridD
 
     envelope = func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
     st_intersects = getattr(RiskCell.geometry, "ST_Intersects", None)
-    stmt = select(RiskCell)
+    stmt = select(RiskCell, func.ST_AsGeoJSON(RiskCell.geometry).label("geom_json"))
     if st_intersects is not None:
         stmt = stmt.where(RiskCell.geometry.ST_Intersects(envelope))
     stmt = stmt.order_by(RiskCell.timestamp.desc()).limit(2000)
     
     try:
-        rows = (await db.execute(stmt)).scalars().all()
+        rows = (await db.execute(stmt)).all()
     except Exception as exc:
         msg = "Risk data could not be loaded because the configured PostgreSQL database is unavailable."
         return RiskGridData(cells={}, status="UNAVAILABLE", ml_status="AVAILABLE", warnings=[msg])
         
     grid: Dict[Any, float] = {}
     ml_used = False
-    for cell in rows:
-        if cell.data_source == "ml_forecast":
+    for cell, geom_json_str in rows:
+        if getattr(cell, "data_source", "observation") == "ml_forecast":
             ml_used = True
         try:
-            geom = to_geojson_geometry(cell.geometry)
+            import json
+            geom = json.loads(geom_json_str)
         except Exception:
             continue
         coords = geom.get("coordinates")
@@ -81,21 +83,30 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridD
             continue
         if geom.get("type") == "Polygon":
             ring = coords[0]
-            clat = sum(pt[1] for pt in ring) / len(ring)
-            clon = sum(pt[0] for pt in ring) / len(ring)
+            min_lon = min(pt[0] for pt in ring)
+            max_lon = max(pt[0] for pt in ring)
+            min_lat = min(pt[1] for pt in ring)
+            max_lat = max(pt[1] for pt in ring)
+            
+            import numpy as np
+            for lat in np.arange(min_lat, max_lat + 0.1, 0.1):
+                for lon in np.arange(min_lon, max_lon + 0.1, 0.1):
+                    key = (round(float(lat), 1), round(float(lon), 1))
+                    prev = grid.get(key, 0.0)
+                    if cell.composite_risk > prev:
+                        grid[key] = float(cell.composite_risk)
         elif geom.get("type") == "Point":
             clon, clat = coords[0], coords[1]
-        else:
-            continue
-        key = (round(clat, 1), round(clon, 1))
-        # Keep the highest composite risk per cell key.
-        prev = grid.get(key, 0.0)
-        if cell.composite_risk > prev:
-            grid[key] = float(cell.composite_risk)
+            key = (round(clat, 1), round(clon, 1))
+            prev = grid.get(key, 0.0)
+            if cell.composite_risk > prev:
+                grid[key] = float(cell.composite_risk)
             
     ml_status = "AVAILABLE" if ml_used else "UNAVAILABLE"
     status = "KNOWN"
     warnings = [] if grid else ["No risk cells found for this region."]
+    import logging
+    logging.warning(f"BUILT RISK GRID WITH {len(grid)} KEYS!")
     return RiskGridData(cells=grid, status=status, ml_status=ml_status, warnings=warnings)
 
 
@@ -130,6 +141,8 @@ async def plan_route(
         try:
             vessel = await vessel_repo.get(db, request.vessel_id)
         except Exception as exc:
+            import logging
+            logging.error(f"DB Error for vessel_id={request.vessel_id}: {exc}", exc_info=True)
             raise HTTPException(status_code=503, detail="Database unavailable") from exc
 
     if vessel is None:
@@ -169,8 +182,12 @@ async def plan_route(
         if request.objective_type.value == "shortest":
             route_create = await shortest_planner.plan_route(request, vessel, risk_grid)
         else:
-            # Pass demo_mode flag to astar_planner
-            route_create = await astar_planner.plan_route(request, vessel, risk_grid, demo_mode=demo_mode)
+            orchestrator = RouteOrchestrator(db)
+            # We override _prepare_forecast_context to reuse our generated risk_grid
+            async def _override_forecast(req):
+                return risk_grid
+            orchestrator._prepare_forecast_context = _override_forecast
+            route_create = await orchestrator.execute_route_plan(request, vessel)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

@@ -54,3 +54,4 @@ postgres_data/
 .pytest_cache/
 .coverage
 htmlcov/
+backend/venv_mac/
