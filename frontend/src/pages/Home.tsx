@@ -64,6 +64,17 @@ export default function Home() {
   // Globe is the safe default for Antarctic interpretation; Mercator remains
   // available for familiar navigation interaction; Navigation mode gives 3D perspective voyage view.
   const [viewMode, setViewMode] = useState<ViewMode>("globe");
+  const projectionLabel = (() => {
+    switch (viewMode) {
+      case "globe":
+        return "WGS84 globe";
+      case "navigation":
+        return "Web Mercator (3D Navigation perspective)";
+      default:
+        return "Web Mercator — distorted near poles";
+    }
+  })();
+  const showFooter = viewMode !== "navigation";
   const [forecastHours, setForecastHours] = useState(16);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -578,7 +589,7 @@ export default function Home() {
       </div>
 
       {/* Bottom Status Bar (Hidden in Navigation Mode) */}
-      {viewMode !== "navigation" && (
+      {showFooter && (
         <footer className="bottom-status-bar" aria-label="Operational status bar">
           <div className="status-bar-left">
             <div className="status-indicator-group">
@@ -599,7 +610,7 @@ export default function Home() {
             </span>
             <span className="status-v-divider">|</span>
             <span>
-              Map projection: {viewMode === "globe" ? "WGS84 globe" : viewMode === "navigation" ? "Web Mercator (3D Navigation perspective)" : "Web Mercator — distorted near poles"}
+              Map projection: {projectionLabel}
             </span>
           </div>
 

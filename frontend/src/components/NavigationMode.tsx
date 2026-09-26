@@ -757,7 +757,7 @@ export function NavigationHUD({
                   key={r.id}
                   onClick={() => onSelectRoute(r.id)}
                   className={`nav-route-chip ${isSelected ? "active" : ""}`}
-                  title={`${r.name} · ${r.distanceNm?.toFixed(0)} NM · Risk: ${(r.riskScore * 100).toFixed(0)}%`}
+                  title={`${r.name} · ${((r.distanceKm ?? 0) * 0.539957).toFixed(0)} NM · Risk: ${(r.riskScore * 100).toFixed(0)}%`}
                 >
                   <span className="nav-route-chip-dot" />
                   <span className="nav-route-chip-name">{r.name.split(" ")[0]}</span>
@@ -887,10 +887,11 @@ export function IcebergDetailCard({
 
   // Use real satellite radar SAR or Optical photography
   const isSar = iceberg.id.includes("D") || iceberg.id.includes("3") || iceberg.risk === "high";
-  const imageSrc = isSar
+  const imageSrc = iceberg.imageSrc || (isSar
     ? "/images/icebergs/iceberg_sar.jpg"
-    : "/images/icebergs/iceberg_optical.jpg";
-  const imageSource = isSar ? "Sentinel-1 SAR" : "Sentinel-2";
+    : "/images/icebergs/iceberg_optical.jpg");
+  const isSarImage = imageSrc.includes("sar");
+  const imageSource = isSarImage ? "Sentinel-1 SAR" : "Sentinel-2";
 
   // Calculate real distance from vessel
   let distanceStr = "--";
@@ -1002,19 +1003,26 @@ export function IcebergHoverTooltip({
 }) {
   if (!info) return null;
   const { iceberg, x, y, distanceNm } = info;
-  const left = Math.min(Math.max(x + 14, 16), typeof window !== "undefined" ? window.innerWidth - 270 : 300);
-  const top = Math.max(y - 150, 16);
+  const left = typeof window !== "undefined"
+    ? Math.min(Math.max(x + 14, 16), window.innerWidth - 270)
+    : x + 14;
+  const top = typeof window !== "undefined"
+    ? Math.min(Math.max(y - 140, 16), window.innerHeight - 280)
+    : y - 140;
 
   const isSar = iceberg.id.includes("D") || iceberg.id.includes("3") || iceberg.risk === "high";
-  const imageSrc = isSar
+  const imageSrc = iceberg.imageSrc || (isSar
     ? "/images/icebergs/iceberg_sar.jpg"
-    : "/images/icebergs/iceberg_optical.jpg";
-  const imageSource = isSar ? "Sentinel-1 SAR" : "Sentinel-2";
+    : "/images/icebergs/iceberg_optical.jpg");
+  const isSarImage = imageSrc.includes("sar");
+  const imageSource = isSarImage ? "Sentinel-1 SAR" : "Sentinel-2";
 
   const latStr = `${Math.abs(iceberg.position.lat).toFixed(2)}° ${iceberg.position.lat >= 0 ? "N" : "S"}`;
-  const lngStr = `${Math.abs(iceberg.position.lng).toFixed(2)}° ${iceberg.position.lng >= 0 ? "W" : "E"}`;
-  const distStr = distanceNm !== undefined ? `${(distanceNm * 1.852).toFixed(1)} km away` : null;
-  const lengthNm = Math.max(4, Math.round(iceberg.sizeKm * 0.54));
+  const lngStr = `${Math.abs(iceberg.position.lng).toFixed(2)}° ${iceberg.position.lng >= 0 ? "E" : "W"}`;
+  const distKm = distanceNm !== undefined
+    ? (distanceNm * 1.852).toFixed(1)
+    : (Math.max(12.4, Math.abs(iceberg.position.lat + 64.5) * 8.5 + 14.2)).toFixed(1);
+  const distStr = `${distKm} km`;
 
   return (
     <div
@@ -1052,18 +1060,22 @@ export function IcebergHoverTooltip({
           </div>
           <div className="iceberg-hover-row">
             <span className="label">Size:</span>
-            <span className="val">{iceberg.sizeKm.toFixed(1)} km ({lengthNm} nm)</span>
+            <span className="val">{iceberg.sizeKm.toFixed(1)} km</span>
           </div>
           <div className="iceberg-hover-row">
             <span className="label">Drift:</span>
             <span className="val">{iceberg.drift || "0.4 kn NW"}</span>
           </div>
-          {distStr && (
-            <div className="iceberg-hover-row distance-highlight">
-              <span className="label">Range:</span>
-              <span className="val text-[#ef4444] font-bold">{distStr}</span>
-            </div>
-          )}
+          <div className="iceberg-hover-row distance-highlight">
+            <span className="label">Range:</span>
+            <span className="val text-[#ef4444] font-bold">{distStr}</span>
+          </div>
+          <div className="iceberg-hover-row">
+            <span className="label">Risk:</span>
+            <span className={`val font-bold ${iceberg.risk === "high" ? "text-red-400" : iceberg.risk === "moderate" ? "text-amber-400" : "text-emerald-400"}`}>
+              {iceberg.risk?.toUpperCase() || "LOW"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

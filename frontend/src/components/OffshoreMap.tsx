@@ -31,13 +31,13 @@ import {
   PortDetailCard,
   type HoveredPortInfo,
 } from "./PortFeatureManager";
+import { IcebergsMapLayer } from "./IcebergsMapLayer";
 import {
   NavigationModeController,
   VesselMarker,
   NavigationProminentRoute,
   NavigationHUD,
   NavigationZoomControls,
-  IcebergDetailCard,
   IcebergHoverTooltip,
   calculateDistanceNm,
   isNavigationOverview,
@@ -1113,76 +1113,18 @@ export default function OffshoreMap({
           </>
         )}
 
-        {/* ============ ICEBERGS ============ */}
-        {layers.icebergs &&
-          icebergs.map((iceberg) => {
-            const isNav = viewMode === "navigation";
-            const isActive = iceberg.id === selectedIcebergId || iceberg.id === selectedIceberg?.id;
-
-            return (
-              <MapMarker
-                key={iceberg.id}
-                longitude={iceberg.position.lng}
-                latitude={iceberg.position.lat}
-                onClick={() => {
-                  if (isNav) {
-                    setSelectedIceberg(iceberg);
-                  } else {
-                    onSelectIceberg(iceberg.id);
-                    onFocus(iceberg.position);
-                  }
-                }}
-              >
-                <MarkerContent>
-                  <div
-                    className={`iceberg-red-dot-marker ${isActive ? "active" : ""}`}
-                    onMouseEnter={(e) => {
-                      const distNm = navState?.position
-                        ? calculateDistanceNm(navState.position, iceberg.position)
-                        : undefined;
-                      setHoveredIcebergInfo({
-                        iceberg,
-                        x: e.clientX,
-                        y: e.clientY,
-                        distanceNm: distNm,
-                      });
-                    }}
-                    onMouseMove={(e) => {
-                      const distNm = navState?.position
-                        ? calculateDistanceNm(navState.position, iceberg.position)
-                        : undefined;
-                      setHoveredIcebergInfo({
-                        iceberg,
-                        x: e.clientX,
-                        y: e.clientY,
-                        distanceNm: distNm,
-                      });
-                    }}
-                    onMouseLeave={() => setHoveredIcebergInfo(null)}
-                    onTouchStart={(e) => {
-                      const touch = e.touches[0];
-                      const distNm = navState?.position
-                        ? calculateDistanceNm(navState.position, iceberg.position)
-                        : undefined;
-                      setHoveredIcebergInfo({
-                        iceberg,
-                        x: touch.clientX,
-                        y: touch.clientY,
-                        distanceNm: distNm,
-                      });
-                    }}
-                    onTouchEnd={() => setHoveredIcebergInfo(null)}
-                    title={`Iceberg ${iceberg.id}`}
-                  >
-                    <div className="iceberg-pulse-halo" />
-                    <div className="iceberg-dot-core" />
-                  </div>
-                </MarkerContent>
-              </MapMarker>
-            );
-          })}
-
-        {/* ============ ORIGIN MARKER (ROTHERA IN IMAGE 2) ============ */}
+        {/* ============ ICEBERGS (Single MapLibre GeoJSON Point Source + Circle Layer) ============ */}
+        <IcebergsMapLayer
+          icebergs={icebergs}
+          visible={layers.icebergs !== false}
+          selectedIcebergId={selectedIcebergId}
+          vesselPosition={navState?.position || origin || undefined}
+          onHoverIceberg={setHoveredIcebergInfo}
+          onClickIceberg={(iceberg) => {
+            onSelectIceberg(iceberg.id);
+            onFocus(iceberg.position);
+          }}
+        />
         {origin && (
           <MapMarker longitude={origin.lng} latitude={origin.lat}>
             <MarkerContent>
@@ -1357,14 +1299,7 @@ export default function OffshoreMap({
         />
       )}
 
-      {/* Real Iceberg Satellite Image Detail Card (Navigation Mode) */}
-      <IcebergDetailCard
-        iceberg={selectedIceberg}
-        vesselPosition={navState?.position}
-        onClose={() => setSelectedIceberg(null)}
-      />
-
-      {/* Real Iceberg Hover Tooltip */}
+      {/* Real Iceberg Hover Tooltip (Hover-only) */}
       <IcebergHoverTooltip info={hoveredIcebergInfo} />
 
       {/* Sea Ice Legend (Bottom-Right, compact - hidden in navigation) */}

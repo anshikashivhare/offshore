@@ -39,6 +39,7 @@ export type Iceberg = {
   confidence: number;
   drift: string;
   risk: "low" | "moderate" | "high";
+  imageSrc?: string;
 };
 
 export type IcebergTrack = {
