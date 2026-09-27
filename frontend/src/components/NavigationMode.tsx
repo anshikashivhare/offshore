@@ -79,6 +79,49 @@ export function headingToCompass(deg: number): string {
 }
 
 /**
+ * Projects a coordinate onto a route and returns the distance traveled along that route.
+ */
+export function projectPointOntoRoute(position: Coordinate, geometry: Coordinate[]): number {
+  if (geometry.length < 2) return 0;
+  
+  let bestDist = Infinity;
+  let bestTraveled = 0;
+  let accumulated = 0;
+  
+  for (let i = 0; i < geometry.length - 1; i++) {
+    const A = geometry[i];
+    const B = geometry[i + 1];
+    const segLen = calculateDistanceNm(A, B);
+    
+    // Simplistic projection (flat earth approx) for nearest point
+    const APx = position.lng - A.lng;
+    const APy = position.lat - A.lat;
+    const ABx = B.lng - A.lng;
+    const ABy = B.lat - A.lat;
+    
+    const ab2 = ABx * ABx + ABy * ABy;
+    let t = ab2 === 0 ? 0 : (APx * ABx + APy * ABy) / ab2;
+    t = Math.max(0, Math.min(1, t));
+    
+    const closest = {
+      lat: A.lat + t * ABy,
+      lng: A.lng + t * ABx
+    };
+    
+    const dist = calculateDistanceNm(position, closest);
+    
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestTraveled = accumulated + (segLen * t);
+    }
+    
+    accumulated += segLen;
+  }
+  
+  return bestTraveled;
+}
+
+/**
  * Interpolates vessel position along a route polyline given a traveled distance.
  */
 export function interpolateAlongRoute(
@@ -238,25 +281,8 @@ export function NavigationModeController({
     bearing: number;
   } | null>(null);
 
-  // Reset progress and smoothly reposition camera when route changes
-  useEffect(() => {
-    setDistanceTraveledNm(0);
-    if (enabled && map && isLoaded && routeGeometry.length > 0) {
-      const startPt = routeGeometry[0];
-      const nextPt = routeGeometry[Math.min(1, routeGeometry.length - 1)];
-      const initialBearing = calculateBearing(startPt, nextPt);
-      currentBearingRef.current = initialBearing;
-      const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
-      map.easeTo({
-        center: [startPt.lng, startPt.lat],
-        bearing: initialBearing,
-        pitch: NAVIGATION_PERSPECTIVE_PITCH,
-        zoom: userZoomRef.current || 11.5,
-        padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
-        duration: 900,
-      });
-    }
-  }, [route?.id, enabled, map, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lastRouteIdRef = useRef<string | null>(null);
+  const lastPosRef = useRef<Coordinate | null>(null);
 
   // Compute current vessel position & heading from geometry and distanceTraveledNm
   const navState = useMemo<VesselNavState>(() => {
@@ -272,6 +298,48 @@ export function NavigationModeController({
     };
   }, [routeGeometry, distanceTraveledNm, baseSpeedKnots]);
 
+  lastPosRef.current = navState.position;
+
+  // Reposition cleanly when route changes, gracefully transferring progress
+  useEffect(() => {
+    if (enabled && map && isLoaded && routeGeometry.length > 0) {
+      let newDist = 0;
+      
+      // If we're changing route mid-navigation, project our position onto the new route
+      if (lastRouteIdRef.current && lastRouteIdRef.current !== route?.id && lastPosRef.current) {
+         if (distanceTraveledNm > 0 && distanceTraveledNm < navState.totalDistanceNm) {
+            newDist = projectPointOntoRoute(lastPosRef.current, routeGeometry);
+         } else {
+            newDist = distanceTraveledNm;
+         }
+      }
+      
+      if (lastRouteIdRef.current !== route?.id) {
+        setDistanceTraveledNm(newDist);
+        lastRouteIdRef.current = route?.id || null;
+        
+        // Fly camera to the new starting point if we are starting fresh
+        if (newDist === 0) {
+          const startPt = routeGeometry[0];
+          const nextPt = routeGeometry[Math.min(1, routeGeometry.length - 1)];
+          const initialBearing = calculateBearing(startPt, nextPt);
+          currentBearingRef.current = initialBearing;
+          const paddingTop = typeof window !== "undefined" ? Math.min(window.innerHeight * 0.44, 300) : 220;
+          map.easeTo({
+            center: [startPt.lng, startPt.lat],
+            bearing: initialBearing,
+            pitch: NAVIGATION_PERSPECTIVE_PITCH,
+            zoom: userZoomRef.current || 11.5,
+            padding: { top: paddingTop, bottom: 0, left: 0, right: 0 },
+            duration: 900,
+          });
+        }
+      }
+    }
+  }, [route?.id, enabled, map, isLoaded, routeGeometry]);
+
+
+
   // Notify parent of navState update
   useEffect(() => {
     onNavStateChange(navState);
@@ -283,28 +351,38 @@ export function NavigationModeController({
 
     let lastTime = performance.now();
     let animationId: number;
+    let isFinished = false;
+
+    // Use a very high demo multiplier to traverse ~4000 NM in ~60-90 seconds (presentation scale)
+    const DEMO_MULTIPLIER = 15000;
 
     const tick = (now: number) => {
       const dtHours = Math.min((now - lastTime) / 1000 / 3600, 0.001); // seconds to hours, clamped
       lastTime = now;
 
-      // Distance increment (NM) = speed (knots) * time (hours) * speedMultiplier
-      const distDelta = baseSpeedKnots * dtHours * speedMultiplier;
+      const distDelta = baseSpeedKnots * dtHours * DEMO_MULTIPLIER;
 
       setDistanceTraveledNm((prev) => {
+        if (prev >= navState.totalDistanceNm) {
+          isFinished = true;
+          return navState.totalDistanceNm;
+        }
         const next = prev + distDelta;
         if (next >= navState.totalDistanceNm) {
-          return 0; // loop back seamlessly
+          isFinished = true;
+          return navState.totalDistanceNm;
         }
         return next;
       });
 
-      animationId = requestAnimationFrame(tick);
+      if (!isFinished) {
+        animationId = requestAnimationFrame(tick);
+      }
     };
 
     animationId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationId);
-  }, [enabled, isPlaying, baseSpeedKnots, speedMultiplier, navState.totalDistanceNm]);
+  }, [enabled, isPlaying, baseSpeedKnots, navState.totalDistanceNm]);
 
   // Camera initialization upon entering Navigation Mode
   useEffect(() => {
@@ -573,18 +651,18 @@ export function NavigationProminentRoute({
       <MapRoute
         id="nav-route-underglow"
         coordinates={coords}
-        color="#00F0FF"
+        color="#0B8BB5"
         width={10}
-        opacity={0.45}
+        opacity={0.35}
         interactive={false}
       />
       {/* High-Contrast Core Voyage Trajectory */}
       <MapRoute
         id="nav-route-core"
         coordinates={coords}
-        color="#FFFFFF"
-        width={4}
-        opacity={0.95}
+        color="#19C8FF"
+        width={4.5}
+        opacity={1}
         interactive={false}
       />
       {/* Center Navigational Guide Line */}

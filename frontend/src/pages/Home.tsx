@@ -21,11 +21,11 @@ import {
   fetchRoutes,
   compareRoutes,
   fetchVessels,
+  fetchDemoScene,
 } from "@/lib/api";
 import {
   AppHeader,
   ForecastBadge,
-  KpiStrip,
   MapOverlayLegend,
   Timeline,
   fmtForecastDateTime,
@@ -38,9 +38,9 @@ import {
   locations,
   riskCells,
   routes as staticRoutes,
-  tracks,
-  trajectories,
-  uncertainty,
+  tracks as defaultTracks,
+  trajectories as defaultTrajectories,
+  uncertainty as defaultUncertainty,
 } from "@/lib/offshore-mock-data";
 import type { AppLocation, Coordinate, LayerKey, PortRecord, Priority, Vessel, ViewMode } from "@/lib/offshore-types";
 import { UnifiedSearchBar } from "@/components/PortFeatureManager";
@@ -95,6 +95,11 @@ export default function Home() {
   const [liveEnvironment, setLiveEnvironment] = useState<any>(null);
   const [liveEnvError, setLiveEnvError] = useState<string | null>(null);
   const [routeValidationError, setRouteValidationError] = useState<string | null>(null);
+
+  const [liveRiskCells, setLiveRiskCells] = useState(riskCells);
+  const [liveTracks, setLiveTracks] = useState(defaultTracks);
+  const [liveTrajectories, setLiveTrajectories] = useState(defaultTrajectories);
+  const [liveUncertainty, setLiveUncertainty] = useState(defaultUncertainty);
 
   useEffect(() => {
     // REGRESSION GUARD: Never generate mock geometry (like straight lines) here.
@@ -208,12 +213,26 @@ export default function Home() {
         departure_time: new Date(selectedDate.getTime() + forecastHours * 60 * 60 * 1000).toISOString(),
         objective_type: priority === "Time Efficient" ? "fastest" 
                         : priority === "Fuel Efficient" ? "fuel_efficient" 
+                        : priority === "Balanced" ? "shortest"
                         : "safest",
         custom_vessel_config: customVesselConfig
       };
       
       const res = await compareRoutes(requestPayload);
       
+      const unwrapCoordinates = (coords: number[][]) => {
+        if (!coords || coords.length === 0) return [];
+        const result = [[...coords[0]]];
+        for (let i = 1; i < coords.length; i++) {
+          const prev = result[i - 1][0];
+          let curr = coords[i][0];
+          while (curr - prev > 180) curr -= 360;
+          while (curr - prev < -180) curr += 360;
+          result.push([curr, coords[i][1]]);
+        }
+        return result;
+      };
+
       const mapFeature = (feature: any, isRecommended: boolean = false, overrideObjective?: string) => {
         const distNm = feature.properties.distance || 0;
         const travelTimeHours = feature.properties.travel_time || 0;
@@ -238,8 +257,8 @@ export default function Home() {
             ? "Risk Data: Unavailable" 
             : (feature.properties.risk_exposure != null ? `Risk Exposure: ${feature.properties.risk_exposure.toFixed(2)}` : `${Math.round(etaDays)} days`),
           status: isRecommended ? "Recommended" : "Alternative",
-          accent: isRecommended ? "#2563eb" : "#64748b",
-          geometry: feature.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] })),
+          accent: isRecommended ? "#19C8FF" : "#64748b",
+          geometry: unwrapCoordinates(feature.geometry.coordinates).map((c: number[]) => ({ lat: c[1], lng: c[0] })),
           data_provenance: feature.properties.waypoints?.map((w: any) => w.data_provenance) || [],
           risk_data_status: feature.properties.risk_data_status,
           ml_prediction_status: feature.properties.ml_prediction_status,
@@ -262,6 +281,30 @@ export default function Home() {
       
       setLiveRoutes(mappedRoutes);
       setSelectedRouteId(mappedRoutes[0]?.id || "");
+      
+      // Fetch demo scene if available
+      try {
+        const demoScene = await fetchDemoScene();
+        if (demoScene && Object.keys(demoScene).length > 0) {
+          if (demoScene.riskCells) setLiveRiskCells(demoScene.riskCells);
+          if (demoScene.icebergs) {
+            setLiveIcebergs(prev => {
+              const existingIds = new Set(demoScene.icebergs.map((b: any) => b.id));
+              return [...demoScene.icebergs, ...prev.filter(b => !existingIds.has(b.id))];
+            });
+          }
+          if (demoScene.tracks) setLiveTracks(demoScene.tracks);
+          if (demoScene.trajectories) setLiveTrajectories(demoScene.trajectories);
+          if (demoScene.uncertainty) setLiveUncertainty(demoScene.uncertainty);
+        } else {
+          setLiveRiskCells(riskCells);
+          setLiveTracks(defaultTracks);
+          setLiveTrajectories(defaultTrajectories);
+          setLiveUncertainty(defaultUncertainty);
+        }
+      } catch (err) {
+        console.error("Failed to fetch demo scene", err);
+      }
     } catch (err: any) {
       console.error(err);
       setLiveEnvError(err.message || "Route calculation failed");
@@ -534,10 +577,10 @@ export default function Home() {
             <OffshoreMap
               layers={layers}
               icebergs={liveIcebergs}
-              tracks={tracks}
-              trajectories={trajectories}
-              uncertainty={uncertainty}
-              riskCells={riskCells}
+              tracks={liveTracks}
+              trajectories={liveTrajectories}
+              uncertainty={liveUncertainty}
+              riskCells={liveRiskCells}
               routes={routes}
               selectedRouteId={selectedRouteId}
               selectedIcebergId={selectedIcebergId}
@@ -577,10 +620,6 @@ export default function Home() {
             />
           )}
 
-          {/* Passage Overview / Environmental Metrics KPI Strip (Hidden in Navigation Mode) */}
-          {!isImmersive && (
-            <KpiStrip forecast={forecastMeta} route={selectedRoute} liveEnv={liveEnvironment} />
-          )}
         </main>
 
         {/* Right Route Options Panel (Hidden in Navigation Mode) */}

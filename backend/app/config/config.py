@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_V1_PREFIX: str = "/api/v1"
     DEMO_MODE: bool = False
+    DEMO_CORRIDOR_ENABLED: bool = True
 
     # Secrets - REQUIRED in production, auto-generated in dev for convenience.
     SECRET_KEY: str = ""

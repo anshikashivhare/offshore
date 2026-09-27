@@ -22,6 +22,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
+@router.get("/demo_scene")
+async def get_demo_scene() -> Any:
+    from app.config.config import settings
+    if getattr(settings, "DEMO_CORRIDOR_ENABLED", False):
+        import json
+        from pathlib import Path
+        base_dir = Path(__file__).resolve().parents[5]
+        demo_file = base_dir / "demo_scene.json"
+        try:
+            with open(demo_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            return {}
+    return {}
+
 astar_planner = AStarRoutePlanner(resolution=0.5)
 shortest_planner = DijkstraShortestPlanner(resolution=0.5)
 comparison_service = RouteComparisonService(
@@ -362,6 +377,16 @@ async def compare_routes(
     """Compare routes across all objectives."""
     from app.config.config import settings
     demo_mode = getattr(settings, "DEMO_MODE", False)
+    demo_corridor_enabled = getattr(settings, "DEMO_CORRIDOR_ENABLED", False)
+
+    if demo_corridor_enabled:
+        from app.services.routing.demo_corridor import is_sydney_rothera_pair, get_demo_comparison
+        is_demo, is_reverse = is_sydney_rothera_pair(request.origin, request.destination)
+        if is_demo:
+            try:
+                return get_demo_comparison(request, reverse=is_reverse)
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=f"Demo corridor failed: {exc}")
 
     if request.custom_vessel_config:
         vessel = Vessel(**request.custom_vessel_config.model_dump())

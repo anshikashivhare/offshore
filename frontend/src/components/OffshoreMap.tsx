@@ -1014,7 +1014,7 @@ export default function OffshoreMap({
 
             let routeColor = "#7A8F92";
             if (isSelected) {
-              routeColor = isRust ? "#C66B45" : "#527C78";
+              routeColor = "#19C8FF";
             } else if (isSafest) {
               routeColor = "#596A6D";
             } else if (isRust) {
@@ -1022,21 +1022,32 @@ export default function OffshoreMap({
             }
 
             return (
-              <MapRoute
-                key={route.id}
-                id={`offshore-route-${route.id}`}
-                coordinates={coords}
-                color={routeColor}
-                width={isSelected ? 4 : 2}
-                opacity={isSelected ? 1 : 0.6}
-                dashArray={isSelected ? undefined : [6, 4]}
-                active={isSelected}
-                activeColor={routeColor}
-                activeWidth={4.5}
-                activeOpacity={1}
-                onClick={() => onSelectRoute(route.id)}
-                interactive
-              />
+              <React.Fragment key={route.id}>
+                {isSelected && (
+                  <MapRoute
+                    id={`offshore-route-glow-${route.id}`}
+                    coordinates={coords}
+                    color="#0B8BB5"
+                    width={10}
+                    opacity={0.35}
+                    interactive={false}
+                  />
+                )}
+                <MapRoute
+                  id={`offshore-route-${route.id}`}
+                  coordinates={coords}
+                  color={routeColor}
+                  width={isSelected ? 4.5 : 2}
+                  opacity={isSelected ? 1 : 0.6}
+                  dashArray={isSelected ? undefined : [6, 4]}
+                  active={isSelected}
+                  activeColor={routeColor}
+                  activeWidth={4.5}
+                  activeOpacity={1}
+                  onClick={() => onSelectRoute(route.id)}
+                  interactive
+                />
+              </React.Fragment>
             );
           })}
 
@@ -1222,7 +1233,15 @@ export default function OffshoreMap({
 
             {/* ============ RISK MODE HUD ============ */}
       {viewMode === "risk" && (
-        <RiskModePanel onExit={() => onExitNavigation?.()} />
+        <RiskModePanel 
+          onExit={() => onExitNavigation?.()} 
+          routes={routes}
+          selectedRouteId={selectedRouteId}
+          onSelectRoute={onSelectRoute}
+          vessel={selectedVessel}
+          icebergs={icebergs}
+          navState={navState}
+        />
       )}
 
       {/* ============ NAVIGATION HUD (Clean bottom Google Maps dock) ============ */}

@@ -629,8 +629,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .map-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -910,12 +911,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   border-top: 1.5px dashed #3B5F66;
 }
 
-.iceberg-triangle-swatch {
-  font-size: 9px;
-  color: #527C78;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.iceberg-dot-swatch {
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 1.5px solid white;
 }
 
 /* Map Markers (Triangles, Pins, Labels matching Image 2) */
@@ -2296,13 +2297,19 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   left: 20px !important;
   right: 20px !important;
   z-index: 1020 !important;
-  background: rgba(10, 24, 38, 0.88) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  background: rgba(10, 24, 38, 0.95) !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   border-radius: 12px !important;
-  padding: 8px 16px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55) !important;
+  padding: 10px 20px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.map-header-nav-floating .eyebrow {
+  color: #9DB0BC !important;
+}
+
+.map-header-nav-floating .map-passage-title {
+  color: #F5FAFC !important;
 }
 
 .navigation-normal-map {
@@ -2316,6 +2323,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   transform: translateX(-50%);
   z-index: 1000;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 14px;
   padding: 8px 16px;
@@ -2328,12 +2337,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   pointer-events: auto;
   color: #f8fafc;
   font-family: var(--font-sans);
-  max-width: calc(100% - 32px);
+  width: max-content;
+  max-width: calc(100vw - 32px);
 }
 
 .nav-dock-metrics {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   flex-shrink: 0;
 }
@@ -2534,11 +2546,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .nav-dock-routes-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-x: auto;
+  padding-right: 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 1100px) {
+  .nav-dock-routes-bar {
+    padding-right: 0;
+    border-right: none;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    width: 100%;
+  }
 }
 
 .nav-dock-routes-label {
@@ -2553,6 +2575,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .nav-dock-routes-chips {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
 }
 
@@ -2593,8 +2617,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .nav-dock-main-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: auto;
   gap: 16px;
 }
 

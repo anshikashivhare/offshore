@@ -1,0 +1,152 @@
+{
+  "riskCells": [
+    {"center": {"lat": -42.0, "lng": 153.0}, "radius": 100000, "level": "low", "score": 0.10},
+    {"center": {"lat": -46.0, "lng": 157.0}, "radius": 120000, "level": "low", "score": 0.12},
+    {"center": {"lat": -50.0, "lng": 161.0}, "radius": 100000, "level": "low", "score": 0.15},
+    {"center": {"lat": -54.0, "lng": 165.0}, "radius": 110000, "level": "moderate", "score": 0.28},
+    {"center": {"lat": -58.0, "lng": 169.0}, "radius": 120000, "level": "moderate", "score": 0.35},
+    {"center": {"lat": -62.0, "lng": 173.0}, "radius": 130000, "level": "moderate", "score": 0.38},
+    {"center": {"lat": -64.0, "lng": 177.0}, "radius": 110000, "level": "moderate", "score": 0.42},
+    {"center": {"lat": -66.0, "lng": 179.0}, "radius": 100000, "level": "high", "score": 0.55},
+    {"center": {"lat": -68.0, "lng": -179.0}, "radius": 120000, "level": "high", "score": 0.60},
+    {"center": {"lat": -70.0, "lng": -175.0}, "radius": 130000, "level": "high", "score": 0.62},
+    {"center": {"lat": -70.5, "lng": -155.0}, "radius": 140000, "level": "high", "score": 0.58},
+    {"center": {"lat": -70.5, "lng": -135.0}, "radius": 130000, "level": "high", "score": 0.55},
+    {"center": {"lat": -70.5, "lng": -115.0}, "radius": 120000, "level": "moderate", "score": 0.45},
+    {"center": {"lat": -70.5, "lng": -100.0}, "radius": 150000, "level": "avoid", "score": 0.82},
+    {"center": {"lat": -70.5, "lng": -95.0}, "radius": 130000, "level": "high", "score": 0.65},
+    {"center": {"lat": -70.5, "lng": -85.0}, "radius": 110000, "level": "high", "score": 0.58},
+    {"center": {"lat": -70.5, "lng": -80.0}, "radius": 120000, "level": "moderate", "score": 0.40},
+    {"center": {"lat": -68.5, "lng": -73.0}, "radius": 100000, "level": "moderate", "score": 0.32},
+    {"center": {"lat": -68.0, "lng": -70.0}, "radius": 80000, "level": "low", "score": 0.18}
+  ],
+  "icebergs": [
+    {
+      "id": "DEMO-IB-1",
+      "position": {"lat": -70.4, "lng": -100.0},
+      "sizeKm": 15.0,
+      "timestamp": "2026-09-05T12:00:00Z",
+      "confidence": 0.95,
+      "drift": "0.5 kn N",
+      "risk": "high",
+      "imageSrc": "/images/icebergs/iceberg_optical.jpg"
+    },
+    {
+      "id": "DEMO-IB-2",
+      "position": {"lat": -70.2, "lng": -95.0},
+      "sizeKm": 8.2,
+      "timestamp": "2026-09-05T14:00:00Z",
+      "confidence": 0.92,
+      "drift": "0.3 kn NW",
+      "risk": "moderate",
+      "imageSrc": "/images/icebergs/iceberg_sar.jpg"
+    },
+    {
+      "id": "DEMO-IB-3",
+      "position": {"lat": -68.8, "lng": -80.0},
+      "sizeKm": 22.0,
+      "timestamp": "2026-09-06T08:00:00Z",
+      "confidence": 0.97,
+      "drift": "0.7 kn NNW",
+      "risk": "high",
+      "imageSrc": "/images/icebergs/iceberg_01.jpg"
+    },
+    {
+      "id": "DEMO-IB-4",
+      "position": {"lat": -66.5, "lng": 179.0},
+      "sizeKm": 5.4,
+      "timestamp": "2026-09-03T10:00:00Z",
+      "confidence": 0.90,
+      "drift": "0.4 kn NE",
+      "risk": "low",
+      "imageSrc": "/images/icebergs/iceberg_02.jpg"
+    },
+    {
+      "id": "DEMO-IB-5",
+      "position": {"lat": -70.5, "lng": -115.0},
+      "sizeKm": 12.8,
+      "timestamp": "2026-09-07T06:00:00Z",
+      "confidence": 0.94,
+      "drift": "0.6 kn W",
+      "risk": "moderate",
+      "imageSrc": "/images/icebergs/iceberg_03.jpg"
+    }
+  ],
+  "tracks": [
+    {
+      "icebergId": "DEMO-IB-1",
+      "history": [
+        {"lat": -71.2, "lng": -100.0, "timestamp": "2026-09-02T12:00:00Z"},
+        {"lat": -70.9, "lng": -100.0, "timestamp": "2026-09-03T12:00:00Z"},
+        {"lat": -70.6, "lng": -100.0, "timestamp": "2026-09-04T12:00:00Z"},
+        {"lat": -70.4, "lng": -100.0, "timestamp": "2026-09-05T12:00:00Z"}
+      ]
+    },
+    {
+      "icebergId": "DEMO-IB-3",
+      "history": [
+        {"lat": -69.5, "lng": -80.2, "timestamp": "2026-09-04T08:00:00Z"},
+        {"lat": -69.2, "lng": -80.1, "timestamp": "2026-09-05T08:00:00Z"},
+        {"lat": -68.8, "lng": -80.0, "timestamp": "2026-09-06T08:00:00Z"}
+      ]
+    },
+    {
+      "icebergId": "DEMO-IB-5",
+      "history": [
+        {"lat": -70.8, "lng": -114.5, "timestamp": "2026-09-05T06:00:00Z"},
+        {"lat": -70.6, "lng": -114.8, "timestamp": "2026-09-06T06:00:00Z"},
+        {"lat": -70.5, "lng": -115.0, "timestamp": "2026-09-07T06:00:00Z"}
+      ]
+    }
+  ],
+  "trajectories": [
+    {
+      "icebergId": "DEMO-IB-1",
+      "horizonHours": 72,
+      "confidence": 0.82,
+      "prediction": [
+        {"lat": -70.4, "lng": -100.0, "timestamp": "2026-09-05T12:00:00Z"},
+        {"lat": -70.1, "lng": -100.0, "timestamp": "2026-09-06T12:00:00Z"},
+        {"lat": -69.8, "lng": -99.9, "timestamp": "2026-09-07T12:00:00Z"},
+        {"lat": -69.5, "lng": -99.8, "timestamp": "2026-09-08T12:00:00Z"}
+      ]
+    },
+    {
+      "icebergId": "DEMO-IB-3",
+      "horizonHours": 48,
+      "confidence": 0.78,
+      "prediction": [
+        {"lat": -68.8, "lng": -80.0, "timestamp": "2026-09-06T08:00:00Z"},
+        {"lat": -68.5, "lng": -79.8, "timestamp": "2026-09-07T08:00:00Z"},
+        {"lat": -68.2, "lng": -79.6, "timestamp": "2026-09-08T08:00:00Z"}
+      ]
+    },
+    {
+      "icebergId": "DEMO-IB-5",
+      "horizonHours": 48,
+      "confidence": 0.75,
+      "prediction": [
+        {"lat": -70.5, "lng": -115.0, "timestamp": "2026-09-07T06:00:00Z"},
+        {"lat": -70.3, "lng": -115.2, "timestamp": "2026-09-08T06:00:00Z"},
+        {"lat": -70.1, "lng": -115.4, "timestamp": "2026-09-09T06:00:00Z"}
+      ]
+    }
+  ],
+  "uncertainty": [
+    {
+      "icebergId": "DEMO-IB-1",
+      "center": {"lat": -69.5, "lng": -99.8},
+      "radiusKm": 30.0
+    },
+    {
+      "icebergId": "DEMO-IB-3",
+      "center": {"lat": -68.2, "lng": -79.6},
+      "radiusKm": 25.0
+    },
+    {
+      "icebergId": "DEMO-IB-5",
+      "center": {"lat": -70.1, "lng": -115.4},
+      "radiusKm": 20.0
+    }
+  ]
+}

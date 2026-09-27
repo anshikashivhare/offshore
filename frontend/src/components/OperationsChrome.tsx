@@ -90,98 +90,6 @@ export function AppHeader({
   );
 }
 
-export function KpiStrip({ forecast, route, liveEnv }: { forecast: ForecastMeta, route?: any, liveEnv?: any }) {
-  let avgIce = 0;
-  let avgWave = 0;
-  let riskScore = route ? route.riskScore : 0;
-  
-  if (liveEnv && liveEnv.waypoints && liveEnv.waypoints.length > 0) {
-    const validIce = liveEnv.waypoints.filter((w: any) => w.env_conditions?.sea_ice_concentration !== undefined);
-    const validWaves = liveEnv.waypoints.filter((w: any) => w.env_conditions?.wave_height !== undefined);
-    if (validIce.length > 0) {
-      avgIce = validIce.reduce((sum: number, w: any) => sum + w.env_conditions.sea_ice_concentration, 0) / validIce.length;
-    }
-    if (validWaves.length > 0) {
-      avgWave = validWaves.reduce((sum: number, w: any) => sum + w.env_conditions.wave_height, 0) / validWaves.length;
-    }
-  }
-
-  const hasData = liveEnv != null;
-
-  return (
-    <section className="passage-overview-strip" aria-label="Passage Overview and Metrics">
-      {/* Title block */}
-      <div className="overview-title-cell">
-        <span className="overview-heading">PASSAGE OVERVIEW</span>
-        <span className="overview-sub">{hasData ? "Live Route Environmental Data" : "Waiting for route calculation..."}</span>
-      </div>
-
-      {/* Metric 1: Sea-ice concentration */}
-      <div className="overview-metric-cell">
-        <div className="metric-icon-circle">
-          <svg width="24" height="24" viewBox="0 0 24 24" className="gauge-svg">
-            <circle cx="12" cy="12" r="9" fill="none" stroke="#DCE5E5" strokeWidth="3" />
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              fill="none"
-              stroke="#527C78"
-              strokeWidth="3"
-              strokeDasharray="56.5"
-              strokeDashoffset={hasData ? 56.5 * (1 - avgIce) : 56.5}
-              strokeLinecap="round"
-              transform="rotate(-90 12 12)"
-            />
-          </svg>
-        </div>
-        <div className="metric-text-group">
-          <span className="metric-large-num">{hasData ? `${Math.round(avgIce * 100)}%` : "--"}</span>
-          <span className="metric-sub-label">sea-ice concentration</span>
-        </div>
-        <span className="metric-status-badge badge-mint">{hasData ? "LIVE" : "PENDING"}</span>
-      </div>
-
-      {/* Metric 2: Significant wave height */}
-      <div className="overview-metric-cell">
-        <div className="metric-icon-plain">
-          <Waves size={16} className="icon-blue" />
-        </div>
-        <div className="metric-text-group">
-          <span className="metric-large-num">{hasData ? `${avgWave.toFixed(1)} m` : "--"}</span>
-          <span className="metric-sub-label">significant wave height</span>
-        </div>
-        <span className="metric-status-badge badge-blue">{hasData ? "LIVE" : "PENDING"}</span>
-      </div>
-
-      {/* Metric 3: Route risk score */}
-      <div className="overview-metric-cell">
-        <div className="metric-icon-plain">
-          <ShieldAlert size={16} className={route && route.risk_data_status !== "unavailable" ? "icon-amber" : "icon-slate"} />
-        </div>
-        <div className="metric-text-group">
-          <span className="metric-large-num">{route ? (route.risk_data_status === "unavailable" ? "N/A" : riskScore.toFixed(2)) : "--"}</span>
-          <span className="metric-sub-label">route risk score</span>
-        </div>
-        <span className={`metric-status-badge ${route ? (route.risk_data_status === "unavailable" ? "badge-slate" : "badge-amber") : "badge-slate"}`}>
-          {route ? (route.risk_data_status === "unavailable" ? "UNAVAILABLE" : "ACTIVE") : "PENDING"}
-        </span>
-      </div>
-
-      {/* Metric 4: Data confidence */}
-      <div className="overview-metric-cell">
-        <div className="metric-icon-plain">
-          <Shield size={16} className="icon-slate" />
-        </div>
-        <div className="metric-text-group">
-          <span className="metric-large-num">{forecast.confidence}</span>
-          <span className="metric-sub-label">data confidence</span>
-        </div>
-        <span className="metric-status-badge badge-slate">{forecast.horizonHours} H HORIZON</span>
-      </div>
-    </section>
-  );
-}
 
 /** Format a date as "DD MMM" */
 function fmtShort(date: Date) {
@@ -359,7 +267,7 @@ export function MapOverlayLegend() {
         </div>
 
         <div className="legend-item-row">
-          <span className="legend-swatch iceberg-triangle-swatch">▲</span>
+          <span className="legend-swatch iceberg-dot-swatch"></span>
           <span className="legend-item-label">Observed icebergs</span>
           <span className="legend-item-val">Live data</span>
         </div>

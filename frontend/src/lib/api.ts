@@ -18,6 +18,14 @@ export async function fetchIcebergs() {
   return response.json();
 }
 
+export async function fetchDemoScene() {
+  const response = await fetch(`${API_BASE_URL}/api/v1/routes/demo_scene`);
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
+
 import { Vessel } from "./offshore-types";
 
 export interface PaginationResponse<T> {
