@@ -32,6 +32,7 @@ import {
   type HoveredPortInfo,
 } from "./PortFeatureManager";
 import { IcebergsMapLayer } from "./IcebergsMapLayer";
+import { RiskModePanel } from "./RiskModePanel";
 import {
   NavigationModeController,
   VesselMarker,
@@ -1182,7 +1183,7 @@ export default function OffshoreMap({
           <PortsMapLayer
             ports={locations}
             visible={layers.ports !== false}
-            isNavMode={viewMode === "navigation"}
+            isNavMode={viewMode === "navigation" || viewMode === "risk"}
             selectedPort={selectedPort ?? null}
             onHoverPort={setHoveredPortInfo}
             onClickPort={(port) => onSelectPort?.(port)}
@@ -1190,7 +1191,7 @@ export default function OffshoreMap({
         )}
 
         {/* ============ GEOGRAPHIC LABELS (Hidden in Navigation mode) ============ */}
-        {viewMode !== "navigation" && (
+        {viewMode !== "navigation" && viewMode !== "risk" && (
           <>
             <MapMarker longitude={0} latitude={-82}>
               <MarkerContent>
@@ -1216,8 +1217,13 @@ export default function OffshoreMap({
         )}
 
         {/* ============ NAUTICAL MAP CONTROLS (TOP-LEFT) ============ */}
-        {viewMode !== "navigation" && <NauticalMapControls onReset={handleReset} />}
+        {viewMode !== "navigation" && viewMode !== "risk" && <NauticalMapControls onReset={handleReset} />}
       </Map>
+
+            {/* ============ RISK MODE HUD ============ */}
+      {viewMode === "risk" && (
+        <RiskModePanel onExit={() => onExitNavigation?.()} />
+      )}
 
       {/* ============ NAVIGATION HUD (Clean bottom Google Maps dock) ============ */}
       {viewMode === "navigation" && navState && (
@@ -1303,13 +1309,13 @@ export default function OffshoreMap({
       <IcebergHoverTooltip info={hoveredIcebergInfo} />
 
       {/* Sea Ice Legend (Bottom-Right, compact - hidden in navigation) */}
-      {viewMode !== "navigation" && layers.seaIceConcentration !== false && <SeaIceLegend />}
+      {viewMode !== "navigation" && viewMode !== "risk" && layers.seaIceConcentration !== false && <SeaIceLegend />}
 
       {/* Data Attribution (Bottom-Right, below legend - hidden in navigation) */}
-      {viewMode !== "navigation" && <DataAttribution seaIceDate={resolvedSeaIceDate} />}
+      {viewMode !== "navigation" && viewMode !== "risk" && <DataAttribution seaIceDate={resolvedSeaIceDate} />}
 
       {/* Data Status (Top-Right, compact - hidden in navigation) */}
-      {viewMode !== "navigation" && (
+      {viewMode !== "navigation" && viewMode !== "risk" && (
         <DataStatusIndicator
           seaIceDate={resolvedSeaIceDate}
           gebcoVisible={layers.gebco !== false}
@@ -1318,7 +1324,7 @@ export default function OffshoreMap({
       )}
 
       {/* Nautical Scale Bar (Bottom-Left - hidden in navigation) */}
-      {viewMode !== "navigation" && (
+      {viewMode !== "navigation" && viewMode !== "risk" && (
         <div className="nautical-scale-bar" aria-label="Nautical scale">
           <div className="scale-marks">
             <span>0</span>
@@ -1331,7 +1337,7 @@ export default function OffshoreMap({
       )}
 
       {/* Live Coordinate Readout (Bottom-Left, above scale bar - hidden in navigation) */}
-      {viewMode !== "navigation" && (pointerCoord || clickedCoord) && (
+      {viewMode !== "navigation" && viewMode !== "risk" && (pointerCoord || clickedCoord) && (
         <div style={{
           position: "absolute",
           bottom: "48px",

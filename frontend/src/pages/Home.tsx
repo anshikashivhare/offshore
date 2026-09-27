@@ -7,6 +7,7 @@ import {
   Compass,
   Globe,
   Map as MapIcon,
+  TriangleAlert,
   Maximize2,
   Settings2,
 } from "lucide-react";
@@ -69,12 +70,14 @@ export default function Home() {
       case "globe":
         return "WGS84 globe";
       case "navigation":
+      case "risk":
         return "Web Mercator (3D Navigation perspective)";
       default:
         return "Web Mercator — distorted near poles";
     }
   })();
-  const showFooter = viewMode !== "navigation";
+  const isImmersive = viewMode === "navigation" || viewMode === "risk";
+  const showFooter = !isImmersive;
   const [forecastHours, setForecastHours] = useState(16);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -383,9 +386,9 @@ export default function Home() {
   );
 
   return (
-    <div className={`offshore-app ${viewMode === "navigation" ? "navigation-view-active" : ""}`} onKeyDown={handleKeyDown} tabIndex={-1}>
+    <div className={`offshore-app ${isImmersive ? "navigation-view-active" : ""}`} onKeyDown={handleKeyDown} tabIndex={-1}>
       {/* Top Header (Hidden in Navigation Mode for clean edge-to-edge view) */}
-      {viewMode !== "navigation" && (
+      {!isImmersive && (
         <AppHeader
           onMenu={() => setMobileSidebar((value) => !value)}
           routeLabel={shortRouteTitle}
@@ -393,9 +396,9 @@ export default function Home() {
         />
       )}
 
-      <div className={`workspace ${viewMode === "navigation" ? "navigation-fullscreen-active" : ""}`}>
+      <div className={`workspace ${isImmersive ? "navigation-fullscreen-active" : ""}`}>
         {/* Light Mission Configuration Panel (Hidden in Navigation Mode) */}
-        {viewMode !== "navigation" && (
+        {!isImmersive && (
           <div className={`mission-config-wrapper ${mobileSidebar ? "open" : ""}`}>
             <MissionSidebar
               locations={liveLocations}
@@ -429,41 +432,41 @@ export default function Home() {
         )}
 
         {/* Dominant Map Workspace (Expands to FULL SCREEN in Navigation Mode) */}
-        <main className={`map-workspace ${isFullscreen || viewMode === "navigation" ? "map-fullscreen navigation-fullscreen" : ""}`}>
+        <main className={`map-workspace ${isFullscreen || isImmersive ? "map-fullscreen navigation-fullscreen" : ""}`}>
           {/* Map Header */}
-          <div className={`map-header ${viewMode === "navigation" ? "map-header-nav-floating" : ""}`}>
+          <div className={`map-header ${isImmersive ? "map-header-nav-floating" : ""}`}>
             <div className="map-header-left">
-              <span className="eyebrow">{viewMode === "navigation" ? "OFFSHORE · VOYAGE NAVIGATION" : "MISSION 08 · ROUTE PLANNING"}</span>
+              <span className="eyebrow">{viewMode === "navigation" ? "OFFSHORE · VOYAGE NAVIGATION" : viewMode === "risk" ? "OFFSHORE · RISK ANALYSIS" : "MISSION 08 · ROUTE PLANNING"}</span>
               <h1 className="map-passage-title">{routeTitle}</h1>
-              {viewMode !== "navigation" && (
+              {!isImmersive && (
                 <p className="map-passage-sub">
                   Risk-aware passage planning · Antarctic Peninsula to Wilkes Land
                 </p>
               )}
             </div>
 
-            {/* Global Port, Vessel & Iceberg Search Bar */}
-            <div className="map-header-search">
-              <UnifiedSearchBar
-                ports={liveLocations}
-                vessels={liveVessels}
-                icebergs={liveIcebergs}
-                onSelectPort={handleSelectPort}
-                onSelectVessel={(vesselId, coord) => {
-                  setSelectedVesselId(vesselId);
-                  handleFocus(coord);
-                }}
-                onSelectIceberg={(icebergId, coord) => {
-                  setSelectedIcebergId(icebergId);
-                  handleFocus(coord);
-                }}
-              />
-            </div>
+            {/* Global Port, Vessel & Iceberg Search Bar - Only in navigation mode */}
+            {viewMode === "navigation" && (
+              <div className="map-header-search">
+                <UnifiedSearchBar
+                  ports={liveLocations}
+                  vessels={liveVessels}
+                  icebergs={liveIcebergs}
+                  onSelectPort={handleSelectPort}
+                  onSelectVessel={(vesselId, coord) => {
+                    setSelectedVesselId(vesselId);
+                    handleFocus(coord);
+                  }}
+                  onSelectIceberg={(icebergId, coord) => {
+                    setSelectedIcebergId(icebergId);
+                    handleFocus(coord);
+                  }}
+                />
+              </div>
+            )}
 
             <div className="map-header-actions">
-              {viewMode !== "navigation" && (
-                <ForecastBadge forecast={forecastMeta} forecastDateTime={forecastDateTime} />
-              )}
+
 
               {/* Map / Globe / Navigation toggle */}
               <div className="map-globe-toggle">
@@ -494,9 +497,18 @@ export default function Home() {
                   <Compass size={14} />
                   <span>Navigation</span>
                 </button>
+                <button
+                  className={`toggle-tab-btn ${viewMode === "risk" ? "active" : ""}`}
+                  onClick={() => setViewMode("risk")}
+                  aria-label="Risk view"
+                  title="Risk Analysis View"
+                >
+                  <TriangleAlert size={14} />
+                  <span>Risk</span>
+                </button>
               </div>
 
-              {viewMode !== "navigation" && (
+              {!isImmersive && (
                 <>
                   <button className="control-icon-btn" aria-label="Open help" title="System Help">
                     <CircleHelp size={15} />
@@ -518,7 +530,7 @@ export default function Home() {
           </div>
 
           {/* Map Frame with light polar basemap and legend */}
-          <div className={`map-frame ${isFullscreen || viewMode === "navigation" ? "fullscreen" : ""}`}>
+          <div className={`map-frame ${isFullscreen || isImmersive ? "fullscreen" : ""}`}>
             <OffshoreMap
               layers={layers}
               icebergs={liveIcebergs}
@@ -555,7 +567,7 @@ export default function Home() {
           </div>
 
           {/* Time Control Bar (Hidden in Navigation Mode) */}
-          {viewMode !== "navigation" && (
+          {!isImmersive && (
             <Timeline
               forecast={forecastMeta}
               forecastHours={forecastHours}
@@ -566,13 +578,13 @@ export default function Home() {
           )}
 
           {/* Passage Overview / Environmental Metrics KPI Strip (Hidden in Navigation Mode) */}
-          {viewMode !== "navigation" && (
+          {!isImmersive && (
             <KpiStrip forecast={forecastMeta} route={selectedRoute} liveEnv={liveEnvironment} />
           )}
         </main>
 
         {/* Right Route Options Panel (Hidden in Navigation Mode) */}
-        {viewMode !== "navigation" && (
+        {!isImmersive && (
           <div className="route-options-wrapper">
             <DecisionPanel
               routes={routes}

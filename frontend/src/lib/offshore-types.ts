@@ -112,7 +112,7 @@ export type Alert = {
   location: Coordinate;
 };
 
-export type ViewMode = "map" | "globe" | "navigation";
+export type ViewMode = "map" | "globe" | "navigation" | "risk";
 
 export type ForecastMeta = {
   asOf: string;
