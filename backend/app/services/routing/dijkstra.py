@@ -29,7 +29,22 @@ class DijkstraShortestPlanner(RoutePlanner):
 
     def __init__(self, resolution: float = 0.5, max_iterations: int = 20000):
         self.grid_builder = GridBuilder(resolution=resolution)
+        self._medium_grid = GridBuilder(resolution=1.0)
+        self._coarse_grid = GridBuilder(resolution=2.0)
         self.max_iterations = max_iterations
+
+    def _search_grid_for_voyage(self, start: Node, goal: Node) -> GridBuilder:
+        """Coarser search grid for ocean-spanning voyages (mirrors A*).
+
+        Port snapping always stays on the fine base grid; only the lattice
+        search switches resolution so long-haul passages fit the budget.
+        """
+        voyage_nm = start.distance_to(goal)
+        if voyage_nm >= 4000.0:
+            return self._coarse_grid
+        if voyage_nm >= 2000.0:
+            return self._medium_grid
+        return self.grid_builder
 
     async def plan_route(
         self,
@@ -71,6 +86,8 @@ class DijkstraShortestPlanner(RoutePlanner):
         origin_node = snapped_start
         goal_node = snapped_goal
 
+        search_builder = self._search_grid_for_voyage(origin_node, goal_node)
+
         counter = 0
         heap: List[Tuple[float, int, Node]] = [(0.0, counter, origin_node)]
         came_from: Dict[Node, Node] = {}
@@ -91,7 +108,7 @@ class DijkstraShortestPlanner(RoutePlanner):
                 found = True
                 goal_key = current
                 break
-            for neighbor in self.grid_builder.get_neighbors(current):
+            for neighbor in search_builder.get_neighbors(current):
                 step_km = current.distance_to(neighbor)
                 new_cost = current_cost + step_km
                 if new_cost < cost_so_far.get(neighbor, float("inf")):

@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data and ML artifacts
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+models/*.pt
+models/*.pth
+*.joblib
+raw/
+processed/
+*.nc
+*.csv
+synthetic_data/
+
+# ML model weights (keep .json model configs)
+backend/ml/seaice_model/convlstm.pt
+backend/ml/trajectory_model/lstm_model.pt
+backend/ml/trajectory_model/trajectory_model.joblib
+
+# Logs
+*.log
+
+# Docker
+postgres_data/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+backend/venv_mac/
+
+# ===== ↑ 以上同步自 .gitignore（「从 .gitignore 同步」只重写以上部分）=====
+.git/
+.hg/
+.svn/
+bower_components/
+jspm_packages/
+site-packages/
+coverage/
+lcov-report/
+cmakefiles/
+cmake-build-*/
+bazel-*/
+pods/
+deriveddata/
+storybook-static/
+playwright-report/
+test-results/
+allure-results/
+allure-report/
+cdk.out/
+*.dist-info/
+eggs/
+pip-wheel-metadata/
+wheels/
+# ----- ↑ 以上为 ZCode 默认排除规则（自定义规则请写在本行下方，不会被同步/恢复改动）-----
+# 自定义规则写在下方（本行提示可删除）

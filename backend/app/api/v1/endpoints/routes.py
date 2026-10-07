@@ -1,6 +1,7 @@
+import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.api import deps
 from app.models.risk import RiskCell
@@ -49,15 +50,10 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridD
     expose them as a dict keyed by rounded (lat, lon) centroid coordinates.
 
     The A* and Dijkstra planners both consume a dict-of-float risk grid.
+    Falls back to the bundled synthetic risk_cells.geojson surface when the
+    database is unreachable or has no cells for the region.
     """
     from app.config.config import settings
-
-    if getattr(settings, "DEMO_MODE", False):
-        try:
-            # Check if DB is up before assuming we can't do anything
-            await db.execute(select(1))
-        except Exception:
-            return RiskGridData(cells={}, status="UNAVAILABLE", ml_status="AVAILABLE", warnings=["Risk data could not be loaded because the configured PostgreSQL database is unavailable."])
 
     try:
         origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
@@ -76,20 +72,18 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridD
     if st_intersects is not None:
         stmt = stmt.where(RiskCell.geometry.ST_Intersects(envelope))
     stmt = stmt.order_by(RiskCell.timestamp.desc()).limit(2000)
-    
+
     try:
         rows = (await db.execute(stmt)).all()
-    except Exception as exc:
-        msg = "Risk data could not be loaded because the configured PostgreSQL database is unavailable."
-        return RiskGridData(cells={}, status="UNAVAILABLE", ml_status="AVAILABLE", warnings=[msg])
-        
+    except Exception:
+        rows = []
+
     grid: Dict[Any, float] = {}
     ml_used = False
     for cell, geom_json_str in rows:
         if getattr(cell, "data_source", "observation") == "ml_forecast":
             ml_used = True
         try:
-            import json
             geom = json.loads(geom_json_str)
         except Exception:
             continue
@@ -102,7 +96,7 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridD
             max_lon = max(pt[0] for pt in ring)
             min_lat = min(pt[1] for pt in ring)
             max_lat = max(pt[1] for pt in ring)
-            
+
             import numpy as np
             for lat in np.arange(min_lat, max_lat + 0.1, 0.1):
                 for lon in np.arange(min_lon, max_lon + 0.1, 0.1):
@@ -116,13 +110,53 @@ async def _build_risk_grid(db: AsyncSession, request: RouteRequest) -> RiskGridD
             prev = grid.get(key, 0.0)
             if cell.composite_risk > prev:
                 grid[key] = float(cell.composite_risk)
-            
+
+    if not grid and getattr(settings, "SYNTHETIC_DATA_MODE", False):
+        from app.services.providers.synthetic_files import build_synthetic_risk_grid
+        grid = build_synthetic_risk_grid()
+        if grid:
+            return RiskGridData(
+                cells=grid,
+                status="KNOWN",
+                ml_status="AVAILABLE",
+                warnings=["Risk surface served from the bundled synthetic dataset (risk_cells.geojson)."],
+            )
+
     ml_status = "AVAILABLE" if ml_used else "UNAVAILABLE"
     status = "KNOWN"
     warnings = [] if grid else ["No risk cells found for this region."]
-    import logging
-    logging.warning(f"BUILT RISK GRID WITH {len(grid)} KEYS!")
     return RiskGridData(cells=grid, status=status, ml_status=ml_status, warnings=warnings)
+
+
+async def _resolve_vessel(db: AsyncSession, request: RouteRequest) -> Optional[Vessel]:
+    """Resolve the vessel for a planning request.
+
+    Order: explicit custom config, then PostgreSQL, then the bundled
+    synthetic vessels.json (when SYNTHETIC_DATA_MODE is on). Returns None
+    when no source can provide a vessel.
+    """
+    from app.config.config import settings
+
+    if request.custom_vessel_config:
+        vessel = Vessel(**request.custom_vessel_config.model_dump())
+        vessel.vessel_id = request.vessel_id  # Preserve the requested ID
+        return vessel
+
+    try:
+        vessel = await vessel_repo.get(db, request.vessel_id)
+        if vessel is not None:
+            return vessel
+    except Exception as exc:
+        # Database unavailable or transient failure - fall through to the
+        # synthetic dataset instead of failing the whole request.
+        import logging
+        logging.warning(f"Vessel DB lookup failed for vessel_id={request.vessel_id}: {exc}")
+
+    if getattr(settings, "SYNTHETIC_DATA_MODE", False):
+        from app.services.providers.synthetic_files import get_vessel_by_id
+        return get_vessel_by_id(request.vessel_id)
+
+    return None
 
 
 @router.post("/plan", response_model=RouteResponse, status_code=status.HTTP_201_CREATED)
@@ -134,31 +168,7 @@ async def plan_route(
     from app.config.config import settings
     from app.services.routing.validator import route_validator, RouteValidationError
 
-    # Use custom configuration if provided
-    if request.custom_vessel_config:
-        vessel = Vessel(**request.custom_vessel_config.model_dump())
-        vessel.vessel_id = request.vessel_id # Preserve the ID
-    elif getattr(settings, "DEMO_MODE", False):
-        import json
-        from pathlib import Path
-        try:
-            vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
-            with vessels_path.open("r", encoding="utf-8") as f:
-                all_vessels = json.load(f)
-            v_id_str = str(request.vessel_id)
-            vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
-            if not vessel_data and all_vessels:
-                vessel_data = all_vessels[0]
-            vessel = Vessel(**vessel_data) if vessel_data else None
-        except Exception:
-            vessel = None
-    else:
-        try:
-            vessel = await vessel_repo.get(db, request.vessel_id)
-        except Exception as exc:
-            import logging
-            logging.error(f"DB Error for vessel_id={request.vessel_id}: {exc}", exc_info=True)
-            raise HTTPException(status_code=503, detail="Database unavailable") from exc
+    vessel = await _resolve_vessel(db, request)
 
     if vessel is None:
         raise HTTPException(status_code=404, detail="Vessel not found")
@@ -297,6 +307,26 @@ async def plan_route(
     )
 
 
+def _route_geometry_to_wkt(geom_value: Any) -> Optional[str]:
+    """Normalize an ORM route geometry (WKBElement/WKTElement/str) to WKT text.
+
+    Returns None when the geometry cannot be understood so callers can treat
+    the route as unrenderable instead of silently passing it through.
+    """
+    if geom_value is None:
+        return None
+    if isinstance(geom_value, str):
+        return geom_value
+    data = getattr(geom_value, "data", None)
+    if isinstance(data, str):
+        return data
+    try:
+        from geoalchemy2.shape import to_shape
+        return to_shape(geom_value).wkt
+    except Exception:
+        return None
+
+
 @router.get("/", response_model=list[RouteResponse])
 async def list_routes(
     db: AsyncSession = Depends(deps.get_db),
@@ -306,14 +336,35 @@ async def list_routes(
     from app.config.config import settings
     if getattr(settings, "DEMO_MODE", False):
         return []
+    from app.services.routing.validator import route_validator
     try:
         routes = await route_repo.get_multi(db, skip=pagination.skip, limit=pagination.limit)
         results = []
         for r in routes:
-            try:
-                geom = parse_wkt_linestring(r.geometry)
-            except Exception:
-                geom = {"type": "LineString", "coordinates": []}
+            wkt_text = _route_geometry_to_wkt(r.geometry)
+            geom = {"type": "LineString", "coordinates": []}
+            is_valid = False
+            error_msg = "geometry unreadable"
+            if wkt_text:
+                try:
+                    geom = parse_wkt_linestring(wkt_text)
+                except Exception:
+                    geom = {"type": "LineString", "coordinates": []}
+                # Never serve routes that cross land (e.g. legacy seeded rows
+                # with direct-line geometry) - they would render straight
+                # through coastlines on the map.
+                try:
+                    is_valid, error_msg, _ = route_validator.validate_wkt_linestring(
+                        wkt_text, strict=False
+                    )
+                except Exception as exc:
+                    is_valid, error_msg = False, str(exc)
+            if not is_valid:
+                import logging
+                logging.warning(
+                    f"Hiding route {r.route_id} from listing: fails land avoidance ({error_msg})"
+                )
+                continue
             props = RouteProperties(
                 route_id=r.route_id,
                 vessel_id=r.vessel_id,
@@ -346,7 +397,10 @@ async def get_route(
         raise HTTPException(status_code=404, detail="Route not found")
 
     try:
-        geometry = parse_wkt_linestring(obj.geometry)
+        wkt_text = _route_geometry_to_wkt(obj.geometry)
+        geometry = parse_wkt_linestring(wkt_text) if wkt_text else None
+        if geometry is None:
+            raise ValueError("unreadable geometry")
     except Exception:
         geometry = {"type": "LineString", "coordinates": []}
     properties = RouteProperties(
@@ -388,28 +442,7 @@ async def compare_routes(
             except Exception as exc:
                 raise HTTPException(status_code=500, detail=f"Demo corridor failed: {exc}")
 
-    if request.custom_vessel_config:
-        vessel = Vessel(**request.custom_vessel_config.model_dump())
-        vessel.vessel_id = request.vessel_id
-    elif demo_mode:
-        import json
-        from pathlib import Path
-        try:
-            vessels_path = Path(__file__).resolve().parents[4] / "data" / "vessels.json"
-            with vessels_path.open("r", encoding="utf-8") as f:
-                all_vessels = json.load(f)
-            v_id_str = str(request.vessel_id)
-            vessel_data = next((v for v in all_vessels if str(v.get("vessel_id")) == v_id_str), None)
-            if not vessel_data and all_vessels:
-                vessel_data = all_vessels[0]
-            vessel = Vessel(**vessel_data) if vessel_data else None
-        except Exception:
-            vessel = None
-    else:
-        try:
-            vessel = await vessel_repo.get(db, request.vessel_id)
-        except Exception as exc:
-            raise HTTPException(status_code=503, detail="Database unavailable") from exc
+    vessel = await _resolve_vessel(db, request)
 
     if vessel is None:
         raise HTTPException(status_code=404, detail="Vessel not found")

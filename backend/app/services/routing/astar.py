@@ -1,5 +1,6 @@
 import heapq
 import asyncio
+import math
 from datetime import timedelta, datetime
 from typing import Any, Dict, List, Optional
 
@@ -15,6 +16,10 @@ from app.services.routing.planner import RoutePlanner
 class AStarRoutePlanner(RoutePlanner):
     def __init__(self, resolution: float = 0.5):
         self.grid_builder = GridBuilder(resolution=resolution)
+        # Coarse search grids for ocean-spanning voyages; the fine base grid
+        # is always kept for port snapping and the final coastal approach.
+        self._medium_grid = GridBuilder(resolution=1.0)
+        self._coarse_grid = GridBuilder(resolution=2.0)
         self.cost_calculator = CostCalculator()
         self.constraint_checker = VesselConstraintChecker()
 
@@ -38,7 +43,18 @@ class AStarRoutePlanner(RoutePlanner):
         return a.distance_to(b)
 
     def _grid_for_voyage(self, start: Node, goal: Node) -> GridBuilder:
-        """Use a coarser geographic search grid for ocean-spanning voyages."""
+        """Use a coarser geographic search grid for ocean-spanning voyages.
+
+        A 0.5 degree lattice over a 5,000 NM passage explodes past the search
+        budget, so voyages of 2,000+ NM search on 1.0 degree and 4,000+ NM on
+        2.0 degree grids. Land avoidance is unaffected: every edge is still
+        sampled at ~0.05 degree against the land mask.
+        """
+        voyage_nm = start.distance_to(goal)
+        if voyage_nm >= 4000.0:
+            return self._coarse_grid
+        if voyage_nm >= 2000.0:
+            return self._medium_grid
         return self.grid_builder
 
     def _refine_final_approach(self, path: List[Node], goal: Node) -> List[Node]:
@@ -73,7 +89,7 @@ class AStarRoutePlanner(RoutePlanner):
                 refined.reverse()
                 return path[:-2] + refined
 
-            for neighbor in self.grid_builder.get_neighbors(current):
+            for neighbor in self.grid_builder.get_neighbors(current, goal):
                 candidate = cost[current] + current.distance_to(neighbor)
                 if candidate >= cost.get(neighbor, float("inf")):
                     continue
@@ -86,6 +102,38 @@ class AStarRoutePlanner(RoutePlanner):
         # If no fine-water approach is available, keep the validated global
         # route rather than synthesizing a connector through land.
         return path
+
+    def _edge_navigable(
+        self, current: Node, neighbor: Node, vessel: Vessel, risk_grid: Any, resolution: float
+    ) -> bool:
+        """Check vessel navigability along the whole edge, not just its endpoint.
+
+        Coarse search grids produce edges up to a couple of degrees long; a
+        blocked risk cell between two open nodes must still stop the edge,
+        including the goal connector shortcut.
+        """
+        if not self.constraint_checker.is_navigable(neighbor, vessel, risk_grid):
+            return False
+        if not risk_grid:
+            return True
+
+        dlat = neighbor.lat - current.lat
+        dlon = neighbor.lon - current.lon
+        if dlon > 180:
+            dlon -= 360
+        elif dlon < -180:
+            dlon += 360
+        dist_deg = math.sqrt(dlat * dlat + dlon * dlon)
+        if dist_deg <= resolution * 1.5:
+            return True
+
+        interior = min(8, max(1, int(dist_deg / resolution) - 1))
+        for i in range(1, interior + 1):
+            t = i / (interior + 1)
+            sample = Node(lat=current.lat + t * dlat, lon=current.lon + t * dlon)
+            if not self.constraint_checker.is_navigable(sample, vessel, risk_grid):
+                return False
+        return True
 
     async def plan_route(
         self, request: RouteRequest, vessel: Vessel, risk_grid: Any, demo_mode: bool = False, candidate_icebergs: List[Dict[str, Any]] = None
@@ -187,7 +235,7 @@ class AStarRoutePlanner(RoutePlanner):
                 
             if iterations > max_iterations:
                 print(f"FAILED AT ITER {iterations}: current={current.lat},{current.lon} goal={goal_node.lat},{goal_node.lon}")
-                raise ValueError("No navigable water route found within the configured search limits.")
+                raise ValueError("No feasible route exists within the configured search limits.")
 
             _, _, current, current_time = heapq.heappop(open_set)
             
@@ -204,7 +252,7 @@ class AStarRoutePlanner(RoutePlanner):
             for neighbor in neighbors:
                 if neighbor in closed_set:
                     continue
-                if not self.constraint_checker.is_navigable(neighbor, vessel, risk_grid):
+                if not self._edge_navigable(current, neighbor, vessel, risk_grid, grid_builder.resolution):
                     continue
 
                 # Fetch 4D conditions at neighbor arrival time
@@ -215,16 +263,17 @@ class AStarRoutePlanner(RoutePlanner):
                 
                 env = global_forecast_grid.get_conditions(neighbor.lat, neighbor.lon, rough_eta)
                 risk = self.cost_calculator.get_risk_at(neighbor, risk_grid)
-                
+
                 if risk is None:
                     if demo_mode:
                         # Demo fallback path: do not represent unknown risk as verified 0.0
                         # Assign an arbitrary unverified penalty instead
-                        effective_risk = 0.5 
+                        effective_risk = 0.5
                     else:
-                        if request.objective_type.value == "safest":
-                            raise ValueError("INSUFFICIENT_RISK_DATA: Safety First route requires valid risk data. Missing ML predictions.")
-                        # Missing risk on a specific node just means 0 known risk for other objectives.
+                        # Risk cells only cover part of the ocean; a missing
+                        # cell means "no known hazard here". The empty-grid
+                        # guard above already refuses SAFEST when no risk
+                        # data exists at all.
                         effective_risk = 0.0
                 else:
                     effective_risk = risk
@@ -267,7 +316,7 @@ class AStarRoutePlanner(RoutePlanner):
                         heapq.heappush(open_set, (f_score[neighbor], id(neighbor), neighbor, exact_eta))
 
         print(f"OPEN_SET EXHAUSTED AFTER {iterations} ITERATIONS")
-        raise ValueError("No navigable water route found within the configured search limits.")
+        raise ValueError("No feasible route exists within the configured search limits.")
 
     def _reconstruct_route(
         self,

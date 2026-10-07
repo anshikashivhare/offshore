@@ -68,13 +68,15 @@ async def test_dynamic_storm_detour(mock_vessel, mock_request, monkeypatch):
     import app.services.environment.forecast_grid
     monkeypatch.setattr(app.services.environment.forecast_grid, "global_forecast_grid", mock_grid)
     
-    # Run 1: No Storm
+    # Run 1: No Storm. SAFEST requires a non-empty risk grid in non-demo
+    # mode; a benign cell satisfies that guard without affecting the storm
+    # dynamics driven by the mocked forecast grid.
     mock_grid.storm_active = False
-    route_no_storm = await planner.plan_route(mock_request, mock_vessel, risk_grid={})
-    
+    route_no_storm = await planner.plan_route(mock_request, mock_vessel, risk_grid={(-60.0, -65.0): 0.05})
+
     # Run 2: Storm Active
     mock_grid.storm_active = True
-    route_with_storm = await planner.plan_route(mock_request, mock_vessel, risk_grid={})
+    route_with_storm = await planner.plan_route(mock_request, mock_vessel, risk_grid={(-60.0, -65.0): 0.05})
     
     # The routes must be different
     assert route_no_storm.geometry != route_with_storm.geometry

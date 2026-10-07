@@ -23,7 +23,7 @@ class DemoPortProvider(PortProvider):
         }
 
 class DemoIcebergProvider(IcebergProvider):
-    def get_candidate_icebergs(self, bounds: Dict[str, float]) -> List[Dict[str, Any]]:
+    async def get_candidate_icebergs(self, bounds: Dict[str, float]) -> List[Dict[str, Any]]:
         # Provide deterministic mock candidates inside bounds
         return [
             {

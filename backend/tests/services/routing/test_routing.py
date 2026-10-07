@@ -80,18 +80,15 @@ async def test_astar_no_feasible_route(planner, vessel):
         objective_type=ObjectiveType.SAFEST
     )
     
-    # Surround destination (lat=2.0, lon=0.0) with obstacles on a 1.0 resolution grid
-    risk_grid = {
-        (1.0, 0.0): 1.0,
-        (3.0, 0.0): 1.0,
-        (2.0, 1.0): 1.0,
-        (2.0, -1.0): 1.0,
-        (1.0, 1.0): 1.0,
-        (1.0, -1.0): 1.0,
-        (3.0, 1.0): 1.0,
-        (3.0, -1.0): 1.0
-    }
-    
+    # Wall off the destination (lat=2.0, lon=0.0) with a dense box of blocked
+    # cells. The box must be contiguous at ~0.1 degree because the planner may
+    # approach the goal along any water line (goal connector) up to a few
+    # degrees long; a sparse ring would leave legal gaps between the cells.
+    risk_grid = {}
+    for i in range(21):  # lat 1.0 .. 3.0
+        for j in range(21):  # lon -1.0 .. 1.0
+            risk_grid[(round(1.0 + 0.1 * i, 1), round(-1.0 + 0.1 * j, 1))] = 1.0
+
     with pytest.raises(ValueError, match="No feasible route exists"):
         await planner.plan_route(req, vessel, risk_grid, demo_mode=True)
 

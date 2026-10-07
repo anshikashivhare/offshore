@@ -143,7 +143,7 @@ export const alerts: Alert[] = [];
 
 export const forecastMeta: ForecastMeta = { 
   asOf: "Live Data", 
-  horizonHours: 0, 
+  horizonHours: 7, 
   confidence: "Unknown", 
   status: "Loading" 
 };

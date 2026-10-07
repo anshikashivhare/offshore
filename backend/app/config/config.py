@@ -13,7 +13,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     API_V1_PREFIX: str = "/api/v1"
     DEMO_MODE: bool = False
-    DEMO_CORRIDOR_ENABLED: bool = True
+    # Canned Sydney<->Rothera presentation corridor. Disabled so route planning
+    # runs through the real A*/Dijkstra planners for every port pair; flip to
+    # True only for deterministic presentation replays.
+    DEMO_CORRIDOR_ENABLED: bool = False
+    # Serve the bundled synthetic datasets (vessels.json, ports.json,
+    # risk_cells.geojson) when PostgreSQL is unreachable or returns no data so
+    # route planning keeps working end-to-end.
+    SYNTHETIC_DATA_MODE: bool = True
 
     # Secrets - REQUIRED in production, auto-generated in dev for convenience.
     SECRET_KEY: str = ""

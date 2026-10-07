@@ -59,6 +59,34 @@ async def read_vessels(
         items = [VesselResponse.model_validate(v) for v in db_items]
         total = await vessel_repo.count_filtered(db, name=name, country=country)
     except Exception as exc:
+        # Database unavailable - fall back to the bundled synthetic vessels
+        # so route planning and the vessel picker keep working.
+        from app.config.config import settings as _settings
+        if getattr(_settings, "SYNTHETIC_DATA_MODE", False):
+            try:
+                from app.services.providers.synthetic_files import load_vessels
+                records = load_vessels()
+                if name:
+                    records = [v for v in records if name.lower() in str(v.get("vessel_name", "")).lower()]
+                if country:
+                    records = [v for v in records if country.lower() in str(v.get("flag_country", "")).lower()]
+                total = len(records)
+                items = [
+                    VesselResponse.model_validate(v)
+                    for v in records[pagination.skip : pagination.skip + pagination.limit]
+                ]
+                return Pagination[VesselResponse].from_qs(
+                    items=items,
+                    total=total,
+                    skip=pagination.skip,
+                    limit=pagination.limit,
+                    model_cls=VesselResponse,
+                )
+            except Exception as fallback_exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Database unavailable and synthetic vessels failed: {fallback_exc}"
+                ) from fallback_exc
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable"
@@ -132,6 +160,15 @@ async def read_vessel(
     except HTTPException:
         raise
     except Exception as exc:
+        from app.config.config import settings as _settings
+        if getattr(_settings, "SYNTHETIC_DATA_MODE", False):
+            from app.services.providers.synthetic_files import load_vessels
+            id_str = str(vessel_id)
+            record = next(
+                (v for v in load_vessels() if str(v.get("vessel_id")) == id_str), None
+            )
+            if record is not None:
+                return VesselResponse.model_validate(record)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable"

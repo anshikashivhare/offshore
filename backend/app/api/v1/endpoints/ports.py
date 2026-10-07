@@ -37,6 +37,18 @@ def _normalize_port(p: dict, idx: int) -> dict:
     }
 
 
+def _synthetic_ports() -> List[dict]:
+    """Bundled synthetic ports (backend/data/ports.json), DB-shaped."""
+    from app.config.config import settings
+    if not getattr(settings, "SYNTHETIC_DATA_MODE", False):
+        return []
+    from app.services.providers.synthetic_files import load_ports
+    return [
+        _normalize_port(p, idx)
+        for idx, p in enumerate(load_ports())
+    ]
+
+
 import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,8 +74,20 @@ async def get_ports(
     query = f"SELECT port_id, name, country, latitude, longitude FROM ports {where_clause} ORDER BY name LIMIT :limit OFFSET :skip"
     params["limit"] = pagination.limit
     params["skip"] = pagination.skip
-    
-    res = await db.execute(text(query), params)
+
+    try:
+        res = await db.execute(text(query), params)
+    except Exception:
+        # Database unavailable - serve the bundled synthetic ports instead.
+        ports = _synthetic_ports()
+        if bbox_tuple:
+            min_lat, min_lon, max_lat, max_lon = bbox_tuple
+            ports = [
+                p for p in ports
+                if min_lat <= p["lat"] <= max_lat and min_lon <= p["lon"] <= max_lon
+            ]
+        ports.sort(key=lambda p: p["name"])
+        return Pagination.from_list(ports, pagination.skip, pagination.limit)
     results = []
     for r in res:
         results.append({
@@ -86,7 +110,17 @@ async def search_ports(
 ):
     """Search ports by name or country substring (case‑insensitive) with pagination."""
     query = "SELECT port_id, name, country, latitude, longitude FROM ports WHERE name ILIKE :q OR country ILIKE :q ORDER BY name LIMIT :limit OFFSET :skip"
-    res = await db.execute(text(query), {"q": f"%{q}%", "limit": pagination.limit, "skip": pagination.skip})
+    try:
+        res = await db.execute(text(query), {"q": f"%{q}%", "limit": pagination.limit, "skip": pagination.skip})
+    except Exception:
+        # Database unavailable - search the bundled synthetic ports instead.
+        q_lower = q.lower()
+        ports = [
+            p for p in _synthetic_ports()
+            if q_lower in p["name"].lower() or q_lower in p["country"].lower()
+        ]
+        ports.sort(key=lambda p: p["name"])
+        return Pagination.from_list(ports, pagination.skip, pagination.limit)
     results = []
     for r in res:
         results.append({

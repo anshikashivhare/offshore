@@ -3837,5 +3837,57 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   }
 }
 
+/* =========================================================================
+   LANDING PAGE STYLES (INTEGRATED)
+   ========================================================================= */
+
+.font-montserrat {
+  font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+}
+
+.font-jakarta {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom cinematic glow and drop shadows */
+.text-glow-subtle {
+  text-shadow: 0 2px 18px rgba(11, 26, 46, 0.45), 0 0 40px rgba(255, 255, 255, 0.15);
+}
+
+.text-hero-headline {
+  letter-spacing: 0.08em;
+  font-weight: 200;
+  text-shadow: 0 4px 30px rgba(7, 24, 46, 0.5);
+}
+
+.btn-ocean-shadow {
+  box-shadow: 0 10px 30px -5px rgba(5, 20, 42, 0.4), 0 0 1px 1px rgba(255, 255, 255, 0.3) inset;
+}
+
+@keyframes dashFlow {
+  from {
+    stroke-dashoffset: 120;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes dashFlowReverse {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 120;
+  }
+}
+.animate-dash-flow {
+  animation: dashFlow 12s linear infinite;
+}
+.animate-dash-flow-reverse {
+  animation: dashFlowReverse 16s linear infinite;
+}
+.animate-dash-flow-slow {
+  animation: dashFlow 24s linear infinite;
+}
 
 

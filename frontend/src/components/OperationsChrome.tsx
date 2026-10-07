@@ -183,7 +183,7 @@ export function Timeline({
         </button>
         <div className="time-control-label-group">
           <span className="time-control-title">TIME CONTROL</span>
-          <span className="time-control-horizon">{forecast.horizonHours} h forecast</span>
+          <span className="time-control-horizon">{forecastHours} h forecast</span>
         </div>
       </div>
 

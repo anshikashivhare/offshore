@@ -36,12 +36,10 @@ def _get_valid_neighbors(lat: float, lon: float, resolution: float) -> Tuple[Tup
     neighbor_sample_counts = []
     neighbor_coords = []
     
-    if lat > -50.0:
-        step = 2.0
-    elif lat > -60.0:
-        step = 1.0
-    else:
-        step = resolution
+    # The search step is the grid resolution at every latitude. Long-haul
+    # voyages switch to a coarser GridBuilder instead of widening the step
+    # here, so fine grids stay fine near coasts at all latitudes.
+    step = resolution
 
     for dlat in [-step, 0, step]:
         for dlon in [-step, 0, step]:

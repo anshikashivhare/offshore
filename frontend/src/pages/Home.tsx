@@ -78,7 +78,7 @@ export default function Home() {
   })();
   const isImmersive = viewMode === "navigation" || viewMode === "risk";
   const showFooter = !isImmersive;
-  const [forecastHours, setForecastHours] = useState(16);
+  const [forecastHours, setForecastHours] = useState(7);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
 

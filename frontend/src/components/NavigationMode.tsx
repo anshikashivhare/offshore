@@ -1030,14 +1030,124 @@ export function IcebergHoverTooltip({
 }: {
   info: { iceberg: Iceberg; x: number; y: number; distanceNm?: number } | null;
 }) {
+  const [cardSize, setCardSize] = useState({ width: 250, height: 230 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Measure actual dimensions once rendered to refine the fixed assumptions
+  useEffect(() => {
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0 && (rect.width !== cardSize.width || rect.height !== cardSize.height)) {
+        setCardSize({ width: rect.width, height: rect.height });
+      }
+    }
+  }, [info?.iceberg.id, cardSize.width, cardSize.height]);
+
   if (!info) return null;
   const { iceberg, x, y, distanceNm } = info;
-  const left = typeof window !== "undefined"
-    ? Math.min(Math.max(x + 14, 16), window.innerWidth - 270)
-    : x + 14;
-  const top = typeof window !== "undefined"
-    ? Math.min(Math.max(y - 140, 16), window.innerHeight - 280)
-    : y - 140;
+  
+  // Convert viewport coordinates (info.x, info.y) to map-stage local coordinates
+  let localX = x;
+  let localY = y;
+  let mapWidth = typeof window !== "undefined" ? window.innerWidth : 1000;
+  let mapHeight = typeof window !== "undefined" ? window.innerHeight : 1000;
+
+  if (typeof document !== "undefined") {
+    const mapEl = document.querySelector(".map-stage");
+    if (mapEl) {
+      const mapRect = mapEl.getBoundingClientRect();
+      localX = x - mapRect.left;
+      localY = y - mapRect.top;
+      mapWidth = mapRect.width;
+      mapHeight = mapRect.height;
+    }
+  }
+
+  const spacing = 20; // Space between pointer and popup
+  const margin = 12; // Margin from map edges
+
+  const spaceRight = mapWidth - localX - spacing;
+  const spaceLeft = localX - spacing;
+  const spaceTop = localY - spacing;
+  const spaceBottom = mapHeight - localY - spacing;
+
+  let placement: "right" | "left" | "top" | "bottom" = "right";
+
+  // Prioritize Right, then Left, then Top, then Bottom
+  if (spaceRight >= cardSize.width + margin) {
+    placement = "right";
+  } else if (spaceLeft >= cardSize.width + margin) {
+    placement = "left";
+  } else if (spaceTop >= cardSize.height + margin) {
+    placement = "top";
+  } else if (spaceBottom >= cardSize.height + margin) {
+    placement = "bottom";
+  } else {
+    // If none fit, default to right and it will be clamped
+    placement = "right";
+  }
+
+  let left = localX;
+  let top = localY;
+  
+  // Arrow styles
+  const arrowSize = 6;
+  let arrowStyle: React.CSSProperties = {
+    position: "absolute",
+    width: 0,
+    height: 0,
+    borderStyle: "solid",
+  };
+
+  if (placement === "right") {
+    left = localX + spacing;
+    top = localY - cardSize.height / 2;
+    arrowStyle = {
+      ...arrowStyle,
+      left: -arrowSize,
+      top: "50%",
+      transform: "translateY(-50%)",
+      borderWidth: `${arrowSize}px ${arrowSize}px ${arrowSize}px 0`,
+      borderColor: `transparent rgba(15, 23, 42, 0.96) transparent transparent`,
+    };
+  } else if (placement === "left") {
+    left = localX - cardSize.width - spacing;
+    top = localY - cardSize.height / 2;
+    arrowStyle = {
+      ...arrowStyle,
+      right: -arrowSize,
+      top: "50%",
+      transform: "translateY(-50%)",
+      borderWidth: `${arrowSize}px 0 ${arrowSize}px ${arrowSize}px`,
+      borderColor: `transparent transparent transparent rgba(15, 23, 42, 0.96)`,
+    };
+  } else if (placement === "top") {
+    left = localX - cardSize.width / 2;
+    top = localY - cardSize.height - spacing;
+    arrowStyle = {
+      ...arrowStyle,
+      bottom: -arrowSize,
+      left: "50%",
+      transform: "translateX(-50%)",
+      borderWidth: `${arrowSize}px ${arrowSize}px 0 ${arrowSize}px`,
+      borderColor: `rgba(15, 23, 42, 0.96) transparent transparent transparent`,
+    };
+  } else if (placement === "bottom") {
+    left = localX - cardSize.width / 2;
+    top = localY + spacing;
+    arrowStyle = {
+      ...arrowStyle,
+      top: -arrowSize,
+      left: "50%",
+      transform: "translateX(-50%)",
+      borderWidth: `0 ${arrowSize}px ${arrowSize}px ${arrowSize}px`,
+      borderColor: `transparent transparent rgba(15, 23, 42, 0.96) transparent`,
+    };
+  }
+
+  // Clamping against local container dimensions
+  left = Math.max(margin, Math.min(left, mapWidth - cardSize.width - margin));
+  top = Math.max(margin, Math.min(top, mapHeight - cardSize.height - margin));
 
   const isSar = iceberg.id.includes("D") || iceberg.id.includes("3") || iceberg.risk === "high";
   const imageSrc = iceberg.imageSrc || (isSar
@@ -1055,15 +1165,18 @@ export function IcebergHoverTooltip({
 
   return (
     <div
+      ref={cardRef}
       className="iceberg-hover-card"
       style={{
-        position: "fixed",
+        position: "absolute",
         left: `${left}px`,
         top: `${top}px`,
         zIndex: 9999,
         pointerEvents: "none",
+        width: "250px", // ensure width is fixed
       }}
     >
+      <div style={arrowStyle} />
       <div className="iceberg-hover-inner">
         <div className="iceberg-hover-header">
           <span className="iceberg-hover-red-dot" />

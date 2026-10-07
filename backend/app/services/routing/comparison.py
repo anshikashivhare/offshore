@@ -212,7 +212,33 @@ class RouteComparisonService:
 
         results = await asyncio.gather(*[_plan_objective(obj) for obj in objectives])
 
+        # Defense-in-depth: never hand a land-crossing route to the client,
+        # even if a planner regression reintroduces one. Invalid routes are
+        # dropped here; if nothing valid remains the request fails.
+        from app.services.routing.validator import route_validator
+
+        validated_results = []
         for obj, route, error in results:
+            if route is None:
+                if error:
+                    errors.append(error)
+                continue
+            try:
+                coords = getattr(route.geometry, "coordinates", None)
+                if coords is None and isinstance(route.geometry, dict):
+                    coords = route.geometry.get("coordinates")
+                wkt = "LINESTRING(" + ", ".join(
+                    f"{c[0]} {c[1]}" for c in (coords or [])
+                ) + ")"
+                is_valid, err_msg, _ = route_validator.validate_wkt_linestring(wkt, strict=False)
+            except Exception as validation_exc:
+                is_valid, err_msg = False, str(validation_exc)
+            if not is_valid:
+                errors.append(f"{obj.value} route rejected: crosses land ({err_msg})")
+                continue
+            validated_results.append((obj, route, None))
+
+        for obj, route, error in validated_results:
             if route:
                 routes_generated[obj] = route
             elif error:

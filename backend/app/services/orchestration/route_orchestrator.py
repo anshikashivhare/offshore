@@ -64,11 +64,17 @@ class RouteOrchestrator:
             }
         except Exception:
             bounds = {"min_lon": -180.0, "max_lon": 180.0, "min_lat": -90.0, "max_lat": 90.0}
-            
-        if demo_mode:
-            return await self.demo_iceberg_provider.get_candidate_icebergs(bounds)
-            
-        return await self.iceberg_provider.get_candidate_icebergs(bounds)
+
+        if not demo_mode:
+            try:
+                return await self.iceberg_provider.get_candidate_icebergs(bounds)
+            except Exception as exc:
+                # Database unavailable - fall through to the synthetic
+                # iceberg candidates instead of failing the plan.
+                import logging
+                logging.warning(f"PostGIS iceberg lookup failed, using synthetic candidates: {exc}")
+
+        return await self.demo_iceberg_provider.get_candidate_icebergs(bounds)
 
     def _validate_route(self, route_create: RouteCreate) -> RouteCreate:
         try:

@@ -16,9 +16,15 @@ class MockRoutePlanner:
                 'destination': request.destination,
                 'departure_time': request.departure_time,
                 'distance': 100.0,
+                'travel_time': 10.0,
                 'eta': request.departure_time,
                 'estimated_fuel': 500.0,
                 'risk_score': 0.8,
+                'risk_exposure': 8.0,
+                'waypoints': None,
+                'risk_data_status': 'KNOWN',
+                'ml_prediction_status': 'AVAILABLE',
+                'warnings': [],
                 'objective_type': request.objective_type,
                 'algorithm_version': 'mock',
                 'geometry': 'LINESTRING(0 0, 1 1)'
@@ -30,9 +36,15 @@ class MockRoutePlanner:
                 'destination': request.destination,
                 'departure_time': request.departure_time,
                 'distance': 150.0, # longer distance
+                'travel_time': 15.0,
                 'eta': request.departure_time,
                 'estimated_fuel': 700.0, # more fuel
                 'risk_score': 0.1, # much lower risk
+                'risk_exposure': 1.0,
+                'waypoints': None,
+                'risk_data_status': 'KNOWN',
+                'ml_prediction_status': 'AVAILABLE',
+                'warnings': [],
                 'objective_type': request.objective_type,
                 'algorithm_version': 'mock',
                 'geometry': 'LINESTRING(0 0, 1 1)'
@@ -82,4 +94,6 @@ async def test_compare_routes(comparison_service):
     # Assert shortest is in alternatives
     shortest_alt = next((alt for alt in response.alternatives if alt.route.properties.objective_type == ObjectiveType.SHORTEST), None)
     assert shortest_alt is not None
-    assert math.isclose(shortest_alt.comparison_metrics.risk_diff, 0.7, rel_tol=1e-5) # shortest risk 0.8 - safest risk 0.1
+    # shortest (exposure 8.0) - safest (exposure 1.0); the comparison prefers
+    # risk_exposure over risk_score when both are present.
+    assert math.isclose(shortest_alt.comparison_metrics.risk_diff, 7.0, rel_tol=1e-5)
