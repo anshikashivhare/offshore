@@ -58,10 +58,7 @@ class LazyModuleProxy:
 
 def lazy_import(module_name: str) -> Any:
     """
-    Returns a lazy proxy object for a module on Python < 3.15,
-    or directly imports when running on Python 3.15+ with declare_lazy.
+    Returns a lazy proxy object that delays importing
+    heavy modules (such as torch, xarray, geopandas) until an attribute is accessed.
     """
-    if IS_PYTHON_315_PLUS:
-        import importlib
-        return importlib.import_module(module_name)
     return LazyModuleProxy(module_name)

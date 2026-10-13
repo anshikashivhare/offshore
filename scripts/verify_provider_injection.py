@@ -28,9 +28,8 @@ async def run_pipeline():
         vessel_id=uuid.UUID(dummy_id),
         vessel_name="Test Vessel",
         vessel_type="Icebreaker",
-        max_speed=15.0,
         cruising_speed=12.0,
-        draft_m=8.0,
+        ice_capability="PC3",
         fuel_consumption=10.0
     )
     

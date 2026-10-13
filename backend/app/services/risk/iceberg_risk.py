@@ -43,7 +43,7 @@ class IcebergRiskEngine:
         self.model_path = "ml/models/weights/iceberg_lstm_v002.pt"
         self.meta_path = "ml/models/metadata/iceberg_lstm_v002.json"
         self.model = None
-        self.device = torch.device("cpu")
+        self.device = "cpu"
         self.meta = {}
         self.iceberg_radius_km = 0.5 
         self.mc_simulator = MonteCarloIcebergSimulator()
@@ -59,6 +59,7 @@ class IcebergRiskEngine:
                 self.meta = json.load(f)
             
             import torch.nn as nn
+            self.device = torch.device("cpu")
             class IcebergLSTM(nn.Module):
                 def __init__(self):
                     super().__init__()

@@ -1,10 +1,10 @@
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../backend')))
 from app.services.risk.iceberg_risk import IcebergRiskEngine
-from app.services.routing.astar import AStarRouter, GridNode
+from app.services.routing.astar import AStarRoutePlanner, Node
 
 class MockGrid:
     def get_neighbors(self, node):
@@ -13,7 +13,7 @@ class MockGrid:
 def run_phase35():
     engine = IcebergRiskEngine()
     print("--- 1. MULTIPLE MOVING ICEBERGS ---")
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     
     # Simulate three icebergs
     ice1 = engine.predict_iceberg_trajectory({'iceberg_id': 'ice-1', 'lat': 50.1, 'lon': -60.0}, start_time, [1.0])
