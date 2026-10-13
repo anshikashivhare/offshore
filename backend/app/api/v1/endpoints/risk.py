@@ -62,22 +62,19 @@ async def _get_cells_with_total(
     bb: Optional[List[float]],
     time_range: deps.TimeRangeParams,
 ):
-    """Run get_multi and count concurrently to halve DB round-trips."""
-    cells, total = await _aio.gather(
-        risk_cell_repo.get_multi(
-            db,
-            skip=skip,
-            limit=limit,
-            bbox=bb,
-            start_time=time_range.start_time,
-            end_time=time_range.end_time,
-        ),
-        risk_cell_repo.count(
-            db,
-            bbox=bb,
-            start_time=time_range.start_time,
-            end_time=time_range.end_time,
-        ),
+    cells = await risk_cell_repo.get_multi(
+        db,
+        skip=skip,
+        limit=limit,
+        bbox=bb,
+        start_time=time_range.start_time,
+        end_time=time_range.end_time,
+    )
+    total = await risk_cell_repo.count(
+        db,
+        bbox=bb,
+        start_time=time_range.start_time,
+        end_time=time_range.end_time,
     )
     return cells, total
 

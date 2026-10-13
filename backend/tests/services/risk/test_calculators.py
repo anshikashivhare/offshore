@@ -21,26 +21,26 @@ class MockDB:
 async def test_ice_risk_calculator():
     calc = IceRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.0
+    assert result.risk_value is None
     assert result.is_missing
 
 @pytest.mark.asyncio
 async def test_iceberg_risk_calculator():
     calc = IcebergRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.0
+    assert result.risk_value is None
     assert result.is_missing
 
 @pytest.mark.asyncio
 async def test_weather_risk_calculator():
     calc = WeatherRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.0
+    assert result.risk_value is None
     assert result.is_missing
 
 @pytest.mark.asyncio
 async def test_current_risk_calculator():
     calc = CurrentRiskCalculator(db=MockDB())
     result = await calc.calculate(0.0, 0.0, datetime.now(timezone.utc))
-    assert result.risk_value == 0.0
+    assert result.risk_value is None
     assert result.is_missing

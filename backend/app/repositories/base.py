@@ -31,7 +31,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)
-        db_obj = self.model(**obj_in_data)
+        col_names = {col.name for col in self.model.__table__.columns}
+        filtered_data = {k: v for k, v in obj_in_data.items() if k in col_names}
+        db_obj = self.model(**filtered_data)
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)

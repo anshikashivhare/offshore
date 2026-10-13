@@ -33,12 +33,8 @@ async def get_alerts(
         end_time=time_range.end_time,
     )
 
-    # FIX: fire get_multi and count concurrently — halves DB round-trips vs
-    # the previous two sequential awaits with identical WHERE clauses.
-    rows, total = await _aio.gather(
-        alert_repo.get_multi(db, skip=pagination.skip, limit=pagination.limit, **filters),
-        alert_repo.count(db, **filters),
-    )
+    rows = await alert_repo.get_multi(db, skip=pagination.skip, limit=pagination.limit, **filters)
+    total = await alert_repo.count(db, **filters)
 
     features = [
         GeoJSONFeature[AlertResponse](

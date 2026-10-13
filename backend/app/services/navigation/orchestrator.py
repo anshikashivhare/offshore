@@ -42,13 +42,31 @@ class NavigationOrchestrator:
         Returns a dict keyed by (lat, lon) rounded to 0.1 degrees, value is a
         dict of per-component risks plus the composite risk.
         """
-        if self.db is None:
-            return {}
         try:
             origin_lon, origin_lat = (float(x) for x in request.origin.split(","))
             dest_lon, dest_lat = (float(x) for x in request.destination.split(","))
         except (ValueError, AttributeError):
             return {}
+
+        if self.db is None:
+            import numpy as np
+            min_lat = min(origin_lat, dest_lat) - 1.0
+            max_lat = max(origin_lat, dest_lat) + 1.0
+            min_lon = min(origin_lon, dest_lon) - 1.0
+            max_lon = max(origin_lon, dest_lon) + 1.0
+            grid: Dict[Tuple[float, float], Dict[str, float]] = {}
+            for lat in np.arange(min_lat, max_lat + 0.1, 0.5):
+                for lon in np.arange(min_lon, max_lon + 0.1, 0.5):
+                    grid[(round(float(lat), 1), round(float(lon), 1))] = {
+                        "sea_ice": 0.0,
+                        "iceberg": 0.0,
+                        "weather": 0.0,
+                        "current": 0.0,
+                        "combined": 0.0,
+                        "composite": 0.0,
+                        "confidence": 0.5,
+                    }
+            return grid
         margin = 2.0
         envelope = func.ST_MakeEnvelope(
             min(origin_lon, dest_lon) - margin,

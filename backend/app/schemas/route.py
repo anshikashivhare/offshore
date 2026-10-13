@@ -16,7 +16,7 @@ class WaypointDetail(BaseModel):
     data_provenance: str
     env_conditions: Dict[str, Any]
 class RiskGridData(BaseModel):
-    cells: Dict[Any, float] = {}
+    cells: Dict[Any, Any] = {}
     status: str = "unavailable"
     ml_status: str = "unavailable"
     warnings: List[str] = []
