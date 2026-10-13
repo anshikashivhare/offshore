@@ -10,6 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Iterator, Optional, Tuple
 
+from app.utils.compat import declare_lazy
+
+declare_lazy("xarray")
+
 import xarray as xr
 
 logger = logging.getLogger(__name__)

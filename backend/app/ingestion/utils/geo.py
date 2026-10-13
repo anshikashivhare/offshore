@@ -1,5 +1,9 @@
 from typing import Optional
 
+from app.utils.compat import declare_lazy
+
+declare_lazy("geopandas", "shapely")
+
 import geopandas as gpd
 from shapely.geometry import box
 

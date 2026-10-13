@@ -1,8 +1,11 @@
 import uuid
-import torch
 import json
 import numpy as np
 from datetime import timedelta
+from app.utils.compat import declare_lazy, lazy_import
+
+declare_lazy("torch")
+torch = lazy_import("torch")
 
 def wrapped_lon_diff(lon2, lon1):
     return ((lon2 - lon1 + 180) % 360) - 180
