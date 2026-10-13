@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.15
 FROM python:${PYTHON_VERSION}-slim AS builder
 
 LABEL org.opencontainers.image.title="SIH-2026 PS-26059 Backend" \
@@ -20,7 +20,7 @@ COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir=/wheels -r requirements.txt
 
 
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.15
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

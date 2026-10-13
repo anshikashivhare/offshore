@@ -1,4 +1,5 @@
-FROM python:3.11-slim AS builder
+ARG PYTHON_VERSION=3.15
+FROM python:${PYTHON_VERSION}-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -16,7 +17,8 @@ COPY requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir=/wheels -r requirements.txt
 
 
-FROM python:3.11-slim AS runtime
+ARG PYTHON_VERSION=3.15
+FROM python:${PYTHON_VERSION}-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
