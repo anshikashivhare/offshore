@@ -1,10 +1,9 @@
 from typing import Any, Dict, List
-import datetime
 
 from app.schemas.route import RouteRequest, RouteCreate
 from app.models.vessel import Vessel
 from app.services.routing.astar import AStarRoutePlanner
-from app.services.routing.validator import route_validator, RouteValidationError
+from app.services.routing.validator import route_validator
 from app.config.config import settings
 from app.services.providers.postgres_providers import PostGISIcebergProvider
 from app.services.providers.demo import DemoIcebergProvider

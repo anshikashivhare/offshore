@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from app.models.forecast import Forecast
 from app.repositories.base import CRUDBase
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

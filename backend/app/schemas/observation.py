@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.schemas.common import GeoJSONFeature
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class SeaIceObservationProperties(BaseModel):

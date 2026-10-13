@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import List, Optional
+from typing import List
 
 from app.models.iceberg import IcebergDetection
 from app.repositories.iceberg import iceberg_detection as detection_repo

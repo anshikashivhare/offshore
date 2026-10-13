@@ -1,6 +1,4 @@
-import json
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, Query, Depends
 from typing import List, Optional
@@ -49,7 +47,6 @@ def _synthetic_ports() -> List[dict]:
     ]
 
 
-import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps

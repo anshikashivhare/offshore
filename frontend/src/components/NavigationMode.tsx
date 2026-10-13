@@ -1,13 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import {
-  Ship,
   Play,
   Pause,
   LocateFixed,
   X,
   Plus,
   Minus,
-  Compass,
 } from "lucide-react";
 import { useMap, MapMarker, MarkerContent, MapRoute } from "./map-components";
 import type { Coordinate, Iceberg, Route, Vessel } from "@/lib/offshore-types";
@@ -238,11 +236,8 @@ export function NavigationModeController({
   enabled,
   vessel,
   route,
-  origin,
-  destination,
   isFollowing,
   isPlaying,
-  speedMultiplier = 1,
   onUserPanned,
   onNavStateChange,
 }: {
@@ -624,8 +619,6 @@ export function VesselMarker({
 
 export function NavigationProminentRoute({
   route,
-  origin,
-  destination,
   enabled,
 }: {
   route?: Route | null;

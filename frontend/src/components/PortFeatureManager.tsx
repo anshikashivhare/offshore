@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Anchor,
   X,
-  Compass,
-  Navigation,
   MapPin,
   Search,
   Ship,
   Triangle,
   ChevronRight,
-  ExternalLink,
   Crosshair,
 } from "lucide-react";
 import { useMap } from "./map-components";

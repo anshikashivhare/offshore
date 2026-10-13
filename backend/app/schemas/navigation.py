@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 from app.models.enums import ObjectiveType
 from app.schemas.alert import AlertResponse
-from app.schemas.route import OptimizationWeights, RouteComparisonResponse
+from app.schemas.route import OptimizationWeights
 from pydantic import BaseModel, ConfigDict, Field
 
 

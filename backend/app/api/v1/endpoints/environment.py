@@ -13,7 +13,7 @@ from app.schemas.observation import (OceanObservationProperties,
                                      WeatherObservationProperties,
                                      WeatherObservationResponse)
 from app.utils.geojson import to_geojson_geometry
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()

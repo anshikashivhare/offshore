@@ -4,8 +4,8 @@ import logging
 import math
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 import numpy as np
 from app.models.iceberg import IcebergDetection, IcebergTrajectoryPrediction
@@ -13,7 +13,6 @@ from app.models.observation import OceanObservation, WeatherObservation
 from app.repositories.iceberg import iceberg_prediction as prediction_repo
 from app.schemas.common import GeoJSONFeature
 from app.schemas.iceberg import IcebergTrajectoryPredictionProperties
-from app.utils.geometry_decode import geometry_centroid_lonlat
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -208,7 +207,6 @@ class PhysicsBasedTrajectoryPredictor(IcebergTrajectoryPredictor):
             path.append([lon, lat])
 
         predictions: List[GeoJSONFeature[IcebergTrajectoryPredictionProperties]] = []
-        last_pred = prediction_repo is None  # type: ignore[comparison-overlap]
         for hour, (lon_h, lat_h) in enumerate(path[1:], start=1):
             radius_km = (
                 self.uncertainty_base_km + self.uncertainty_growth_km_per_h * hour

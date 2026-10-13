@@ -1,7 +1,6 @@
 import asyncio
 import httpx
 from datetime import datetime, timezone
-import math
 from typing import Dict, Any, Optional, Tuple
 
 from app.schemas.environment_live import (

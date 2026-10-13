@@ -156,10 +156,8 @@ export function getHeaderOpacity(time: number, duration = 9.6): number {
 export const OffshoreHero: React.FC<OffshoreHeroProps> = ({
   currentTime,
   cycleDuration = 9.6,
-  isPlaying = true,
   onNavClick,
   onPlanVoyageClick,
-  isCaptureMode = false,
   isBehindMountains = true,
   depthOffset = 0,
   animStyle = 'parallax',

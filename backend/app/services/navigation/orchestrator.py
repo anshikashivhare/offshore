@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from app.models.alert import Alert
 from app.models.risk import RiskCell
 from app.models.route import Route
 from app.models.vessel import Vessel
-from app.schemas.alert import AlertCreate, AlertProperties, AlertResponse
+from app.schemas.alert import AlertProperties, AlertResponse
 from app.schemas.navigation import (NavigationScenarioRequest,
                                     NavigationScenarioResponse)
 from app.schemas.route import RouteRequest
@@ -17,7 +17,7 @@ from app.services.alerts.engine import AlertEngine
 from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.comparison import RouteComparisonService
 from app.services.routing.dijkstra import DijkstraShortestPlanner
-from app.utils.geojson import parse_wkt_linestring, to_geojson_geometry
+from app.utils.geojson import to_geojson_geometry
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

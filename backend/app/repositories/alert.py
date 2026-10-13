@@ -1,9 +1,9 @@
-from typing import Any, List, Optional, Sequence
+from typing import Any, List, Optional
 
 from app.models.alert import Alert
 from app.repositories.base import CRUDBase
 from app.schemas.alert import AlertBase, AlertCreate
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

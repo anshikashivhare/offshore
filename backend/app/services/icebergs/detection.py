@@ -5,15 +5,13 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.models.iceberg import IcebergDetection
 from app.repositories.iceberg import iceberg as iceberg_repo
 from app.repositories.iceberg import iceberg_detection as detection_repo
 from app.schemas.common import GeoJSONFeature
-from app.schemas.iceberg import (IcebergDetectionProperties,
-                                 IcebergDetectionResponse)
-from app.utils.geojson import parse_wkt_point
+from app.schemas.iceberg import IcebergDetectionProperties
 from geoalchemy2 import Geometry
 from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from typing import Any, Dict
 
 import redis.asyncio as redis
 from app.config.config import settings

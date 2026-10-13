@@ -25,7 +25,6 @@ import {
 } from "@/lib/api";
 import {
   AppHeader,
-  ForecastBadge,
   MapOverlayLegend,
   Timeline,
   fmtForecastDateTime,
@@ -61,7 +60,7 @@ export default function Home() {
   const [destinationLabel, setDestinationLabel] = useState(locations[1]?.label || "");
   const [pickMode, setPickMode] = useState<"origin" | "destination" | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
-  const [activeAlertId, setActiveAlertId] = useState(alerts[0]?.id || "");
+  const [, setActiveAlertId] = useState(alerts[0]?.id || "");
   // Globe is the safe default for Antarctic interpretation; Mercator remains
   // available for familiar navigation interaction; Navigation mode gives 3D perspective voyage view.
   const [viewMode, setViewMode] = useState<ViewMode>("globe");

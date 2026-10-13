@@ -1,4 +1,3 @@
-import os
 
 from app.config.config import settings
 from celery import Celery

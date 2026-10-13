@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 from app.models.risk import RiskCell
 from app.repositories.base import CRUDBase

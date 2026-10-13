@@ -4,7 +4,7 @@ import inspect
 from functools import wraps
 from typing import Callable, Any
 
-from fastapi import Request, Depends
+from fastapi import Request
 from fastapi.responses import JSONResponse
 
 # Optional Redis backend – use if REDIS_URL env var is set

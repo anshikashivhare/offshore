@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, ShieldAlert, Compass, MapPin, Anchor, Info, CheckCircle2, ChevronRight, Wind, Navigation } from 'lucide-react';
+import React from 'react';
+import { X, CheckCircle2 } from 'lucide-react';
 
 interface ModalProps {
   isOpen: boolean;

@@ -9,7 +9,6 @@ import type {
   RiskCell,
   Route,
   UncertaintyRegion,
-  Vessel,
 } from "./offshore-types";
 
 export const locations: AppLocation[] = [

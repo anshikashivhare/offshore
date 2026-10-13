@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, List
+from typing import Any
 
 from app.api import deps
 from app.repositories.vessel import vessel as vessel_repo
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
-from typing import Any, List, Optional
+from typing import Optional
 from app.config.config import settings
 
 @router.get("/", response_model=Pagination[VesselResponse])

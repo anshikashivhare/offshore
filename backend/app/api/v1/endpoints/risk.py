@@ -11,7 +11,6 @@ from app.services.risk.engine import DEFAULT_WEIGHTS, RiskEngine
 from app.utils.geojson import to_geojson_geometry
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()

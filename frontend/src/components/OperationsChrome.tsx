@@ -1,18 +1,10 @@
 import { useRef } from "react";
 import {
-  Activity,
   Calendar,
   CalendarDays,
-  Clock,
-  Clock3,
-  CloudSnow,
-  Database,
   Menu,
   Play,
   Satellite,
-  Shield,
-  ShieldAlert,
-  Waves,
 } from "lucide-react";
 import type { ForecastMeta } from "@/lib/offshore-types";
 
@@ -98,15 +90,6 @@ function fmtShort(date: Date) {
     "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
   ];
   return `${date.getDate()} ${months[date.getMonth()]}`;
-}
-
-/** Format a date as "DD Mon YYYY" */
-function fmtLong(date: Date) {
-  const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
-  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /** Format a date as "DD Mon YYYY · HH:MM UTC" for forecast datetime display */

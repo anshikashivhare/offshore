@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from app.models.enums import ObjectiveType
 from app.schemas.common import GeoJSONFeature
@@ -172,7 +171,6 @@ class RouteBase(RouteCreate):
 
 RouteResponse = GeoJSONFeature[RouteProperties]
 
-from typing import List
 
 
 class RouteComparisonMetrics(BaseModel):

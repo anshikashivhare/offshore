@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMap } from "./map-components";
 import type { Coordinate, Iceberg } from "@/lib/offshore-types";
 import { calculateDistanceNm } from "./NavigationMode";

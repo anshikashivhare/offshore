@@ -1,6 +1,5 @@
 import json
 import uuid
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from app.api import deps
@@ -16,7 +15,7 @@ from app.services.routing.astar import AStarRoutePlanner
 from app.services.routing.comparison import RouteComparisonService
 from app.services.routing.dijkstra import DijkstraShortestPlanner
 from app.services.orchestration.route_orchestrator import RouteOrchestrator
-from app.utils.geojson import parse_wkt_linestring, to_geojson_geometry
+from app.utils.geojson import parse_wkt_linestring
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +33,7 @@ async def get_demo_scene() -> Any:
         try:
             with open(demo_file, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception:
             return {}
     return {}
 
@@ -201,7 +200,7 @@ async def plan_route(
     # We preserve the original request coordinates so they can be returned verbatim if needed.
 
     risk_grid = await _build_risk_grid(db, request)
-    demo_mode = getattr(settings, "DEMO_MODE", False)
+    getattr(settings, "DEMO_MODE", False)
 
     try:
         if request.objective_type.value == "shortest":

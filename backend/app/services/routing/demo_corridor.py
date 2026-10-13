@@ -11,7 +11,6 @@ Feature flag: DEMO_CORRIDOR_ENABLED (in config.py)
 import json
 import logging
 import uuid
-from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple

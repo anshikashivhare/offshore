@@ -1,8 +1,7 @@
 import logging
-import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional
 
 from app.models.enums import RiskCategory
 from app.schemas.risk import RiskCellCreate
