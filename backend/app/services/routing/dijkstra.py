@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import heapq
-import uuid
 from datetime import timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -38,12 +37,21 @@ class DijkstraShortestPlanner(RoutePlanner):
 
         Port snapping always stays on the fine base grid; only the lattice
         search switches resolution so long-haul passages fit the budget.
+        Retains the coarsest eligible lattice with land-safe neighbors at both
+        snapped endpoints, falling back when either port is confined (mirrors
+        AStarRoutePlanner._grid_for_voyage).
         """
         voyage_nm = start.distance_to(goal)
         if voyage_nm >= 4000.0:
-            return self._coarse_grid
-        if voyage_nm >= 2000.0:
-            return self._medium_grid
+            candidates = [self._coarse_grid, self._medium_grid, self.grid_builder]
+        elif voyage_nm >= 2000.0:
+            candidates = [self._medium_grid, self.grid_builder]
+        else:
+            return self.grid_builder
+
+        for grid in candidates:
+            if grid.get_neighbors(start) and grid.get_neighbors(goal):
+                return grid
         return self.grid_builder
 
     async def plan_route(

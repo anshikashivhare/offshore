@@ -49,12 +49,25 @@ class AStarRoutePlanner(RoutePlanner):
         budget, so voyages of 2,000+ NM search on 1.0 degree and 4,000+ NM on
         2.0 degree grids. Land avoidance is unaffected: every edge is still
         sampled at ~0.05 degree against the land mask.
+
+        A coarse lattice can leave a port whose local geometry is enclosed
+        (bays, island archipelagos, ice-shelf coastlines) with zero land-safe
+        coarse edges, which would exhaust the search on the first expansion.
+        In that case step down to the coarsest eligible grid that gives both
+        snapped endpoints at least one navigable neighbor; the base grid
+        always qualifies because port snapping guarantees it.
         """
         voyage_nm = start.distance_to(goal)
         if voyage_nm >= 4000.0:
-            return self._coarse_grid
-        if voyage_nm >= 2000.0:
-            return self._medium_grid
+            candidates = [self._coarse_grid, self._medium_grid, self.grid_builder]
+        elif voyage_nm >= 2000.0:
+            candidates = [self._medium_grid, self.grid_builder]
+        else:
+            return self.grid_builder
+
+        for grid in candidates:
+            if grid.get_neighbors(start) and grid.get_neighbors(goal):
+                return grid
         return self.grid_builder
 
     def _refine_final_approach(self, path: List[Node], goal: Node) -> List[Node]:
@@ -148,19 +161,22 @@ class AStarRoutePlanner(RoutePlanner):
 
         start_node = Node(lat=origin_coords[1], lon=origin_coords[0])
         goal_node = Node(lat=dest_coords[1], lon=dest_coords[0])
-        grid_builder = self._grid_for_voyage(start_node, goal_node)
-        
+
         # Restrict snapping radius to 3.0 degrees to allow ports that are slightly inland
         snapped_start = self.grid_builder.snap_to_water(start_node, max_radius_degrees=3.0)
         snapped_goal = self.grid_builder.snap_to_water(goal_node, max_radius_degrees=3.0)
-        
+
         if not snapped_start:
             raise ValueError("Origin port is not a valid maritime access point (no navigable water within 3.0°).")
         if not snapped_goal:
             raise ValueError("Destination port is not a valid maritime access point (no navigable water within 3.0°).")
-            
+
         start_node = snapped_start
         goal_node = snapped_goal
+
+        # Select the search grid from the snapped endpoints so confined ports
+        # get a lattice they actually have neighbors on.
+        grid_builder = self._grid_for_voyage(start_node, goal_node)
 
         weights = self._get_weights_for_objective(
             request.objective_type, request.weights
@@ -169,7 +185,6 @@ class AStarRoutePlanner(RoutePlanner):
         
         # Import global forecast grid inside method to avoid circular imports if any
         from app.services.environment.forecast_grid import global_forecast_grid
-        from app.services.routing.modes import get_data_provenance
 
         # Prefetch grid over a bounding box - simplified to straight line sample here
         # Note: Pre-fetching must happen outside the A* loop!

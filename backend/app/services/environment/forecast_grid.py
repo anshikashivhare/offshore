@@ -1,8 +1,8 @@
 import asyncio
 import httpx
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import math
-from typing import Dict, Any, List, Tuple
+from typing import Dict, List, Tuple
 from app.services.routing.grid import Node
 from app.schemas.environment_live import ProviderStatus
 
@@ -67,7 +67,7 @@ class ForecastGrid:
         params_w = {
             "latitude": sp_key[0],
             "longitude": sp_key[1],
-            "hourly": "wind_speed_10m,wind_direction_10m,wave_height",
+            "hourly": "wind_speed_10m,wind_direction_10m",
             "timezone": "UTC",
             "forecast_days": 14
         }
@@ -88,26 +88,46 @@ class ForecastGrid:
             data_w = res_w.json().get("hourly", {})
             data_m = res_m.json().get("hourly", {})
             
-            times = data_w.get("time", [])
-            
             point_data = {}
-            for i, t in enumerate(times):
-                try:
-                    # Only store every 3 hours
-                    dt = datetime.strptime(t, "%Y-%m-%dT%H:%M")
+            # Each endpoint has its own hourly time axis. Merge observations
+            # by timestamp, never by their position in the other feed.
+            for hourly, fields in (
+                (data_w, ("wind_speed_10m", "wind_direction_10m")),
+                (data_m, ("ocean_current_velocity", "ocean_current_direction", "wave_height")),
+            ):
+                if not isinstance(hourly, dict):
+                    continue
+                times = hourly.get("time", [])
+                if not isinstance(times, list):
+                    continue
+                for i, t in enumerate(times):
+                    try:
+                        # Only store every 3 hours
+                        dt = datetime.strptime(t, "%Y-%m-%dT%H:%M")
+                    except (TypeError, ValueError):
+                        continue
                     if dt.hour % 3 != 0:
                         continue
-                        
-                    t_key = self._get_nearest_time_key(dt)
-                    point_data[t_key] = {
-                        "wind_speed_10m": data_w.get("wind_speed_10m", [])[i],
-                        "wind_direction_10m": data_w.get("wind_direction_10m", [])[i],
-                        "ocean_current_velocity": data_m.get("ocean_current_velocity", [])[i] if data_m.get("ocean_current_velocity") else 0.0,
-                        "ocean_current_direction": data_m.get("ocean_current_direction", [])[i] if data_m.get("ocean_current_direction") else 0.0,
-                        "wave_height": data_m.get("wave_height", [])[i] if data_m.get("wave_height") else data_w.get("wave_height", [])[i],
-                    }
-                except (IndexError, TypeError, ValueError):
-                    continue
+
+                    # Null, malformed, or non-finite fields mean "no data";
+                    # keep valid siblings, including actual zero observations.
+                    bucket = {}
+                    for key in fields:
+                        series = hourly.get(key)
+                        if not isinstance(series, list) or i >= len(series):
+                            continue
+                        value = series[i]
+                        if isinstance(value, bool) or not isinstance(value, (int, float)):
+                            continue
+                        try:
+                            value = float(value)
+                        except (OverflowError, ValueError):
+                            continue
+                        if math.isfinite(value):
+                            bucket[key] = value
+                    if bucket:
+                        t_key = self._get_nearest_time_key(dt)
+                        point_data.setdefault(t_key, {}).update(bucket)
                     
             self.data[sp_key] = point_data
             

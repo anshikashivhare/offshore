@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import copy
+import math
 import uuid
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from app.models.enums import ObjectiveType
@@ -17,6 +17,17 @@ from app.utils.geojson import parse_wkt_linestring
 
 def _avg(values: List[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def _environmental_sample(value: Any) -> Optional[float]:
+    """Missing or invalid samples must not be counted as observed zero."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        value = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return value if math.isfinite(value) else None
 
 
 class RouteComparisonService:
@@ -36,7 +47,6 @@ class RouteComparisonService:
         shortest: RouteProperties,
         objective: ObjectiveType,
     ) -> str:
-        dist_diff = recommended.distance - shortest.distance
         
         # Use travel_time if available, else fallback to eta diff
         if recommended.travel_time is not None and shortest.travel_time is not None:
@@ -303,10 +313,12 @@ class RouteComparisonService:
             wave_vals = []
             for wp in recommended.properties.waypoints:
                 if wp.env_conditions:
-                    if 'sea_ice_concentration' in wp.env_conditions:
-                        ice_vals.append(wp.env_conditions['sea_ice_concentration'])
-                    if 'wave_height' in wp.env_conditions:
-                        wave_vals.append(wp.env_conditions['wave_height'])
+                    ice = _environmental_sample(wp.env_conditions.get('sea_ice_concentration'))
+                    wave = _environmental_sample(wp.env_conditions.get('wave_height'))
+                    if ice is not None:
+                        ice_vals.append(ice)
+                    if wave is not None:
+                        wave_vals.append(wave)
             if ice_vals:
                 risk_factors["average_sea_ice_concentration"] = float(_avg(ice_vals))
             if wave_vals:
