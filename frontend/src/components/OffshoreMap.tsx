@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useMemo, useState } from "react";
-import { Compass, Minus, Plus, RotateCcw, Globe2, Crosshair, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Minus, Plus, RotateCcw, Globe2, Crosshair, Info, ChevronDown, ChevronUp } from "lucide-react";
 import * as MapLibreGL from "maplibre-gl";
 import {
   Map,
@@ -7,7 +7,6 @@ import {
   MapMarker,
   MarkerContent,
   MarkerLabel,
-  MapGeoJSON,
   useMap,
   type MapRef,
 } from "./map-components";
@@ -40,7 +39,6 @@ import {
   NavigationHUD,
   NavigationZoomControls,
   IcebergHoverTooltip,
-  calculateDistanceNm,
   isNavigationOverview,
   type VesselNavState,
 } from "./NavigationMode";
@@ -52,13 +50,18 @@ import {
 } from "@/services/map/gebco";
 import {
   SEA_ICE_SOURCE_ID,
-  SEA_ICE_LAYER_ID,
-  getSeaIceSourceConfig,
-  getSeaIceLayerConfig,
-  getSeaIceTileUrl,
+  SEA_ICE_PRODUCT,
   type SeaIceDateMode,
-  resolveSeaIceDate,
+  type SeaIceSelection,
 } from "@/services/map/nasaGibs";
+import {
+  createSeaIceLayerController,
+  getSeaIceSnapshotNote,
+  requestSeaIceAvailability,
+  type SeaIceAvailabilityState,
+  type SeaIceLayerState,
+  type SeaIceLoadStatus,
+} from "@/services/map/seaIceLayer";
 
 type OffshoreMapProps = {
   layers: Record<LayerKey, boolean>;
@@ -202,121 +205,37 @@ function GebcoLayer({ visible, isNavMode = false }: { visible: boolean; isNavMod
 function SeaIceLayer({
   visible,
   opacity,
-  dateMode,
-  customDate,
+  selection,
+  onStatus,
 }: {
   visible: boolean;
   opacity: number;
-  dateMode: SeaIceDateMode;
-  customDate?: string;
+  selection: SeaIceSelection | null;
+  onStatus: (state: SeaIceLayerState) => void;
 }) {
   const { map, isLoaded } = useMap();
-  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
-  const currentDateRef = useRef<string>("");
+  const controllerRef = useRef<ReturnType<typeof createSeaIceLayerController> | null>(null);
+  const optionsRef = useRef({ selection, visible, opacity });
+  optionsRef.current = { selection, visible, opacity };
 
-  const resolvedDate = useMemo(
-    () => resolveSeaIceDate(dateMode, customDate),
-    [dateMode, customDate],
-  );
-
-  // Add source + layer on mount
   useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    const sourceId = SEA_ICE_SOURCE_ID;
-    const layerId = SEA_ICE_LAYER_ID;
-
-    try {
-      if (!map.getSource(sourceId)) {
-        map.addSource(sourceId, getSeaIceSourceConfig(resolvedDate));
-        currentDateRef.current = resolvedDate;
-      }
-
-      if (!map.getLayer(layerId)) {
-        // Insert above GEBCO but below all vector layers
-        // Find the first non-raster, non-background layer to insert before
-        const layers = map.getStyle().layers || [];
-        let insertBefore: string | undefined;
-        for (const l of layers) {
-          if (l.id !== "background" && l.id !== GEBCO_LAYER_ID) {
-            insertBefore = l.id;
-            break;
-          }
-        }
-        map.addLayer(getSeaIceLayerConfig(opacity), insertBefore);
-      }
-
-      setStatus("loaded");
-
-      const handleError = (e: any) => {
-        if (e.sourceId === sourceId) setStatus("error");
-      };
-      map.on("error", handleError);
-
-      return () => {
-        map.off("error", handleError);
-        try {
-          if (map.getLayer(layerId)) map.removeLayer(layerId);
-          if (map.getSource(sourceId)) map.removeSource(sourceId);
-        } catch {
-          /* ignore */
-        }
-      };
-    } catch {
-      setStatus("error");
+    if (!map || !isLoaded) {
+      onStatus({ selection: optionsRef.current.selection, status: optionsRef.current.visible ? "loading" : "hidden" });
+      return;
     }
-  }, [map, isLoaded]);
+    const controller = createSeaIceLayerController(map, optionsRef.current, onStatus);
+    controllerRef.current = controller;
+    return () => {
+      controllerRef.current = null;
+      controller.dispose();
+    };
+  }, [map, isLoaded, onStatus]);
 
-  // Date change — update source tiles without re-creating
   useEffect(() => {
-    if (!map || !isLoaded) return;
-    if (currentDateRef.current === resolvedDate) return;
+    controllerRef.current?.update({ selection, visible, opacity });
+  }, [selection, visible, opacity]);
 
-    try {
-      const source = map.getSource(SEA_ICE_SOURCE_ID);
-      if (source && "setTiles" in source) {
-        (source as any).setTiles([getSeaIceTileUrl(resolvedDate)]);
-        currentDateRef.current = resolvedDate;
-        setStatus("loaded");
-      }
-    } catch {
-      setStatus("error");
-    }
-  }, [map, isLoaded, resolvedDate]);
-
-  // Opacity change — paint property only
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-    try {
-      if (map.getLayer(SEA_ICE_LAYER_ID)) {
-        map.setPaintProperty(SEA_ICE_LAYER_ID, "raster-opacity", opacity);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [map, isLoaded, opacity]);
-
-  // Visibility toggle
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-    try {
-      if (map.getLayer(SEA_ICE_LAYER_ID)) {
-        map.setLayoutProperty(SEA_ICE_LAYER_ID, "visibility", visible ? "visible" : "none");
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [map, isLoaded, visible]);
-
-  return (
-    <>
-      {status === "error" && visible && (
-        <div className="map-layer-status-msg" aria-live="polite">
-          Sea-ice data temporarily unavailable
-        </div>
-      )}
-    </>
-  );
+  return null;
 }
 
 /**
@@ -594,10 +513,26 @@ function SeaIceLegend() {
 }
 
 // ─── COMPACT ATTRIBUTION ──────────────────────────────────────────────
+type SeaIceDisplayState = {
+  selection: SeaIceSelection | null;
+  status: SeaIceLoadStatus;
+  snapshotNote: string;
+};
+
+function seaIceStatusText(status: SeaIceLoadStatus): string {
+  return status === "error" ? "Unavailable" : status === "loaded" ? "Loaded" : status === "hidden" ? "Hidden" : "Loading";
+}
+
+function seaIceSourceText(seaIce: SeaIceDisplayState): string {
+  const { selection, status, snapshotNote } = seaIce;
+  if (!selection) return `Sea ice · ${status === "error" ? "Availability unavailable" : "Checking availability"}`;
+  return `${selection.label} · ${selection.date} · ${seaIceStatusText(status)}${snapshotNote ? ` · ${snapshotNote}` : ""}`;
+}
+
 function DataAttribution({
-  seaIceDate,
+  seaIce,
 }: {
-  seaIceDate: string;
+  seaIce: SeaIceDisplayState;
 }) {
   const [showDetail, setShowDetail] = useState(false);
 
@@ -620,7 +555,7 @@ function DataAttribution({
           </div>
           <div className="attribution-row">
             <span className="attribution-source">NASA GIBS</span>
-            <span className="attribution-desc">Sea Ice · {seaIceDate}</span>
+            <span className="attribution-desc" title={seaIce.selection?.attribution}>{seaIceSourceText(seaIce)}</span>
           </div>
           <div className="attribution-row">
             <span className="attribution-source">OFFSHORE</span>
@@ -634,20 +569,26 @@ function DataAttribution({
 
 // ─── DATA STATUS INDICATOR ────────────────────────────────────────────
 function DataStatusIndicator({
-  seaIceDate,
+  seaIce,
   gebcoVisible,
   seaIceVisible,
 }: {
-  seaIceDate: string;
+  seaIce: SeaIceDisplayState;
   gebcoVisible: boolean;
   seaIceVisible: boolean;
 }) {
   return (
-    <div className="map-data-status" aria-label="Layer data status">
+    <div className="map-data-status" aria-label="Layer data status" aria-live="polite">
       {seaIceVisible && (
         <div className="data-status-row">
-          <span className="data-status-dot" />
-          <span className="data-status-text">SEA ICE · {seaIceDate}</span>
+          <span className="data-status-dot" style={{
+            background: seaIce.status === "error" ? "#ef4444" :
+              seaIce.status === "loaded" && !seaIce.selection?.stale ? "#10b981" : "#fbbf24",
+          }} />
+          <span className="data-status-text" title={seaIceSourceText(seaIce)}>
+            SEA ICE · {seaIce.selection ? `${seaIce.selection.date} · ${seaIce.selection.productId === SEA_ICE_PRODUCT ? "AMSR-U2" : "MUR"}${seaIce.selection.stale ? " · STALE" : ""}` : seaIce.status === "error" ? "Unavailable" : "Checking availability"}
+            {seaIce.selection && seaIce.status !== "loaded" ? ` · ${seaIceStatusText(seaIce.status)}` : ""}
+          </span>
         </div>
       )}
       {gebcoVisible && (
@@ -729,8 +670,6 @@ export default function OffshoreMap({
   icebergs,
   tracks,
   trajectories,
-  uncertainty,
-  riskCells,
   routes,
   selectedRouteId,
   selectedIcebergId,
@@ -746,7 +685,6 @@ export default function OffshoreMap({
   onSelectPort,
   onSetOriginPort,
   onSetDestinationPort,
-  liveEnvironment,
   onExitNavigation,
   seaIceOpacity,
   seaIceDateMode,
@@ -792,7 +730,6 @@ export default function OffshoreMap({
   const [navState, setNavState] = useState<VesselNavState | null>(null);
 
   // Iceberg selection & hover tooltip state (Navigation Mode)
-  const [selectedIceberg, setSelectedIceberg] = useState<Iceberg | null>(null);
   const [hoveredIcebergInfo, setHoveredIcebergInfo] = useState<{
     iceberg: Iceberg;
     x: number;
@@ -886,11 +823,34 @@ export default function OffshoreMap({
     setClickedCoord(coord);
   }, []);
 
-  // Resolved sea-ice date for display
-  const resolvedSeaIceDate = useMemo(
-    () => resolveSeaIceDate(seaIceDateMode, seaIceCustomDate),
-    [seaIceDateMode, seaIceCustomDate]
-  );
+  // One availability lookup supplies the exact same product/date to the map and UI.
+  const [seaIceRecheck, setSeaIceRecheck] = useState(0);
+  const seaIceRequestKey = `${seaIceDateMode}:${seaIceCustomDate ?? ""}:${seaIceRecheck}`;
+  const [seaIceAvailability, setSeaIceAvailability] = useState<SeaIceAvailabilityState & { key: string }>({
+    key: "", selection: null, status: "loading",
+  });
+  const [seaIceLayerState, setSeaIceLayerState] = useState<SeaIceLayerState>({ selection: null, status: "loading" });
+  useEffect(() => requestSeaIceAvailability(seaIceDateMode, seaIceCustomDate, (state) => {
+    setSeaIceAvailability({ ...state, key: seaIceRequestKey });
+  }), [seaIceDateMode, seaIceCustomDate, seaIceRequestKey]);
+
+  // A changed request cannot briefly display the previous request's green date.
+  const seaIceMetadata = seaIceAvailability.key === seaIceRequestKey ? seaIceAvailability : null;
+  const seaIceSelection = seaIceMetadata?.selection ?? null;
+  const seaIceVisible = layers.seaIceConcentration !== false;
+  const seaIceStatus: SeaIceLoadStatus = seaIceMetadata?.status === "error" ? "error" :
+    !seaIceVisible ? "hidden" : seaIceSelection && seaIceLayerState.selection === seaIceSelection &&
+      seaIceLayerState.status !== "hidden" ? seaIceLayerState.status : "loading";
+  const seaIceDisplay: SeaIceDisplayState = {
+    selection: seaIceSelection,
+    status: seaIceStatus,
+    snapshotNote: seaIceSelection ? getSeaIceSnapshotNote(seaIceSelection, seaIceDateMode) : "",
+  };
+  const seaIceWarning = !seaIceVisible ? null : !seaIceSelection ?
+    seaIceMetadata?.message ?? (seaIceStatus === "error" ? "Sea-ice availability unavailable." : "Checking NASA GIBS sea-ice availability…") :
+    seaIceStatus === "error" ? seaIceLayerState.message ?? "Sea-ice tiles temporarily unavailable." :
+    seaIceStatus === "loading" ? `Loading sea-ice tiles · ${seaIceSelection.label} · ${seaIceSelection.date}` :
+    seaIceSelection.stale ? `${seaIceDisplay.snapshotNote} · ${seaIceSelection.label} · ${seaIceSelection.date}` : null;
 
   // Normal vector basemap (like Google Maps) for Navigation Mode
   const NAVIGATION_BASEMAP_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
@@ -995,10 +955,10 @@ export default function OffshoreMap({
 
         {/* ============ LAYER 2: SEA ICE CONCENTRATION OVERLAY ============ */}
         <SeaIceLayer
-          visible={layers.seaIceConcentration !== false}
+          visible={seaIceVisible}
           opacity={viewMode === "navigation" ? Math.min(seaIceOpacity, 0.65) : seaIceOpacity}
-          dateMode={seaIceDateMode}
-          customDate={seaIceCustomDate}
+          selection={seaIceSelection}
+          onStatus={setSeaIceLayerState}
         />
         <InitialRasterLoadGate onReady={() => setPortsReady(true)} />
 
@@ -1231,6 +1191,18 @@ export default function OffshoreMap({
         {viewMode !== "navigation" && viewMode !== "risk" && <NauticalMapControls onReset={handleReset} />}
       </Map>
 
+      {seaIceWarning && (
+        <div className="map-layer-status-msg" aria-live="polite">
+          {seaIceWarning}
+          {seaIceStatus === "error" && (
+            <button type="button" onClick={() => setSeaIceRecheck((value) => value + 1)} style={{
+              pointerEvents: "auto", marginLeft: 8, background: "transparent", color: "inherit",
+              border: "1px solid currentColor", borderRadius: 3, padding: "1px 5px",
+            }}>Recheck</button>
+          )}
+        </div>
+      )}
+
             {/* ============ RISK MODE HUD ============ */}
       {viewMode === "risk" && (
         <RiskModePanel 
@@ -1331,14 +1303,14 @@ export default function OffshoreMap({
       {viewMode !== "navigation" && viewMode !== "risk" && layers.seaIceConcentration !== false && <SeaIceLegend />}
 
       {/* Data Attribution (Bottom-Right, below legend - hidden in navigation) */}
-      {viewMode !== "navigation" && viewMode !== "risk" && <DataAttribution seaIceDate={resolvedSeaIceDate} />}
+      {viewMode !== "navigation" && viewMode !== "risk" && <DataAttribution seaIce={seaIceDisplay} />}
 
       {/* Data Status (Top-Right, compact - hidden in navigation) */}
       {viewMode !== "navigation" && viewMode !== "risk" && (
         <DataStatusIndicator
-          seaIceDate={resolvedSeaIceDate}
+          seaIce={seaIceDisplay}
           gebcoVisible={layers.gebco !== false}
-          seaIceVisible={layers.seaIceConcentration !== false}
+          seaIceVisible={seaIceVisible}
         />
       )}
 
