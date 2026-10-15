@@ -15,7 +15,7 @@ OFFSHORE is an AI-powered decision support platform designed to help vessels nav
 
 ### Tech Stack
 - **Frontend:** Next.js + TypeScript + TailwindCSS
-- **Backend:** Python + FastAPI
+- **Backend:** Python 3.15 + FastAPI
 - **Database:** PostgreSQL + PostGIS
 - **ML:** PyTorch + XGBoost + scikit-learn
 - **Task Queue:** Celery + Redis
