@@ -55,3 +55,6 @@ postgres_data/
 .coverage
 htmlcov/
 backend/venv_mac/
+
+# Celery
+celerybeat-schedule*
